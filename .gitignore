@@ -1,0 +1,43 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.aws/
+credentials
+config.local.*
+
+# Data (never commit supplied or derived data; the repo is public)
+data/
+*.csv
+*.parquet
+*.jsonl
+reports/eda/*.csv
+
+# Model artifacts and experiment tracking
+models/
+checkpoints/
+mlruns/
+*.safetensors
+*.bin
+*.gguf
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+dist/
+build/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

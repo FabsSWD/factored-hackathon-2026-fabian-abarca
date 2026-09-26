@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1010" height="980" viewBox="0 0 1010 980" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-label="Dispute case lifecycle">
+<title>Dispute case lifecycle</title>
+<defs><marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#64748B'/></marker></defs>
+<rect width="1010" height="980" fill="#FFFFFF"/>
+<rect x="285.0" y="30.0" width="230" height="40" rx="20.0" fill="#1E293B" stroke="#1E293B" stroke-width="1.5"/>
+<text x="400" y="50.0" font-size="12" fill="#FFFFFF" font-weight="normal" text-anchor="middle" dominant-baseline="central">Start: dispute raised</text>
+<rect x="285.0" y="125.0" width="230" height="50" rx="6" fill="#FFFFFF" stroke="#475569" stroke-width="1.5"/>
+<text x="400" y="142.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Draft</text>
+<text x="400" y="158.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Exists only in the conversation</text>
+<polygon points="400,214.0 525.0,250 400,286.0 275.0,250" fill="#F1F5F9" stroke="#475569" stroke-width="1.5"/>
+<text x="400" y="250.0" font-size="11.5" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Conversation outcome?</text>
+<polyline points="400,70 400,125.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="400,175.0 400,214.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="35.0" y="325.0" width="230" height="50" rx="6" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.5"/>
+<text x="150" y="342.0" font-size="12" fill="#1E293B" font-weight="bold" text-anchor="middle" dominant-baseline="central">Open</text>
+<text x="150" y="358.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">System: ACT-02 verified</text>
+<rect x="285.0" y="325.0" width="230" height="50" rx="6" fill="#FFEDD5" stroke="#EA580C" stroke-width="1.5"/>
+<text x="400" y="342.0" font-size="12" fill="#1E293B" font-weight="bold" text-anchor="middle" dominant-baseline="central">Escalated</text>
+<text x="400" y="358.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">System: ACT-05 handoff</text>
+<rect x="785.0" y="325.0" width="190" height="50" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="880" y="342.0" font-size="12" fill="#1E293B" font-weight="bold" text-anchor="middle" dominant-baseline="central">No case</text>
+<text x="880" y="358.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">INFORM or REFUSE</text>
+<polyline points="275.0,250 150,250 150,325.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="400,286.0 400,325.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="525.0,250 880,250 880,325.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="158" y="291.5" font-size="11" fill="#475569" font-weight="normal" text-anchor="start" dominant-baseline="central">RESOLVE</text>
+<text x="408" y="301.5" font-size="11" fill="#475569" font-weight="normal" text-anchor="start" dominant-baseline="central">ESCALATE</text>
+<text x="888" y="291.5" font-size="11" fill="#475569" font-weight="normal" text-anchor="start" dominant-baseline="central">INFORM / REFUSE</text>
+<rect x="285.0" y="425.0" width="230" height="50" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.5"/>
+<text x="400" y="442.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">In Process</text>
+<text x="400" y="458.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Human: back-office review</text>
+<polyline points="150,375.0 150,400 340,400 340,425.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="400,375.0 400,425.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polygon points="400,514.0 525.0,550 400,586.0 275.0,550" fill="#F1F5F9" stroke="#475569" stroke-width="1.5"/>
+<text x="400" y="550.0" font-size="11.5" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Back-office decision?</text>
+<polyline points="400,475.0 400,514.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="35.0" y="625.0" width="230" height="50" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.5"/>
+<text x="150" y="642.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Resolved</text>
+<text x="150" y="658.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Human: in the customer&#x27;s favor</text>
+<rect x="535.0" y="625.0" width="230" height="50" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.5"/>
+<text x="650" y="642.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Rejected</text>
+<text x="650" y="658.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Human: claim not upheld</text>
+<polyline points="275.0,550 150,550 150,625.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="525.0,550 650,550 650,625.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="158" y="591.5" font-size="11" fill="#475569" font-weight="normal" text-anchor="start" dominant-baseline="central">upheld</text>
+<text x="658" y="591.5" font-size="11" fill="#475569" font-weight="normal" text-anchor="start" dominant-baseline="central">not upheld</text>
+<rect x="285.0" y="725.0" width="230" height="50" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.5"/>
+<text x="400" y="742.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Closed</text>
+<text x="400" y="758.0" font-size="12" fill="#1E293B" font-weight="normal" text-anchor="middle" dominant-baseline="central">Human: customer notified</text>
+<polyline points="150,675.0 150,700 340,700 340,725.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="650,675.0 650,700 460,700 460,725.0" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="285.0" y="830.0" width="230" height="40" rx="20.0" fill="#1E293B" stroke="#1E293B" stroke-width="1.5"/>
+<text x="400" y="850.0" font-size="12" fill="#FFFFFF" font-weight="normal" text-anchor="middle" dominant-baseline="central">End</text>
+<polyline points="400,775.0 400,830" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<polyline points="880,375.0 880,850 515.0,850" fill="none" stroke="#64748B" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="35.0" y="922" width="16" height="16" rx="3" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.5"/>
+<text x="57.0" y="930.0" font-size="11.5" fill="#1E293B" font-weight="normal" text-anchor="start" dominant-baseline="central">System creates case</text>
+<rect x="225.6" y="922" width="16" height="16" rx="3" fill="#FFEDD5" stroke="#EA580C" stroke-width="1.5"/>
+<text x="247.6" y="930.0" font-size="11.5" fill="#1E293B" font-weight="normal" text-anchor="start" dominant-baseline="central">System hands off</text>
+<rect x="394.0" y="922" width="16" height="16" rx="3" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="416.0" y="930.0" font-size="11.5" fill="#1E293B" font-weight="normal" text-anchor="start" dominant-baseline="central">No case</text>
+<rect x="495.8" y="922" width="16" height="16" rx="3" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.5"/>
+<text x="517.8" y="930.0" font-size="11.5" fill="#1E293B" font-weight="normal" text-anchor="start" dominant-baseline="central">Human only</text>
+</svg>
