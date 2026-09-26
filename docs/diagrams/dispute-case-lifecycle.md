@@ -9,7 +9,7 @@
 
 States of a dispute case and who may move it between them. State names follow the `complaints.status` values of the supplied data (`Open`, `In Process`, `Escalated`, `Resolved`, `Rejected`, `Closed`), plus `Draft`, which exists only inside a conversation.
 
-![Dispute case lifecycle](dispute-case-lifecycle.svg)
+![Dispute case lifecycle](images/dispute-case-lifecycle.svg)
 
 ## Who can make each transition
 

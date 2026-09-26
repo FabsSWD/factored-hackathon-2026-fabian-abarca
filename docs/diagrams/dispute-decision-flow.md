@@ -9,7 +9,7 @@
 
 How the deterministic policy engine evaluates one customer message about a disputed transaction. The order follows [dispute policy §5 (gates)](../dispute-policy.md#5-gates), [§7 (escalation triggers)](../dispute-policy.md#7-mandatory-escalation-triggers), and [§9 (outcomes)](../dispute-policy.md#9-outcomes-and-precedence). If this diagram and the policy disagree, the policy wins.
 
-![Dispute decision flow](dispute-decision-flow.svg)
+![Dispute decision flow](images/dispute-decision-flow.svg)
 
 ## How to read it
 
