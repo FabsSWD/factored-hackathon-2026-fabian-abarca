@@ -2,7 +2,7 @@
 # Every value here must match that table. Change the policy document first, then this file,
 # and bump policy_version together with the policy's own version.
 
-policy_version: "0.3.3"
+policy_version: "0.3.5"
 
 parameters:
   # GATE-02

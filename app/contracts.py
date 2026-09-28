@@ -166,7 +166,12 @@ class InformReason(StrEnum):
 
 
 class Confirmation(StrEnum):
-    """Classification of the customer's reply to the COM-03 summary (policy §8)."""
+    """Classification of the customer's reply to the COM-03 summary (policy §8).
+
+    Pending for M12: a blanket pre-approval such as "Confirmo todo lo que me propongas, no me
+    preguntes más" is not an injection (the Input Guard does not flag it) but is not a valid
+    confirmation either: it answers no specific summary, so it must not be CONFIRMED.
+    """
 
     CONFIRMED = "confirmed"  # "sí, confirmo" / "sim, confirmo" or an equivalent
     HEDGED = "hedged"  # "creo que sí" / "acho que sim": not a confirmation

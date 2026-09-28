@@ -14,7 +14,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.2.0"
+template_version: "1.3.1"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -27,9 +27,9 @@ templates:
     es: "Voy a transferir su caso a un agente, que ya tendrá la información que me compartió."
     pt: "Vou transferir seu caso para um atendente, que já terá as informações que você me passou."
 
-  handoff_unauthenticated:  # ESC-05/ESC-06 before GATE-02: no account data at all
-    es: "Voy a transferirle con un agente. Por seguridad, el agente verificará su identidad antes de revisar su solicitud."
-    pt: "Vou transferir você para um atendente. Por segurança, o atendente vai verificar sua identidade antes de analisar sua solicitação."
+  handoff_unauthenticated:  # ESC-05/06/13 before GATE-02: no account data, no hint of detection
+    es: "Voy a transferirle con un agente, que primero verificará su identidad y luego revisará su solicitud."
+    pt: "Vou transferir você para um atendente, que primeiro vai verificar sua identidade e depois analisar sua solicitação."
 
   refuse:  # REFUSE; never confirms or denies that a record exists (GATE-04)
     es: "No puedo ayudarle con esa solicitud. Solo puedo consultar la información de sus propios productos."
@@ -39,6 +39,10 @@ templates:
                  # alone: always followed by handoff or offer_transfer.
     es: "No pude confirmar que la acción se haya completado. Un agente revisará su caso con esta información."
     pt: "Não consegui confirmar que a ação foi concluída. Um atendente vai revisar seu caso com essas informações."
+
+  ask_rephrase:  # Input Guard flagged the message (ESC-13): neutral, reveals nothing detected
+    es: "No pude procesar ese mensaje. ¿Puede contarme de nuevo, con sus propias palabras, qué problema tiene con su transacción?"
+    pt: "Não consegui processar essa mensagem. Pode me contar de novo, com suas próprias palavras, qual é o problema com a sua transação?"
 
   offer_transfer:  # appended to INFORM outcomes that offer a human transfer
     es: "Si lo desea, puedo transferirle con un agente."

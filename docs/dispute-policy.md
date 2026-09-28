@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.3.3 |
+| Version | 0.3.5 |
 | Last updated | 2026-09-28 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -183,7 +183,7 @@ Hard triggers (`ESC-01` to `ESC-10`, `ESC-12` to `ESC-14`) always cause `ESCALAT
 | `ESC-10` | Tool failure | A write action fails after `TOOL_MAX_RETRIES`, or its read-back verification does not match. | Disputes queue, with the failure in the handoff packet |
 | `ESC-11` | Model uncertainty (soft) | The decision layer's top reason-code probability is below `DECISION_CONFIDENCE_MIN`, or its escalation-risk probability is at least `ESCALATION_RISK_THRESHOLD`. | Disputes queue |
 | `ESC-12` | Unsupported language | The language is not `es` or `pt`, or remains ambiguous after one clarification. | Disputes queue |
-| `ESC-13` | Manipulation attempts | The conversation contains at least `INJECTION_STRIKES_MAX` attempts to override instructions, impersonate staff, or request other customers' data. The first attempt is ignored and logged; automation ends at the threshold. | Security review queue |
+| `ESC-13` | Manipulation attempts | The conversation contains at least `INJECTION_STRIKES_MAX` attempts to override instructions, impersonate staff, or request other customers' data. The first attempt is ignored and logged; automation ends at the threshold. Attempts are counted per conversation from its first message, before authentication, and re-authenticating does not reset them. Impersonation means a first-person claim made to the assistant; a customer reporting what a caller or message claimed (vishing) is an account-takeover signal under `ESC-03`, not an attempt. | Security review queue |
 | `ESC-14` | Plausible but unsupported dispute | The transaction type and reason code are marked **H** in [§4](#4-disputable-transactions). | Fraud queue for `RC_UNRECOGNIZED` on transfers and payments; disputes queue otherwise |
 
 ## 8. Actions and confirmations
@@ -433,6 +433,8 @@ The full evaluation design, including case mix and metrics, will be documented s
 - The supplied transcripts and complaint descriptions cannot be used to validate natural-language understanding (see the spike).
 - Fees cannot be told apart from other adjustments. All 132,118 `Adjustment` rows have a positive amount, no merchant, no category, and no field that gives their direction, and they appear only on loans, investments, and insurance (`Préstamo Personal`, `Préstamo Hipotecario`, `Inversión`, `Seguro`), never on accounts or cards. If some adjustments were credits in the customer's favor, `RC_FEE` would wrongly treat them as disputable charges.
 - Timestamps carry no time zone, so transaction ages across Mexico, Colombia, and Argentina are compared on one naive clock.
+- The reported-speech exception of `ESC-13` can be evaded on purpose: a first-person staff claim preceded by a reporting verb ("me dijo…", "dizendo…") or placed in quotes is not counted. Not flagging fraud victims who report what a scammer said has priority, and claiming to be staff grants nothing, because `GATE-04` is enforced in the Tool Layer with the session's customer.
+- `ESC-13` attempts are counted per conversation: a customer who starts a new conversation starts again at zero. Attempts per customer across conversations are monitored in the audit record, not used as a rule.
 - The data dictionary lists `MXN`, but no transaction or product uses it: transactions are in `USD`, `COP`, and `ARS`, and every transaction of a customer in Mexico is in `USD` (2,216,431 rows). `daily_exchange_rates` includes `MXN` rates, which the system does not use.
 
 **Open questions**
@@ -455,3 +457,5 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.3.1 | 2026-09-28 | Clock rule: transactions and cases use the business clock; cases store `business_created_at`, which `ESC-02` counts (§7, §15). |
 | 0.3.2 | 2026-09-28 | `COM-08` amount format by locale with the currency code first; `country` allowed for number formatting (`DATA-02`). No `MXN` in the data (§17). |
 | 0.3.3 | 2026-09-28 | `COM-03`: one confirmation per action; the card block is confirmed first and separately, and declining it does not affect the dispute. |
+| 0.3.4 | 2026-09-28 | `ESC-13`: counted per conversation; impersonation is a first-person claim, and reported vishing belongs to `ESC-03`. Limitation: a new conversation starts at zero (§17). |
+| 0.3.5 | 2026-09-28 | §17: the reported-speech exception of `ESC-13` is evadable by design, and why that is acceptable. |

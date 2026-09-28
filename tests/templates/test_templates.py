@@ -80,7 +80,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.2.0"
+    assert templates.version == "1.3.1"
     assert isinstance(templates, interfaces.TemplateService)
 
 
@@ -626,3 +626,49 @@ def test_non_mapping_file_fails(tmp_path: Path) -> None:
     path.write_text("- a\n", encoding="utf-8")
     with pytest.raises(TemplateError, match="must contain a mapping"):
         TemplateService(10, path)
+
+
+@pytest.mark.parametrize("language", ["es", "pt"])
+def test_ask_rephrase_reveals_nothing_about_the_detection(
+    templates: TemplateService, language: str
+) -> None:
+    text = templates.render("ask_rephrase", language).lower()
+    for word in (
+        "detect",
+        "instruc",
+        "segur",
+        "sospech",
+        "suspeit",
+        "manipul",
+        "ataque",
+        "bloque",
+        "regla",
+        "regra",
+        "polític",
+        "polític",
+    ):
+        assert word not in text, word
+
+
+@pytest.mark.parametrize("language", ["es", "pt"])
+def test_handoff_after_esc_13_reveals_nothing_about_the_detection(
+    templates: TemplateService, language: str
+) -> None:
+    # ESC-13 (strike 2) sends the generic handoff: it must not hint at the detection either.
+    for template_id in ("handoff", "handoff_unauthenticated"):
+        text = templates.render(template_id, language).lower()
+        for word in (
+            "detect",
+            "sospech",
+            "suspeit",
+            "manipul",
+            "ataque",
+            "intento",
+            "tentativa",
+            "instruc",
+            "fraude",
+            "seguridad",
+            "segurança",
+            "security",
+        ):
+            assert word not in text, (template_id, word)

@@ -48,9 +48,26 @@ class IdentityService(Protocol):
 
 @runtime_checkable
 class InputGuard(Protocol):
-    """M4. Detects manipulation attempts before text reaches the LLM (ESC-13)."""
+    """M4. Detects manipulation attempts before text reaches the LLM (ESC-13).
 
-    def inspect(self, session_id: str, message: str) -> InputGuardResult: ...
+    Strikes are counted per conversation, from its first message and before authentication;
+    re-authenticating or an expired session never resets them. A new conversation starts at
+    zero (a known limitation). When a session exists, the security event is linked to it and
+    to its customer, for monitoring across conversations (never a rule).
+
+    Contract for the Orchestrator (M12) when ``flagged`` is true:
+
+    - The message reaches neither the LLM Adapter nor the Decision Client, not even its
+      legitimate part.
+    - The reply is the neutral ``ask_rephrase`` template: it asks the customer to rephrase and
+      never reveals what was detected. With ``escalate_security``, the turn escalates under
+      ESC-13 instead.
+    - A flagged attempt never counts as a clarification turn.
+    """
+
+    def inspect(
+        self, conversation_id: str, message: str, session: SessionContext | None = None
+    ) -> InputGuardResult: ...
 
 
 @runtime_checkable

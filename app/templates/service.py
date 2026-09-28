@@ -13,6 +13,8 @@ Composition rules for the Orchestrator (M12):
   template is followed by ``offer_transfer``.
 - ``handoff_unauthenticated`` is the only handoff text allowed before GATE-02 passes
   (ESC-05 or ESC-06 without a session); it mentions no account data.
+- ``ask_rephrase`` answers a message flagged by the Input Guard: it asks the customer to
+  rephrase and reveals nothing about the detection (see ``app.interfaces.InputGuard``).
 - One confirmation turn covers exactly one action (COM-03): ``CONFIRMATION_TEMPLATES`` maps
   each confirmation template to its single action, and ``CONFIRMATION_ORDER`` fixes the order
   when both apply: the card block first (protective and urgent), then the dispute summary.
@@ -224,7 +226,7 @@ class TemplateService:
             | set(CLARIFY_TEMPLATES.values())
             | set(REQUIRED_FOLLOW_UPS)
             | {follow_up for options in REQUIRED_FOLLOW_UPS.values() for follow_up in options}
-            | {"handoff_unauthenticated", "session_expired_reconfirm"}
+            | {"handoff_unauthenticated", "session_expired_reconfirm", "ask_rephrase"}
             | set(CONFIRMATION_TEMPLATES)
         )
         missing = required - set(templates)
