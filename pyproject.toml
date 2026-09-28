@@ -18,6 +18,9 @@ dependencies = [
     "pyjwt>=2.9",
     "httpx>=0.27",
     "tenacity>=9.0",
+    "pydantic-settings>=2.4",
+    "duckdb>=1.1",
+    "numpy>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -61,7 +64,8 @@ ignore = ["SIM300"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["app", "tests"]
+files = ["app", "tests", "migrations", "scripts/load_core_banking.py"]
+explicit_package_bases = true
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

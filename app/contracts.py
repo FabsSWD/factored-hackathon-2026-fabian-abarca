@@ -18,7 +18,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Self
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, NaiveDatetime, model_validator
 
 # ---------------------------------------------------------------------------
 # Base and shared field types
@@ -233,7 +233,8 @@ class TransactionRecord(Contract):
     product_id: NonEmptyStr
     transaction_type: NonEmptyStr  # raw value (policy §4, open question #1)
     transaction_status: NonEmptyStr  # raw value (GATE-06)
-    transaction_date: AwareDatetime
+    # Naive local time of the dataset, on the same clock as PolicyRequest.as_of (policy §15).
+    transaction_date: NaiveDatetime
     amount: PositiveAmount
     currency: CurrencyCode
     # USD equivalent (glossary): amount_usd, or daily_exchange_rates when null.
@@ -496,12 +497,13 @@ class PolicyRequest(Contract):
     clock. Two clocks are passed in (policy §15, "Business date"):
 
     - ``now``: real time, for session age and idle time (GATE-02).
-    - ``as_of``: the simulated business date, for transaction age and calendar windows
-      (GATE-08, ESC-02, ESC-07, RC_NOT_RECEIVED delivery date).
+    - ``as_of``: the end of the simulated business day, for transaction age and calendar
+      windows (GATE-08, ESC-02, ESC-07, RC_NOT_RECEIVED delivery date). It is naive, like
+      the dataset's timestamps, which carry no time zone.
     """
 
     now: AwareDatetime
-    as_of: AwareDatetime
+    as_of: NaiveDatetime
     conversation_id: NonEmptyStr
 
     # GATE-01

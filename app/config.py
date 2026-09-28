@@ -62,9 +62,11 @@ class PolicyParameters(BaseModel):
 
     SESSION_MAX_AGE_MIN: PositiveInt
     SESSION_IDLE_TIMEOUT_MIN: PositiveInt
+    AUTH_MAX_ATTEMPTS: PositiveInt
     DISPUTE_WINDOW_DAYS: PositiveInt
     LATE_WINDOW_DAYS: PositiveInt
     DUPLICATE_WINDOW_HOURS: PositiveInt
+    FX_MAX_STALENESS_DAYS: NonNegativeInt
     PROVISIONAL_CREDIT_AUTO_MAX_USD: UsdAmount
     AUTO_INTAKE_MAX_USD: UsdAmount
     AGG_DISPUTED_30D_MAX_USD: UsdAmount
