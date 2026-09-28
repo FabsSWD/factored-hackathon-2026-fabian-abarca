@@ -1,0 +1,208 @@
+# Customer-facing commitments (dispute policy COM-02). Every text the system commits to comes
+# from here; the language model may only add connecting sentences around it.
+#
+# Rules checked when the file is loaded (app/templates/service.py):
+# - every template has exactly "es" and "pt", with the same {placeholders} in both;
+# - placeholders are plain names: no attributes, indexes or format specs, no literal braces;
+# - no text promises a refund, credit or result (COM-05);
+# - {days} is filled from RESOLUTION_TARGET_BUSINESS_DAYS, never by the caller;
+# - {product} only accepts a masked product number (COM-06).
+#
+# Bump template_version whenever a text changes; it is recorded in the audit trace.
+
+template_version: "1.0.0"
+
+templates:
+  # --- Outcomes ---------------------------------------------------------------
+
+  case_created:  # RESOLVE, after ACT-02 read-back (policy §11 example, verbatim)
+    es: "Registramos su disputa con la referencia {case_ref}. Nuestro equipo la revisará en un plazo de hasta {days} días hábiles y le informaremos el resultado."
+    pt: "Registramos sua contestação com a referência {case_ref}. Nossa equipe vai analisá-la em até {days} dias úteis e informaremos o resultado."
+
+  handoff:  # ESCALATE (policy §11 example, verbatim)
+    es: "Voy a transferir su caso a un agente, que ya tendrá la información que me compartió."
+    pt: "Vou transferir seu caso para um atendente, que já terá as informações que você me passou."
+
+  refuse:  # REFUSE; never confirms or denies that a record exists (GATE-04)
+    es: "No puedo ayudarle con esa solicitud. Solo puedo consultar la información de sus propios productos."
+    pt: "Não posso ajudar com essa solicitação. Só posso consultar as informações dos seus próprios produtos."
+
+  tool_failure:  # ESC-10: the action could not be verified (COM-04)
+    es: "No pude confirmar que la acción se haya completado. Un agente revisará su caso con esta información."
+    pt: "Não consegui confirmar que a ação foi concluída. Um atendente vai revisar seu caso com essas informações."
+
+  offer_transfer:  # appended to INFORM outcomes that offer a human transfer
+    es: "Si lo desea, puedo transferirle con un agente."
+    pt: "Se quiser, posso transferir você para um atendente."
+
+  # --- INFORM reasons (one per app.contracts.InformReason) ---------------------
+
+  pending_transaction:  # GATE-06 Pending (policy §11 example, verbatim)
+    es: "Esta transacción todavía está pendiente. Podrá disputarla cuando se haya procesado."
+    pt: "Esta transação ainda está pendente. Você poderá contestá-la quando ela for processada."
+
+  declined_transaction:  # GATE-06 Declined
+    es: "Esta transacción fue rechazada, así que no se realizó ningún cargo."
+    pt: "Esta transação foi recusada, então nenhuma cobrança foi feita."
+
+  reversed_transaction:  # GATE-06 Reversed
+    es: "Esta transacción ya fue reversada, por lo que no es necesario disputarla."
+    pt: "Esta transação já foi estornada, então não é necessário contestá-la."
+
+  not_disputable:  # GATE-07, N in policy §4
+    es: "No puedo registrar una disputa para este tipo de transacción por este canal."
+    pt: "Não posso registrar uma contestação para este tipo de transação por este canal."
+
+  outside_window:  # GATE-08, older than LATE_WINDOW_DAYS
+    es: "Esta transacción supera el plazo para registrar una disputa por este canal."
+    pt: "Esta transação passou do prazo para registrar uma contestação por este canal."
+
+  duplicate_case:  # GATE-11
+    es: "Ya existe una disputa para esta transacción con la referencia {case_ref}. Su estado actual es: {status}."
+    pt: "Já existe uma contestação para esta transação com a referência {case_ref}. O status atual é: {status}."
+
+  authentication_declined:  # GATE-02, refusal or AUTH_MAX_ATTEMPTS exceeded
+    es: "Sin verificar su identidad no puedo consultar sus productos ni registrar una disputa."
+    pt: "Sem verificar sua identidade, não posso consultar seus produtos nem registrar uma contestação."
+
+  amount_not_exceeded:  # GATE-10 RC_INCORRECT_AMOUNT
+    es: "El monto cobrado no supera el monto que usted indica haber acordado, así que no corresponde una disputa por monto incorrecto."
+    pt: "O valor cobrado não é maior que o valor que você informou ter combinado, então não cabe uma contestação por valor incorreto."
+
+  delivery_date_not_reached:  # GATE-10 RC_NOT_RECEIVED
+    es: "La fecha de entrega que indicó todavía no ha pasado. Si no recibe el pedido después de esa fecha, podrá registrar la disputa."
+    pt: "A data de entrega informada ainda não passou. Se você não receber o pedido depois dessa data, poderá registrar a contestação."
+
+  merchant_not_contacted:  # GATE-10 RC_NOT_RECEIVED
+    es: "Antes de registrar esta disputa, le recomendamos contactar al comercio para intentar resolver la entrega. Si no obtiene respuesta, puede volver a escribirnos."
+    pt: "Antes de registrar esta contestação, recomendamos entrar em contato com a loja para tentar resolver a entrega. Se não tiver resposta, você pode falar com a gente novamente."
+
+  # --- Confirmations (COM-03) and card block (ACT-03) ---------------------------
+
+  confirm_summary:  # before ACT-02 or ACT-03 on a known transaction
+    es: "Antes de continuar, revise estos datos:\n- Transacción: {transaction_date}, {merchant}, {amount}\n- Producto: {product}\n- Motivo: {reason}\n- Acción: {action}\nSi todo es correcto, responda “sí, confirmo”."
+    pt: "Antes de continuar, confira estes dados:\n- Transação: {transaction_date}, {merchant}, {amount}\n- Produto: {product}\n- Motivo: {reason}\n- Ação: {action}\nSe estiver tudo certo, responda “sim, confirmo”."
+
+  confirm_block_card:  # ACT-03 offered without a specific transaction (ESC-03)
+    es: "Para proteger su cuenta, puedo bloquear temporalmente su tarjeta {product}. Un agente podrá desbloquearla después. Si está de acuerdo, responda “sí, confirmo”."
+    pt: "Para proteger sua conta, posso bloquear temporariamente seu cartão {product}. Um atendente poderá desbloqueá-lo depois. Se você concordar, responda “sim, confirmo”."
+
+  card_blocked:  # after ACT-03 read-back
+    es: "Bloqueamos temporalmente su tarjeta {product}."
+    pt: "Bloqueamos temporariamente seu cartão {product}."
+
+  card_already_blocked:
+    es: "Su tarjeta {product} ya está bloqueada."
+    pt: "Seu cartão {product} já está bloqueado."
+
+  # --- Language and authentication -------------------------------------------------
+
+  ask_language:  # GATE-01, COM-01: the language is unknown, so both texts are bilingual
+    es: "¿Prefiere continuar en español o en portugués? / Prefere continuar em espanhol ou em português?"
+    pt: "¿Prefiere continuar en español o en portugués? / Prefere continuar em espanhol ou em português?"
+
+  ask_authentication:  # GATE-02
+    es: "Para proteger su información, primero necesito verificar su identidad. Por favor, ingrese con su número de documento y el código de verificación."
+    pt: "Para proteger suas informações, primeiro preciso verificar sua identidade. Por favor, entre com o número do seu documento e o código de verificação."
+
+  # --- Clarifications, one slot per turn (policy §10) --------------------------------
+
+  clarify_transaction_ref:
+    es: "¿Qué transacción quiere disputar? Me ayuda saber la fecha, el monto y el comercio."
+    pt: "Qual transação você quer contestar? Ajuda saber a data, o valor e o estabelecimento."
+
+  choose_transaction:  # several matches: followed by up to MAX_CANDIDATES_SHOWN lines
+    es: "Encontré varias transacciones que coinciden. ¿Cuál de estas quiere disputar?"
+    pt: "Encontrei várias transações que correspondem. Qual destas você quer contestar?"
+
+  candidate_line:
+    es: "{index}. {transaction_date} · {product} · {merchant} · {amount}"
+    pt: "{index}. {transaction_date} · {product} · {merchant} · {amount}"
+
+  clarify_reason_code:
+    es: "¿Qué problema tiene con esta transacción? Por ejemplo: no la reconoce, se cobró dos veces, el monto es incorrecto, no recibió lo que compró o es un cargo del banco que no corresponde."
+    pt: "Qual é o problema com esta transação? Por exemplo: você não a reconhece, foi cobrada duas vezes, o valor está errado, você não recebeu o que comprou ou é uma tarifa do banco indevida."
+
+  clarify_card_in_possession:
+    es: "¿Tiene su tarjeta con usted en este momento?"
+    pt: "O seu cartão está com você neste momento?"
+
+  clarify_shared_credentials:
+    es: "¿Ha compartido los datos de su tarjeta, sus claves o algún código con otra persona?"
+    pt: "Você compartilhou os dados do seu cartão, suas senhas ou algum código com outra pessoa?"
+
+  clarify_duplicate_ref:
+    es: "Encontré un cargo igual el {transaction_date} por {amount}. ¿Es ese el cargo duplicado que menciona?"
+    pt: "Encontrei uma cobrança igual em {transaction_date} de {amount}. É essa a cobrança duplicada que você mencionou?"
+
+  clarify_expected_amount:
+    es: "¿Cuál era el monto acordado, en {currency}?"
+    pt: "Qual era o valor combinado, em {currency}?"
+
+  clarify_expected_delivery_date:
+    es: "¿En qué fecha debía recibir el producto o servicio?"
+    pt: "Em que data você deveria ter recebido o produto ou serviço?"
+
+  clarify_merchant_contacted:
+    es: "¿Ya se comunicó con el comercio para resolver la entrega?"
+    pt: "Você já entrou em contato com a loja para resolver a entrega?"
+
+  clarify_fee_ref:
+    es: "¿Qué cargo del banco quiere disputar? Me ayuda saber la fecha y el monto."
+    pt: "Qual tarifa do banco você quer contestar? Ajuda saber a data e o valor."
+
+  clarify_confirmation:  # hedged reply to COM-03: ask once more (policy §8)
+    es: "Para continuar necesito una confirmación clara. Si los datos son correctos, responda “sí, confirmo”; si no, dígame qué debo corregir."
+    pt: "Para continuar, preciso de uma confirmação clara. Se os dados estiverem certos, responda “sim, confirmo”; se não, me diga o que devo corrigir."
+
+# Labels inserted into templates. Same keys in both languages.
+labels:
+  reason_code:
+    RC_UNRECOGNIZED:
+      es: "Transacción no reconocida"
+      pt: "Transação não reconhecida"
+    RC_DUPLICATE:
+      es: "Cargo duplicado"
+      pt: "Cobrança duplicada"
+    RC_INCORRECT_AMOUNT:
+      es: "Monto incorrecto"
+      pt: "Valor incorreto"
+    RC_NOT_RECEIVED:
+      es: "Producto o servicio no recibido"
+      pt: "Produto ou serviço não recebido"
+    RC_FEE:
+      es: "Cargo del banco no justificado"
+      pt: "Tarifa bancária indevida"
+  action:
+    ACT-02:
+      es: "Registrar una disputa"
+      pt: "Registrar uma contestação"
+    ACT-03:
+      es: "Bloquear temporalmente la tarjeta"
+      pt: "Bloquear temporariamente o cartão"
+  case_status:
+    Draft:
+      es: "borrador"
+      pt: "rascunho"
+    Open:
+      es: "abierta"
+      pt: "aberta"
+    Escalated:
+      es: "en revisión por un agente"
+      pt: "em análise por um atendente"
+    In Process:
+      es: "en proceso"
+      pt: "em andamento"
+    Resolved:
+      es: "resuelta"
+      pt: "resolvida"
+    Rejected:
+      es: "rechazada"
+      pt: "recusada"
+    Closed:
+      es: "cerrada"
+      pt: "encerrada"
+  misc:
+    no_merchant:
+      es: "sin comercio"
+      pt: "sem estabelecimento"
