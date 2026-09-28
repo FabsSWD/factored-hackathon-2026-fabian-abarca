@@ -41,6 +41,7 @@ def _case(db: Session, case_id: str, customer_id: str, transaction_id: str) -> N
             amount_usd=Decimal("50.00"),
             provisional_credit_flag="eligible",
             idempotency_key=f"{transaction_id}:RC_UNRECOGNIZED",
+            business_created_at=datetime(2026, 6, 18, 6, 0),
         )
     )
     db.flush()
@@ -205,6 +206,7 @@ def test_list_cases_only_own(repo: CoreBankingRepository, db_session: Session) -
     assert record.tier is Tier.T1
     assert record.provisional_credit_flag is ProvisionalCreditFlag.ELIGIBLE
     assert record.created_at.tzinfo is not None
+    assert record.business_created_at == datetime(2026, 6, 18, 6, 0)
     # Another customer's case is invisible even when queried by its transaction.
     assert repo.list_cases(CUSTOMER, transaction_id="TRX-OTHER-CUSTOMER") == []
 

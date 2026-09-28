@@ -11,7 +11,8 @@ from typing import Any
 import duckdb
 import pytest
 
-from app.ingestion.core import DataContractError, build_core, document_hash
+from app.ingestion.core import DataContractError, build_core
+from app.storage.data_contract import document_hash
 from app.storage.models import CORE_BANKING_TABLES
 from tests.conftest import TEST_HASH_KEY, Pipeline, core_config, run_ingest
 from tests.fixtures.core_banking import (

@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +25,19 @@ class Settings(BaseSettings):
     business_day_cutoff: time = time(6, 0)
 
     document_hash_key: SecretStr | None = None
+
+    # Identity service (mock of an identity provider). Session age and idle limits are policy
+    # parameters (GATE-02); these settings belong to the provider itself.
+    jwt_secret: SecretStr | None = None
+    test_otp: SecretStr | None = None
+    otp_ttl_min: int = Field(default=5, gt=0)
+    otp_max_failures: int = Field(default=3, gt=0)
+    otp_failure_window_min: int = Field(default=15, gt=0)
+
+    # Abuse limits: per session on authenticated routes, per client IP on /auth/login and
+    # /auth/verify (which have no session yet).
+    rate_limit_requests_per_minute: int = Field(default=20, gt=0)
+    auth_rate_limit_per_minute: int = Field(default=10, gt=0)
 
     @property
     def as_of(self) -> datetime:

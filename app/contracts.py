@@ -255,7 +255,9 @@ class CaseRecord(Contract):
     currency: CurrencyCode
     amount_usd: NonNegativeAmount
     provisional_credit_flag: ProvisionalCreditFlag | None = None
-    created_at: AwareDatetime
+    created_at: AwareDatetime  # real time, for audit
+    # Business clock (naive, like PolicyRequest.as_of) at creation; used by ESC-02.
+    business_created_at: NaiveDatetime
 
 
 class DisputeHistory(Contract):

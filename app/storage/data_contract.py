@@ -8,6 +8,9 @@ CHECK constraints, so a rule can never meet a value it was not written for.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import re
 from enum import StrEnum
 
 TRANSACTION_TYPES = frozenset(
@@ -53,3 +56,18 @@ def age_band(age: int) -> str:
         if age <= upper:
             return band
     return AGE_BANDS[-1]
+
+
+_DOCUMENT_NOISE = re.compile(r"[\s.\-]")
+
+
+def normalize_document(document_number: str) -> str:
+    """Uppercase, without spaces, dots or hyphens. Supplied documents are already in this form
+    (uppercase letters and digits only), so their hashes do not change."""
+    return _DOCUMENT_NOISE.sub("", document_number).upper()
+
+
+def document_hash(document_number: str, key: str) -> str:
+    """HMAC-SHA256 of a normalized document number; the number itself is never stored."""
+    normalized = normalize_document(document_number).encode()
+    return hmac.new(key.encode(), normalized, hashlib.sha256).hexdigest()

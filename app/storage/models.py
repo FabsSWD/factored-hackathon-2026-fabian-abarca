@@ -184,6 +184,7 @@ class Case(Base):
         ),
         CheckConstraint("amount > 0", name="amount_positive"),
         CheckConstraint("amount_usd >= 0", name="amount_usd_non_negative"),
+        Index("ix_cases_customer_business_created", "customer_id", "business_created_at"),
     )
 
     case_id: Mapped[str] = mapped_column(String(32), primary_key=True)
@@ -200,7 +201,10 @@ class Case(Base):
     provisional_credit_flag: Mapped[str | None] = mapped_column(String(16))
     # ACT-02: transaction_id + reason_code, so a retry can never create a second case.
     idempotency_key: Mapped[str] = mapped_column(String(80), unique=True)
+    # Real time, for audit. Rules use business_created_at (policy §15, "Business date").
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # The business clock (as_of) when the case was created; ESC-02 counts cases with it.
+    business_created_at: Mapped[datetime] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -231,15 +235,47 @@ class HandoffPacketRow(Base):
 
 
 class SessionRow(Base):
+    """Identity Service sessions (GATE-02). Times are real time, never the business clock."""
+
     __tablename__ = "sessions"
-    __table_args__ = (CheckConstraint("last_activity_at >= created_at", name="activity_order"),)
+    __table_args__ = (
+        CheckConstraint("last_activity_at >= created_at", name="activity_order"),
+        CheckConstraint("revoked_at IS NULL OR revoked_at >= created_at", name="revoked_order"),
+    )
 
     session_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     customer_id: Mapped[str] = mapped_column(ForeignKey("customers.customer_id"), index=True)
     auth_method: Mapped[str] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_activity_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class OtpChallenge(Base):
+    """One pending OTP per document, keyed by the document's HMAC (never the number itself).
+
+    A challenge is stored for unknown documents too, so /auth/login behaves identically
+    whether or not the document exists.
+    """
+
+    __tablename__ = "otp_challenges"
+    __table_args__ = (CheckConstraint("expires_at > issued_at", name="expiry_order"),)
+
+    document_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class OtpFailure(Base):
+    """Failed OTP verifications, counted per document within OTP_FAILURE_WINDOW_MIN."""
+
+    __tablename__ = "otp_failures"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    document_hash: Mapped[str] = mapped_column(String(64))
+    failed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (Index("ix_otp_failures_document_time", "document_hash", "failed_at"),)
 
 
 class AuditLog(Base):

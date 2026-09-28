@@ -72,6 +72,7 @@ def case(**overrides: Any) -> c.CaseRecord:
         "amount_usd": Decimal("68.40"),
         "provisional_credit_flag": c.ProvisionalCreditFlag.ELIGIBLE,
         "created_at": NOW,
+        "business_created_at": AS_OF - timedelta(days=1),
     }
     return c.CaseRecord(**(data | overrides))
 
@@ -276,6 +277,16 @@ def test_product_number_must_be_masked(number: str) -> None:
 @pytest.mark.parametrize("number", ["4821", "****4821", "*4821"])
 def test_masked_product_numbers_accepted(number: str) -> None:
     assert product(product_number_masked=number).product_number_masked == number
+
+
+def test_case_keeps_both_clocks() -> None:
+    record = case()
+    assert record.created_at.tzinfo is not None
+    assert record.business_created_at.tzinfo is None
+    with pytest.raises(ValidationError):
+        case(business_created_at=NOW)  # aware: wrong clock
+    with pytest.raises(ValidationError):
+        c.CaseRecord(**{k: v for k, v in case().model_dump().items() if k != "business_created_at"})
 
 
 def test_verified_fact_requires_source_and_record_id() -> None:

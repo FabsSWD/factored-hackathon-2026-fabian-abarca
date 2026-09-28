@@ -18,6 +18,7 @@ from app.storage.models import (
     Case,
     Customer,
     HandoffPacketRow,
+    OtpChallenge,
     Product,
     SessionRow,
     Transaction,
@@ -82,6 +83,7 @@ def case(**overrides: Any) -> Case:
             "amount_usd": Decimal("10.00"),
             "provisional_credit_flag": "eligible",
             "idempotency_key": "TRX-M1:RC_UNRECOGNIZED",
+            "business_created_at": datetime(2026, 6, 18, 6, 0),
             **overrides,
         }
     )
@@ -152,6 +154,7 @@ def test_every_model_round_trips(db_session: Session) -> None:
     stored = db_session.get(Case, "CASE-M1")
     assert stored is not None
     assert stored.created_at.tzinfo is not None
+    assert stored.business_created_at == datetime(2026, 6, 18, 6, 0)
     assert db_session.get(Transaction, "TRX-M1") is not None
     packet = db_session.get(HandoffPacketRow, "HO-20260928-000001")
     assert packet is not None
@@ -226,6 +229,7 @@ CASE_VIOLATIONS: list[tuple[str, dict[str, Any]]] = [
     ("amount", {"amount": Decimal("-1")}),
     ("unknown transaction", {"transaction_id": "TRX-NOBODY"}),
     ("missing idempotency key", {"idempotency_key": None}),
+    ("missing business date", {"business_created_at": None}),
 ]
 
 
@@ -273,6 +277,15 @@ def test_trace_id_is_unique(db_session: Session) -> None:
 def test_session_activity_cannot_precede_creation(db_session: Session) -> None:
     _base(db_session)
     _fails(db_session, session_row(last_activity_at=datetime(2026, 9, 28, 11, 0, tzinfo=UTC)))
+
+
+def test_session_cannot_be_revoked_before_creation(db_session: Session) -> None:
+    _base(db_session)
+    _fails(db_session, session_row(revoked_at=datetime(2026, 9, 28, 11, 0, tzinfo=UTC)))
+
+
+def test_otp_challenge_must_expire_after_issue(db_session: Session) -> None:
+    _fails(db_session, OtpChallenge(document_hash="a" * 64, issued_at=NOW, expires_at=NOW))
 
 
 def test_document_hash_is_unique(db_session: Session) -> None:

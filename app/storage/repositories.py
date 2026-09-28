@@ -183,4 +183,5 @@ def _case(row: Case) -> CaseRecord:
             else None
         ),
         created_at=row.created_at,
+        business_created_at=row.business_created_at,
     )

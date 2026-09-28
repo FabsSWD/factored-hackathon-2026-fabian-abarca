@@ -15,6 +15,8 @@ TABLES = {
     "cases",
     "customers",
     "handoff_packets",
+    "otp_challenges",
+    "otp_failures",
     "products",
     "sessions",
     "transactions",

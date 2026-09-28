@@ -12,8 +12,6 @@ partitions, with ``_source_file`` lineage) plus ``daily_exchange_rates.csv``. Th
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from pathlib import Path
@@ -32,6 +30,7 @@ from app.storage.data_contract import (
     TRANSACTION_TYPES,
     AmountUsdSource,
     age_band,
+    document_hash,
 )
 from app.storage.models import CORE_BANKING_TABLES
 
@@ -67,11 +66,6 @@ class CoreBuildReport:
     as_of: str
     rows: dict[str, int] = field(default_factory=dict)
     transactions: dict[str, Any] = field(default_factory=dict)
-
-
-def document_hash(document_number: str, key: str) -> str:
-    """HMAC-SHA256 of a document number; the number itself is never stored."""
-    return hmac.new(key.encode(), document_number.strip().encode(), hashlib.sha256).hexdigest()
 
 
 def build_core(config: CoreBuildConfig) -> CoreBuildReport:
