@@ -1,0 +1,154 @@
+{
+  "generated_at": "2026-09-28T21:53:50+00:00",
+  "business_date": "2026-06-17",
+  "reconciliation": {
+    "customers": {
+      "raw_files": 1,
+      "raw_rows": 150000,
+      "raw_rows_per_ingest_report": 150000,
+      "rejected": {
+        "null_primary_key": 0,
+        "duplicate_primary_key": 0,
+        "data_contract": 0
+      },
+      "silver_rows": 150000,
+      "loaded_rows": 150000,
+      "balanced": true
+    },
+    "products": {
+      "raw_files": 1,
+      "raw_rows": 400000,
+      "raw_rows_per_ingest_report": 400000,
+      "rejected": {
+        "null_primary_key": 0,
+        "duplicate_primary_key": 0,
+        "data_contract": 0
+      },
+      "silver_rows": 400000,
+      "loaded_rows": 400000,
+      "balanced": true
+    },
+    "transactions": {
+      "raw_files": 1097,
+      "raw_rows": 4425008,
+      "raw_rows_per_ingest_report": 4425008,
+      "rejected": {
+        "null_primary_key": 0,
+        "duplicate_primary_key": 0,
+        "data_contract": 0
+      },
+      "silver_rows": 4425008,
+      "loaded_rows": 4425008,
+      "balanced": true
+    }
+  },
+  "fraud_score_nulls": {
+    "total_rows": 4425008,
+    "null_rows": 885157,
+    "by_transaction_type": {
+      "Adjustment": {
+        "rows": 132118,
+        "fraud_score_null": 26172,
+        "null_rate": 0.1981
+      },
+      "Deposit": {
+        "rows": 609409,
+        "fraud_score_null": 122327,
+        "null_rate": 0.2007
+      },
+      "Payment": {
+        "rows": 738964,
+        "fraud_score_null": 148102,
+        "null_rate": 0.2004
+      },
+      "Purchase": {
+        "rows": 1083406,
+        "fraud_score_null": 216764,
+        "null_rate": 0.2001
+      },
+      "Transfer": {
+        "rows": 896438,
+        "fraud_score_null": 178595,
+        "null_rate": 0.1992
+      },
+      "Withdrawal": {
+        "rows": 964673,
+        "fraud_score_null": 193197,
+        "null_rate": 0.2003
+      }
+    },
+    "by_channel": {
+      "App": {
+        "rows": 663414,
+        "fraud_score_null": 132536,
+        "null_rate": 0.1998
+      },
+      "ATM": {
+        "rows": 1328334,
+        "fraud_score_null": 265806,
+        "null_rate": 0.2001
+      },
+      "Branch": {
+        "rows": 132495,
+        "fraud_score_null": 26504,
+        "null_rate": 0.2
+      },
+      "POS": {
+        "rows": 1548161,
+        "fraud_score_null": 309731,
+        "null_rate": 0.2001
+      },
+      "Transfer": {
+        "rows": 89159,
+        "fraud_score_null": 17751,
+        "null_rate": 0.1991
+      },
+      "Web": {
+        "rows": 663445,
+        "fraud_score_null": 132829,
+        "null_rate": 0.2002
+      }
+    },
+    "by_is_fraud": {
+      "false": {
+        "rows": 4420692,
+        "fraud_score_null": 884266,
+        "null_rate": 0.2
+      },
+      "true": {
+        "rows": 4316,
+        "fraud_score_null": 891,
+        "null_rate": 0.2064
+      }
+    }
+  },
+  "fx_rate_age_days": {
+    "0": 99442,
+    "1": 35
+  },
+  "adjustments": {
+    "rows": 132118,
+    "negative_amount": 0,
+    "positive_amount": 132118,
+    "with_merchant_name": 0,
+    "with_transaction_category": 0,
+    "with_merchant_category": 0,
+    "amount_usd_min": "10.00",
+    "amount_usd_median": "506.865",
+    "amount_usd_max": "1019.00",
+    "by_product_type": {
+      "Inversión": 19577,
+      "Préstamo Hipotecario": 39352,
+      "Préstamo Personal": 66330,
+      "Seguro": 6859
+    },
+    "by_channel": {
+      "App": 19734,
+      "ATM": 39590,
+      "Branch": 3978,
+      "POS": 46268,
+      "Transfer": 2701,
+      "Web": 19847
+    }
+  }
+}

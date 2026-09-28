@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.2 |
+| Version | 0.1.3 |
 | Last updated | 2026-09-28 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -67,7 +67,7 @@ The central design rule comes from the [dispute policy](dispute-policy.md#2-desi
 | Component | What it does | Why it exists |
 |---|---|---|
 | **Orchestrator** | Receives each customer message and calls the other modules in order, running the LLM and Kev calls in parallel. | Single entry point per turn. Parallel calls reduce p50 and p95 latency. |
-| **Identity Service** | Authenticates with a test OTP and manages sessions with expiry, using signed JWTs (PyJWT). A mock of a real identity provider. | The challenge requires a trusted test session; a customer ID alone does not prove identity ([GATE-02](dispute-policy.md#5-gates)). |
+| **Identity Service** | Authenticates with a document number and a test OTP, and manages revocable sessions with expiry, using JWTs signed with HS256 only (PyJWT). The document is looked up by its HMAC. Its own lockout (`OTP_MAX_FAILURES` failed OTPs per document within a window) is separate from the policy's `AUTH_MAX_ATTEMPTS`, which counts conversation turns and is applied by the Orchestrator. A mock of a real identity provider. | The challenge requires a trusted test session; a customer ID alone does not prove identity ([GATE-02](dispute-policy.md#5-gates)). |
 | **Input Guard** | Detects prompt injection and impersonation attempts before the text reaches the LLM, combining rules with a Kev question. | Prompt injection must be evaluated and handled ([ESC-13](dispute-policy.md#7-mandatory-escalation-triggers)). |
 | **LLM Adapter** | Wraps the OpenAI API, requests JSON-schema structured outputs, and removes fields the model does not need. | Isolates the provider so a change is a configuration change. Enforces data minimization ([DATA-01](dispute-policy.md#12-data-handling-and-fairness)). |
 | **Decision Client** | Queries Kev through its TypeSafe-compatible API using `httpx`. Falls back to the LLM with structured output if Kev is unavailable. | Keeps the learned component behind one interface so it can be compared, replaced, and degraded safely. |
@@ -182,3 +182,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.0 | 2026-09-26 | First draft. |
 | 0.1.1 | 2026-09-28 | Two clocks limitation; confirmation after mid-conversation session expiry (policy 0.2.0). |
 | 0.1.2 | 2026-09-28 | Core Banking minimization and the offline loading pipeline (policy 0.3.0). |
+| 0.1.3 | 2026-09-28 | Identity Service: document + OTP login, HS256 only, revocable sessions, OTP lockout. |

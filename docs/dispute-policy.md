@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.3.0 |
+| Version | 0.3.1 |
 | Last updated | 2026-09-28 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -172,7 +172,7 @@ Hard triggers (`ESC-01` to `ESC-10`, `ESC-12` to `ESC-14`) always cause `ESCALAT
 | ID | Trigger | Condition | Route |
 |---|---|---|---|
 | `ESC-01` | High amount | USD-equivalent amount `> AUTO_INTAKE_MAX_USD` (tier `T3`). | Disputes queue |
-| `ESC-02` | Dispute velocity | Including the current dispute, the customer's disputed total in the last 30 days exceeds `AGG_DISPUTED_30D_MAX_USD`, **or** the customer has at least `REPEAT_DISPUTES_90D` cases in the last 90 days. | Disputes queue |
+| `ESC-02` | Dispute velocity | Including the current dispute, the customer's disputed total in the last 30 days exceeds `AGG_DISPUTED_30D_MAX_USD`, **or** the customer has at least `REPEAT_DISPUTES_90D` cases in the last 90 days. Both windows end at `as_of` and count cases by their business creation date (see [§15](#15-parameters)). | Disputes queue |
 | `ESC-03` | Account takeover indicators | The customer reports an unknown login or device, a credential change they did not make, a lost or stolen phone, or sharing credentials or codes with a third party; **or** raises at least `UNRECOGNIZED_BATCH_MAX` unrecognized transactions in one conversation. | Fraud queue, high priority. A card block (`ACT-03`) is offered first. |
 | `ESC-04` | Fraud score | `transactions.fraud_score >= FRAUD_SCORE_ESCALATE` on the disputed transaction. A null `fraud_score` does not fire this trigger; its absence is recorded in the audit record and, if there is a handoff, in `open_questions`. | Fraud queue |
 | `ESC-05` | Human requested | The customer asks for a human at any point. | Disputes queue. Honored immediately; the system MUST NOT try to retain the customer. |
@@ -399,6 +399,8 @@ All parameters live in one versioned configuration file in the codebase; this ta
 - The configuration sets `BUSINESS_DATE` (2026-06-17, the last partition) and `BUSINESS_DAY_CUTOFF` (06:00). The engine uses `as_of = BUSINESS_DATE + 1 day at BUSINESS_DAY_CUTOFF`.
 - Loading fails if any row has `process_date` after `BUSINESS_DATE`. It does not compare `transaction_date`, because rows of the last business day legitimately fall on the next calendar day.
 - Dataset timestamps are naive: local time without a time zone, although the data covers three countries. `as_of` is naive too, and the two are compared as they are.
+- Every rule about transactions or cases uses the business clock. Only the session (`GATE-02`) and technical times (retries, latencies) use real time.
+- A case stores two timestamps: `created_at` (real time, for audit) and `business_created_at` (the `as_of` when it was created). `ESC-02` counts cases by `business_created_at`. Evaluation scenarios may seed earlier cases with an explicit business date.
 
 ## 16. Deriving evaluation labels
 
@@ -448,3 +450,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.1.0 | 2026-09-25 | First draft. |
 | 0.2.0 | 2026-09-28 | Two-channel evaluation of gates and triggers (§5). `AUTH_MAX_ATTEMPTS` for `GATE-02`, value pending. Distinct `transaction_id` for `RC_DUPLICATE`. Unknown USD amount treated as `T3` (§6). Null `fraud_score` does not fire `ESC-04`, and `is_fraud` is excluded from rules (§7). Conditions for offering `ACT-03`; confirmation requires a valid session (§8). Business date `as_of` (§15). Deduplication and product types (§17). Open question 1 partly resolved. |
 | 0.3.0 | 2026-09-28 | Figures from the data profile of 2026-09-28. `AUTH_MAX_ATTEMPTS` = 3 and how attempts are counted (§5). USD equivalent with `amount_usd_source` and an as-of exchange rate within `FX_MAX_STALENESS_DAYS` (§6). Null rate of `fraud_score` (§7). `DATA-06` storage minimization (§12). Business-day cutoff and naive timestamps (§15). No duplicates in the data; fees assumed to be `Adjustment` (§17). Open questions 1, 2, and 5 closed; 3 partly resolved. |
+| 0.3.1 | 2026-09-28 | Clock rule: transactions and cases use the business clock; cases store `business_created_at`, which `ESC-02` counts (§7, §15). |
