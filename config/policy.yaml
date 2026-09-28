@@ -1,0 +1,49 @@
+# Policy parameters. Source of truth for their meaning: docs/dispute-policy.md §15.
+# Every value here must match that table. Change the policy document first, then this file,
+# and bump policy_version together with the policy's own version.
+
+policy_version: "0.1.0"
+
+parameters:
+  # GATE-02
+  SESSION_MAX_AGE_MIN: 60              # minutes · Fixed
+  SESSION_IDLE_TIMEOUT_MIN: 15         # minutes · Fixed
+
+  # GATE-08, ESC-07
+  DISPUTE_WINDOW_DAYS: 60              # calendar days · Fixed
+  LATE_WINDOW_DAYS: 120                # calendar days · Fixed
+
+  # GATE-10 (RC_DUPLICATE)
+  DUPLICATE_WINDOW_HOURS: 48           # hours · Provisional
+
+  # §6 automation tiers, ESC-01
+  PROVISIONAL_CREDIT_AUTO_MAX_USD: 100 # USD · Provisional
+  AUTO_INTAKE_MAX_USD: 1000            # USD · Provisional
+
+  # ESC-02
+  AGG_DISPUTED_30D_MAX_USD: 2000       # USD · Provisional
+  REPEAT_DISPUTES_90D: 3               # cases · Provisional
+
+  # ESC-03
+  UNRECOGNIZED_BATCH_MAX: 3            # transactions · Fixed
+
+  # ESC-04
+  FRAUD_SCORE_ESCALATE: 80             # score 0-100 · Provisional
+
+  # §10, ESC-09
+  MAX_CLARIFICATION_TURNS: 2           # turns per slot · Fixed
+  MAX_TOTAL_CLARIFICATIONS: 4          # turns per conversation · Fixed
+  MAX_CANDIDATES_SHOWN: 3              # transactions · Fixed
+
+  # ESC-10
+  TOOL_MAX_RETRIES: 2                  # retries · Fixed
+
+  # ESC-13
+  INJECTION_STRIKES_MAX: 2             # attempts · Fixed
+
+  # ESC-11 (soft trigger)
+  DECISION_CONFIDENCE_MIN: null        # probability · Calibrated · calibrar en el split de validación
+  ESCALATION_RISK_THRESHOLD: null      # probability · Calibrated · calibrar en el split de validación
+
+  # COM-05
+  RESOLUTION_TARGET_BUSINESS_DAYS: 10  # business days · Fixed
