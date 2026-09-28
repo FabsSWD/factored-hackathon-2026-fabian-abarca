@@ -14,7 +14,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.1.0"
+template_version: "1.2.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -91,12 +91,15 @@ templates:
     pt: "Antes de registrar esta contestação, recomendamos entrar em contato com a loja para tentar resolver a entrega. Se não tiver resposta, você pode falar com a gente novamente."
 
   # --- Confirmations (COM-03) and card block (ACT-03) ---------------------------
+  # One confirmation turn covers exactly one action. When both apply, confirm_block_card
+  # comes first (protective and urgent), then confirm_summary for ACT-02. Declining the
+  # block does not affect the dispute: the flow continues to the summary.
 
-  confirm_summary:  # before ACT-02 or ACT-03 on a known transaction
-    es: "Antes de continuar, revise estos datos:\n- Transacción: {transaction_date}, {merchant}, {amount}\n- Producto: {product}\n- Motivo: {reason}\n- Acción: {action}\nSi todo es correcto, responda “sí, confirmo”."
-    pt: "Antes de continuar, confira estes dados:\n- Transação: {transaction_date}, {merchant}, {amount}\n- Produto: {product}\n- Motivo: {reason}\n- Ação: {action}\nSe estiver tudo certo, responda “sim, confirmo”."
+  confirm_summary:  # ACT-02 only, on a known transaction
+    es: "Antes de registrar la disputa, revise estos datos:\n- Transacción: {transaction_date}, {merchant}, {amount}\n- Producto: {product}\n- Motivo: {reason}\nSi todo es correcto, responda “sí, confirmo”."
+    pt: "Antes de registrar a contestação, confira estes dados:\n- Transação: {transaction_date}, {merchant}, {amount}\n- Produto: {product}\n- Motivo: {reason}\nSe estiver tudo certo, responda “sim, confirmo”."
 
-  confirm_block_card:  # ACT-03 offered without a specific transaction (ESC-03)
+  confirm_block_card:  # ACT-03, always confirmed on its own
     es: "Para proteger su cuenta, puedo bloquear temporalmente su tarjeta {product}. Mientras esté bloqueada, no funcionará para ninguna compra ni pago, incluidos los pagos automáticos. Si más adelante necesita desbloquearla, puede solicitarlo a un agente. Si está de acuerdo, responda “sí, confirmo”."
     pt: "Para proteger sua conta, posso bloquear temporariamente seu cartão {product}. Enquanto estiver bloqueado, ele não vai funcionar para nenhuma compra ou pagamento, incluindo os pagamentos automáticos. Se depois você precisar desbloqueá-lo, pode solicitar a um atendente. Se você concordar, responda “sim, confirmo”."
 
@@ -194,7 +197,7 @@ labels:
     ACT-02:
       es: "Registrar una disputa"
       pt: "Registrar uma contestação"
-    ACT-03:  # includes the consequence, so the COM-03 confirmation is informed
+    ACT-03:  # for the handoff packet and the audit trace; never listed in confirm_summary
       es: "Bloquear temporalmente la tarjeta (dejará de funcionar para todas las compras y pagos, incluidos los automáticos)"
       pt: "Bloquear temporariamente o cartão (ele deixará de funcionar para todas as compras e pagamentos, incluindo os automáticos)"
   case_status:

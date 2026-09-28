@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.3.2 |
+| Version | 0.3.3 |
 | Last updated | 2026-09-28 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -269,7 +269,7 @@ Clarification rules:
 |---|---|
 | `COM-01` | The system replies in the language of the customer's latest message (`es` or `pt`). If the language is mixed or unclear, it asks once which language the customer prefers. |
 | `COM-02` | Commitments MUST come from versioned templates, never from free generation: case references, target times, next steps, eligibility wording, refusals, and escalation notices. The language model MAY write connecting sentences around them. |
-| `COM-03` | Before `ACT-02` or `ACT-03`, the system presents a templated summary (transaction date, masked product, merchant, amount, reason, and the action to take) and asks for explicit confirmation. |
+| `COM-03` | Before `ACT-02` or `ACT-03`, the system presents a templated summary and asks for explicit confirmation. **One confirmation covers exactly one action.** `ACT-03` is confirmed on its own, with its consequence (the card stops working for all purchases and payments, including automatic ones). `ACT-02` is confirmed with a summary of the transaction date, masked product, merchant, amount, and reason. When both apply, the card block is confirmed first, because it is protective and urgent; declining it does not affect the dispute, and the flow continues to the `ACT-02` summary. |
 | `COM-04` | The system MUST NOT say an action happened unless its verification passed. |
 | `COM-05` | The system MUST NOT promise a refund, credit, or result. It states that the case will be investigated within `RESOLUTION_TARGET_BUSINESS_DAYS` business days. |
 | `COM-06` | Product numbers are masked to the last four digits. |
@@ -454,3 +454,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.3.0 | 2026-09-28 | Figures from the data profile of 2026-09-28. `AUTH_MAX_ATTEMPTS` = 3 and how attempts are counted (§5). USD equivalent with `amount_usd_source` and an as-of exchange rate within `FX_MAX_STALENESS_DAYS` (§6). Null rate of `fraud_score` (§7). `DATA-06` storage minimization (§12). Business-day cutoff and naive timestamps (§15). No duplicates in the data; fees assumed to be `Adjustment` (§17). Open questions 1, 2, and 5 closed; 3 partly resolved. |
 | 0.3.1 | 2026-09-28 | Clock rule: transactions and cases use the business clock; cases store `business_created_at`, which `ESC-02` counts (§7, §15). |
 | 0.3.2 | 2026-09-28 | `COM-08` amount format by locale with the currency code first; `country` allowed for number formatting (`DATA-02`). No `MXN` in the data (§17). |
+| 0.3.3 | 2026-09-28 | `COM-03`: one confirmation per action; the card block is confirmed first and separately, and declining it does not affect the dispute. |

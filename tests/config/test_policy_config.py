@@ -67,7 +67,7 @@ def _with_parameter(tmp_path: Path, name: str, value: object) -> Path:
 def test_repository_policy_file_loads() -> None:
     config = load_policy_config(DEFAULT_POLICY_PATH)
     assert isinstance(config, PolicyConfig)
-    assert config.policy_version == "0.3.2"
+    assert config.policy_version == "0.3.3"
 
 
 def test_policy_version_matches_the_policy_document() -> None:
@@ -124,7 +124,7 @@ def test_env_variable_selects_the_file(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_default_path_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(POLICY_PATH_ENV, raising=False)
-    assert load_policy_config().policy_version == "0.3.2"
+    assert load_policy_config().policy_version == "0.3.3"
 
 
 def test_get_policy_config_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:

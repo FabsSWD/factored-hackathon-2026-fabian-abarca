@@ -13,6 +13,10 @@ Composition rules for the Orchestrator (M12):
   template is followed by ``offer_transfer``.
 - ``handoff_unauthenticated`` is the only handoff text allowed before GATE-02 passes
   (ESC-05 or ESC-06 without a session); it mentions no account data.
+- One confirmation turn covers exactly one action (COM-03): ``CONFIRMATION_TEMPLATES`` maps
+  each confirmation template to its single action, and ``CONFIRMATION_ORDER`` fixes the order
+  when both apply: the card block first (protective and urgent), then the dispute summary.
+  Declining the block does not affect the dispute; the flow continues to the summary.
 """
 
 from __future__ import annotations
@@ -43,6 +47,13 @@ REQUIRED_FOLLOW_UPS: dict[str, frozenset[str]] = {
     "tool_failure": frozenset({"handoff", "offer_transfer"}),
 }
 """Template -> templates one of which must follow it in the same reply."""
+
+CONFIRMATION_TEMPLATES: dict[str, ActionId] = {
+    "confirm_block_card": ActionId.BLOCK_CARD,
+    "confirm_summary": ActionId.CREATE_CASE,
+}
+"""Each confirmation template confirms exactly one action (COM-03)."""
+CONFIRMATION_ORDER: tuple[str, ...] = ("confirm_block_card", "confirm_summary")
 
 INFORM_TEMPLATES: dict[InformReason, str] = {
     InformReason.AUTHENTICATION_DECLINED: "authentication_declined",
@@ -115,6 +126,7 @@ class TemplateService:
         self.version: str = self._version(raw)
         self._templates = self._load_templates(raw.get("templates"))
         self._labels = self._load_labels(raw.get("labels"))
+        self._check_single_action_confirmations()
 
     @classmethod
     def from_policy(
@@ -213,6 +225,7 @@ class TemplateService:
             | set(REQUIRED_FOLLOW_UPS)
             | {follow_up for options in REQUIRED_FOLLOW_UPS.values() for follow_up in options}
             | {"handoff_unauthenticated", "session_expired_reconfirm"}
+            | set(CONFIRMATION_TEMPLATES)
         )
         missing = required - set(templates)
         if missing:
@@ -236,6 +249,21 @@ class TemplateService:
                     if _placeholders(f"labels.{kind}.{key}", language, text):
                         raise TemplateError(f"labels.{kind}.{key}: labels take no placeholders")
         return labels
+
+    def _check_single_action_confirmations(self) -> None:
+        """A confirmation names only its own action: no {action} slot, no other action's label."""
+        for template_id, action in CONFIRMATION_TEMPLATES.items():
+            template = self._get(template_id)
+            if "action" in template.placeholders:
+                raise TemplateError(f"{template_id}: confirms one fixed action, no {{action}}")
+            others = [a for a in (ActionId.CREATE_CASE, ActionId.BLOCK_CARD) if a is not action]
+            for language, text in template.texts.items():
+                for other in others:
+                    if self._labels["action"][other.value][language] in text:
+                        raise TemplateError(
+                            f"{template_id}.{language}: lists {other.value}; "
+                            "one confirmation covers exactly one action (COM-03)"
+                        )
 
     # --- Helpers --------------------------------------------------------------------
 

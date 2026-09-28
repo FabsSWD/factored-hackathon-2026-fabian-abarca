@@ -24,6 +24,8 @@ from app.templates.formatting import (
 from app.templates.promises import contains_promise, find_promises
 from app.templates.service import (
     CLARIFY_TEMPLATES,
+    CONFIRMATION_ORDER,
+    CONFIRMATION_TEMPLATES,
     DEFAULT_TEMPLATES_PATH,
     INFORM_TEMPLATES,
     REQUIRED_FOLLOW_UPS,
@@ -78,7 +80,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.1.0"
+    assert templates.version == "1.2.0"
     assert isinstance(templates, interfaces.TemplateService)
 
 
@@ -216,7 +218,6 @@ def test_confirm_summary_with_labels(templates: TemplateService) -> None:
         amount=format_amount(Decimal("200000"), "COP", Locale.PT_BR),
         product=mask_product_number("4111111111114821"),
         reason=templates.label("reason_code", ReasonCode.DUPLICATE.value, "pt"),
-        action=templates.label("action", ActionId.CREATE_CASE.value, "pt"),
     )
     assert "16/06/2026, sem estabelecimento, COP 200.000,00" in text
     assert "Produto: ****4821" in text
@@ -412,6 +413,32 @@ def test_unauthenticated_handoff_mentions_no_account_data(templates: TemplateSer
             assert word not in text, (language, word)
 
 
+def test_each_confirmation_covers_exactly_one_action() -> None:
+    assert CONFIRMATION_TEMPLATES == {
+        "confirm_block_card": ActionId.BLOCK_CARD,
+        "confirm_summary": ActionId.CREATE_CASE,
+    }
+    assert len(set(CONFIRMATION_TEMPLATES.values())) == len(CONFIRMATION_TEMPLATES)
+    # The card block is confirmed first, then the dispute summary.
+    assert CONFIRMATION_ORDER == ("confirm_block_card", "confirm_summary")
+
+
+@pytest.mark.parametrize("language", ["es", "pt"])
+def test_confirm_summary_never_lists_the_card_block(
+    templates: TemplateService, language: str
+) -> None:
+    assert "action" not in templates.placeholders("confirm_summary")
+    text = templates.render("confirm_summary", language, **values_for(templates, "confirm_summary"))
+    assert templates.label("action", ActionId.BLOCK_CARD.value, language) not in text
+    assert not re.search(r"bloque|bloqueio", text.lower())
+
+
+def test_confirm_block_card_never_lists_the_dispute(templates: TemplateService) -> None:
+    for language in ("es", "pt"):
+        text = templates.render("confirm_block_card", language, product="****4821")
+        assert templates.label("action", ActionId.CREATE_CASE.value, language) not in text
+
+
 def test_card_block_confirmation_is_informed(templates: TemplateService) -> None:
     es = templates.render("confirm_block_card", "es", product="****4821")
     pt = templates.render("confirm_block_card", "pt", product="****4821")
@@ -526,6 +553,31 @@ def _with_template(tmp_path: Path, template_id: str, entry: Any) -> Path:
 def test_invalid_templates_fail_at_load(tmp_path: Path, entry: Any, message: str) -> None:
     with pytest.raises(TemplateError, match=message):
         TemplateService(10, _with_template(tmp_path, "custom", entry))
+
+
+@pytest.mark.parametrize(
+    ("es", "pt", "message"),
+    [
+        (
+            "Confirme: {transaction_date} {merchant} {amount} {product} {reason} {action}",
+            "Confirme: {transaction_date} {merchant} {amount} {product} {reason} {action}",
+            r"no \{action\}",
+        ),
+        (
+            "Confirme {transaction_date} {merchant} {amount} {product} {reason}. "
+            "Acción: Bloquear temporalmente la tarjeta (dejará de funcionar para todas las "
+            "compras y pagos, incluidos los automáticos)",
+            "Confirme {transaction_date} {merchant} {amount} {product} {reason}.",
+            "lists ACT-03",
+        ),
+    ],
+)
+def test_confirm_summary_with_a_second_action_fails_at_load(
+    tmp_path: Path, es: str, pt: str, message: str
+) -> None:
+    path = _with_template(tmp_path, "confirm_summary", {"es": es, "pt": pt})
+    with pytest.raises(TemplateError, match=message):
+        TemplateService(10, path)
 
 
 def test_missing_required_template_fails(tmp_path: Path) -> None:
