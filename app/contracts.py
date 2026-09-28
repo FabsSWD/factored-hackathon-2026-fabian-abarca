@@ -438,6 +438,9 @@ class ConversationCounters(Contract):
     clarifications_by_slot: dict[ClarifyTarget, NonNegativeInt] = Field(default_factory=dict)
     total_clarifications: NonNegativeInt = 0
     language_clarifications: NonNegativeInt = 0  # GATE-01 allows one
+    # GATE-02: authentication requests, bounded by AUTH_MAX_ATTEMPTS and kept apart from slot
+    # clarifications so they do not count toward MAX_TOTAL_CLARIFICATIONS.
+    authentication_attempts: NonNegativeInt = 0
     injection_strikes: NonNegativeInt = 0  # ESC-13
     unrecognized_transactions: NonNegativeInt = 0  # ESC-03 batch count
     unresolved_contradiction: bool = False  # ESC-09 (claim contradicts verified facts)
@@ -489,11 +492,16 @@ class ToolResult(Contract):
 class PolicyRequest(Contract):
     """Everything the Policy Engine needs to evaluate one disputed transaction.
 
-    The engine is a pure function of this object: it performs no I/O and reads the time
-    from ``now``, never from the clock.
+    The engine is a pure function of this object: it performs no I/O and never reads the
+    clock. Two clocks are passed in (policy §15, "Business date"):
+
+    - ``now``: real time, for session age and idle time (GATE-02).
+    - ``as_of``: the simulated business date, for transaction age and calendar windows
+      (GATE-08, ESC-02, ESC-07, RC_NOT_RECEIVED delivery date).
     """
 
     now: AwareDatetime
+    as_of: AwareDatetime
     conversation_id: NonEmptyStr
 
     # GATE-01

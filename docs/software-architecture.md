@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.0 |
-| Last updated | 2026-09-26 |
+| Version | 0.1.1 |
+| Last updated | 2026-09-28 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
 ## Contents
@@ -148,7 +148,7 @@ Target hosts, in order of preference: the developer's own server, or a cloud VM 
 | Kev unavailable | The Decision Client falls back to the LLM with structured output and records the fallback in the trace. |
 | Tool write fails | Bounded retries with idempotency keys. After `TOOL_MAX_RETRIES`, the case escalates under [ESC-10](dispute-policy.md#7-mandatory-escalation-triggers). |
 | Read-back mismatch | The action is treated as failed and escalated; the customer is not told it succeeded ([COM-04](dispute-policy.md#11-customer-communication)). |
-| Session expired mid-conversation | The next evaluation stops at GATE-02 and asks the customer to authenticate again. |
+| Session expired mid-conversation | The next evaluation stops at GATE-02 and asks the customer to authenticate again. A confirmation received with an expired session is not valid: after re-authentication, the COM-03 summary is presented again. |
 
 ## 9. Observability
 
@@ -173,9 +173,11 @@ The data and ML pipelines will be documented separately.
 - A production deployment with strict data residency would replace the OpenAI API with a self-hosted model; that requires GPU hardware not available for this prototype.
 - Kev 0.8B has a limited knowledge base and its calibration is verified only on our evaluation data.
 - Capacity limits of the deployment have not been measured yet; they will be reported with the evaluation results.
+- Two clocks: transaction-age rules use a simulated business date (`BUSINESS_DATE`, because the supplied data ends on 2026-06-17), while session age uses real time ([policy §15](dispute-policy.md#15-parameters)).
 
 ## 12. Change log
 
 | Version | Date | Change |
 |---|---|---|
 | 0.1.0 | 2026-09-26 | First draft. |
+| 0.1.1 | 2026-09-28 | Two clocks limitation; confirmation after mid-conversation session expiry (policy 0.2.0). |

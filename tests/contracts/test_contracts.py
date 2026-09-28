@@ -11,6 +11,7 @@ from pydantic import BaseModel, ValidationError
 from app import contracts as c
 
 NOW = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
+AS_OF = datetime(2026, 6, 17, tzinfo=UTC)
 CUSTOMER = "CLI-AAA"
 OTHER = "CLI-BBB"
 
@@ -486,8 +487,11 @@ def test_session_requires_timezone_aware_datetimes() -> None:
 
 def test_counters_reject_negative_values() -> None:
     assert c.ConversationCounters().total_clarifications == 0
+    assert c.ConversationCounters().authentication_attempts == 0
     with pytest.raises(ValidationError):
         c.ConversationCounters(injection_strikes=-1)
+    with pytest.raises(ValidationError):
+        c.ConversationCounters(authentication_attempts=-1)
     with pytest.raises(ValidationError):
         c.ConversationCounters(clarifications_by_slot={c.ClarifyTarget.REASON_CODE: -1})
 
@@ -539,7 +543,7 @@ def test_tool_result_invariants(overrides: dict[str, Any], message: str) -> None
 
 
 def test_minimal_policy_request_without_session() -> None:
-    request = c.PolicyRequest(now=NOW, conversation_id="CONV-1")
+    request = c.PolicyRequest(now=NOW, as_of=AS_OF, conversation_id="CONV-1")
     assert request.session is None
     assert request.signals.source is c.ModelSource.UNAVAILABLE
     assert request.slots == c.Slots()
@@ -548,6 +552,7 @@ def test_minimal_policy_request_without_session() -> None:
 def test_full_policy_request() -> None:
     request = c.PolicyRequest(
         now=NOW,
+        as_of=AS_OF,
         conversation_id="CONV-1",
         detected_language="pt",
         session=session(),
@@ -567,7 +572,9 @@ def test_full_policy_request() -> None:
 
 def test_records_without_session_are_rejected() -> None:
     with pytest.raises(ValidationError, match="without a session"):
-        c.PolicyRequest(now=NOW, conversation_id="CONV-1", transaction_candidates=[transaction()])
+        c.PolicyRequest(
+            now=NOW, as_of=AS_OF, conversation_id="CONV-1", transaction_candidates=[transaction()]
+        )
 
 
 @pytest.mark.parametrize(
@@ -584,13 +591,32 @@ def test_records_of_another_customer_are_rejected(field: str) -> None:
     }
     with pytest.raises(ValidationError, match="GATE-04"):
         c.PolicyRequest(
-            now=NOW, conversation_id="CONV-1", session=session(), **{field: values[field]}
+            now=NOW,
+            as_of=AS_OF,
+            conversation_id="CONV-1",
+            session=session(),
+            **{field: values[field]},
         )
 
 
-def test_policy_request_requires_aware_now() -> None:
+@pytest.mark.parametrize(
+    "clocks",
+    [
+        {"now": datetime(2026, 9, 28), "as_of": AS_OF},
+        {"now": NOW, "as_of": datetime(2026, 6, 17)},
+        {"now": NOW},
+        {"as_of": AS_OF},
+    ],
+)
+def test_policy_request_requires_both_aware_clocks(clocks: dict[str, datetime]) -> None:
     with pytest.raises(ValidationError):
-        c.PolicyRequest(now=datetime(2026, 9, 28), conversation_id="CONV-1")
+        c.PolicyRequest.model_validate({"conversation_id": "CONV-1", **clocks})
+
+
+def test_business_date_is_independent_of_real_time() -> None:
+    # Policy §15: the dataset ends on 2026-06-17 while sessions run in real time.
+    request = c.PolicyRequest(now=NOW, as_of=AS_OF, conversation_id="CONV-1")
+    assert request.as_of < request.now
 
 
 # --- Policy decision --------------------------------------------------------
