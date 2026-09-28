@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.0 |
-| Last updated | 2026-09-25 |
+| Version | 0.1.1 |
+| Last updated | 2026-09-28 |
 | Related | [Dispute policy](dispute-policy.md) |
 
 Terms are listed alphabetically. When a term in another document has a specific meaning, it is defined here and used with that meaning everywhere.
@@ -28,5 +28,5 @@ Terms are listed alphabetically. When a term in another document has a specific 
 | **Slot** | A required piece of information for a reason code, such as the transaction reference or the expected amount. |
 | **Tier** | The automation level assigned to a dispute based on its USD-equivalent amount. Defined in [dispute policy §6](dispute-policy.md#6-automation-tiers). |
 | **Unsafe outcome** | An unauthorized disclosure, an unauthorized action, or a materially incorrect outcome, such as creating a case for a transaction the customer does not own. |
-| **USD equivalent** | A transaction amount converted to USD using `transactions.amount_usd` or, if null, `daily_exchange_rates` at the transaction date. |
+| **USD equivalent** | A transaction amount in USD: `transactions.amount_usd` when supplied; the amount itself for USD transactions; otherwise the amount converted with the latest `daily_exchange_rates` rate dated on or before the transaction date, if that rate is at most `FX_MAX_STALENESS_DAYS` days old. With no such rate the USD equivalent is unknown, and the tier is treated as `T3`. The source is recorded in `transactions.amount_usd_source` ([dispute policy §6](dispute-policy.md#6-automation-tiers)). |
 | **Verified fact** | A statement backed by a record read from a data source during the session, with its source table and record ID. Customer statements are not verified facts; they are recorded as claims. |

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.2.0 |
+| Version | 0.3.0 |
 | Last updated | 2026-09-28 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -75,7 +75,7 @@ A conversation may raise at most one reason code per transaction. If the custome
 
 ## 4. Disputable transactions
 
-Transaction types come from `transactions.transaction_type` in the data dictionary. The values in the table below match the data dictionary; how bank fees appear is still open (see [open questions](#17-assumptions-limitations-and-open-questions)).
+Transaction types come from `transactions.transaction_type`. The values in the table below are the values observed in the supplied data, which match the data dictionary exactly. Figures and value sets in this policy always come from profiling the data, never from the dictionary (see [§17](#17-assumptions-limitations-and-open-questions)).
 
 Legend: **A** = eligible for automated intake (subject to all other rules); **H** = plausible dispute that is not automated, so the system escalates under [ESC-14](#7-mandatory-escalation-triggers); **N** = not disputable in this workflow, so the system informs the customer and offers a human transfer.
 
@@ -94,7 +94,7 @@ Rationale:
 - **Withdrawal** disputes other than unrecognized ones (for example, cash not dispensed) need ATM journal review, which our mock tools cannot provide.
 - **Transfer** and **Payment** are initiated by the customer. Unauthorized ones suggest account takeover and belong to the fraud team.
 - **Deposit** is a credit to the customer; missing deposits are an inquiry, not a dispute.
-- **Adjustment** is how we expect bank fees to appear. This mapping is provisional until the transactions data is profiled.
+- **Adjustment** is treated as a bank-originated charge, which is how bank fees are assumed to appear. The data does not label fees, and every `Adjustment` has a positive amount with no field that gives its direction; see [§17](#17-assumptions-limitations-and-open-questions).
 
 ## 5. Gates
 
@@ -113,7 +113,7 @@ Gates are evaluated in the order listed. Evaluation stops at the first gate that
 | ID | Gate | Pass condition | If it does not pass |
 |---|---|---|---|
 | `GATE-01` | Supported language | Detected language is `es` or `pt`. | One clarification asking for the preferred language, then [ESC-12](#7-mandatory-escalation-triggers). |
-| `GATE-02` | Authenticated session | Session was issued by the identity service, is younger than `SESSION_MAX_AGE_MIN`, and has been idle less than `SESSION_IDLE_TIMEOUT_MIN`. | The system MUST NOT read or disclose account data. It asks the customer to authenticate (a `CLARIFY` turn targeting authentication, not counted as a slot clarification in [§10](#10-required-information-and-clarification)). If the customer declines, or does not authenticate within `AUTH_MAX_ATTEMPTS` attempts, the outcome is `INFORM`. |
+| `GATE-02` | Authenticated session | Session was issued by the identity service, is younger than `SESSION_MAX_AGE_MIN`, and has been idle less than `SESSION_IDLE_TIMEOUT_MIN`. | The system MUST NOT read or disclose account data. It asks the customer to authenticate (a `CLARIFY` turn targeting authentication). An explicit refusal gives `INFORM` at once; exceeding `AUTH_MAX_ATTEMPTS` gives `INFORM` with an offer to transfer. See the authentication attempts rule below. |
 | `GATE-03` | Customer status | `customers.customer_status = 'Active'`. | [ESC-08](#7-mandatory-escalation-triggers). |
 | `GATE-04` | Ownership | Every transaction or product the customer references has `customer_id` equal to the session customer. Enforced in the tool layer, which returns `access_denied` for other customers' records. | `REFUSE`. The system MUST NOT confirm or deny that the record exists. The attempt is logged as a security event. |
 | `GATE-05` | Transaction identified | Exactly one transaction of the session customer matches the reference given. | `CLARIFY` (see [§10](#10-required-information-and-clarification)). |
@@ -123,6 +123,8 @@ Gates are evaluated in the order listed. Evaluation stops at the first gate that
 | `GATE-09` | Product status | `products.product_status` is `Active` or `Blocked`. | [ESC-08](#7-mandatory-escalation-triggers). |
 | `GATE-10` | Reason-specific preconditions | See the table below. | See the table below. |
 | `GATE-11` | No duplicate case | No open case exists for the same `transaction_id`. | `INFORM` with the existing case reference and status. |
+
+**Authentication attempts (`GATE-02`).** Every turn in which the system asks the customer to authenticate and the customer does not end up authenticated counts as one attempt, including a wrong OTP. When the attempts exceed `AUTH_MAX_ATTEMPTS`, the outcome is `INFORM` with an offer to transfer. An explicit refusal to authenticate gives `INFORM` immediately. Authentication is not a slot of [§10](#10-required-information-and-clarification), so attempts do not count toward `MAX_CLARIFICATION_TURNS` or `MAX_TOTAL_CLARIFICATIONS`. Every failed OTP is recorded as a security event in the audit record.
 
 Reason-specific preconditions (`GATE-10`):
 
@@ -148,13 +150,24 @@ The flag is a recommendation to the back office. The system never applies credit
 
 Amounts are compared with `>` and `<=` exactly as written. An amount equal to a threshold belongs to the lower tier.
 
-If `transactions.amount_usd` is null, the USD equivalent is computed with `daily_exchange_rates` for the transaction date and currency (see [Glossary](glossary.md)). If no rate is available, the tier is unknown and is treated as `T3`, so [ESC-01](#7-mandatory-escalation-triggers) fires. *Rationale:* the tier sets how much autonomy the system has, so an unknown amount is handled conservatively.
+**USD equivalent.** It is established when the data is loaded, and the source is recorded per row in `transactions.amount_usd_source`:
+
+| Source | Rule |
+|---|---|
+| `source` | `transactions.amount_usd` is supplied. |
+| `identity` | The transaction is in USD, so the amount is already in USD. |
+| `fx_rate` | The latest `daily_exchange_rates` rate to USD dated on or before the transaction date (as-of lookup), if it is at most `FX_MAX_STALENESS_DAYS` days old. The date of the rate used is stored. |
+| `missing` | No rate within that margin. |
+
+When the source is `missing`, the tier is unknown and is treated as `T3`, so [ESC-01](#7-mandatory-escalation-triggers) fires. *Rationale:* the tier sets how much autonomy the system has, so an unknown amount is handled conservatively. The as-of lookup exists because test cases concentrate at the end of the data (the 60-day window), where the latest day may not have a rate yet; recent transactions should not escalate because of how the dataset was cut.
+
+In the supplied data, `amount_usd` is null for every USD transaction (2,437,979 rows). That null is structural, not random, so it is resolved by `identity`. Loading resolves every other row with `source` (1,887,552) or `fx_rate` (99,477, of which 35 used the rate of the previous day), and leaves none `missing` (data profile of 2026-09-28, dataset 2023-06-17 to 2026-06-17).
 
 ## 7. Mandatory escalation triggers
 
 Hard triggers (`ESC-01` to `ESC-10`, `ESC-12` to `ESC-14`) always cause `ESCALATE`, regardless of model outputs. The soft trigger `ESC-11` is evaluated only if no hard rule has already decided the outcome. When each trigger is evaluated is defined in [§5](#5-gates).
 
-`transactions.is_fraud` MUST NOT be used by any rule: it is a label the bank assigns afterwards, not a signal available when the dispute is filed. A null `fraud_score` (about 5% of rows) does not escalate, because the case is investigated by a person anyway and escalating it would inflate unnecessary transfers.
+`transactions.is_fraud` MUST NOT be used by any rule: it is a label the bank assigns afterwards, not a signal available when the dispute is filed. A null `fraud_score` does not escalate, because the case is investigated by a person anyway and escalating it would inflate unnecessary transfers. The null rate is 20.0% (885,157 of 4,425,008 rows) and is spread evenly across `transaction_type`, `channel`, `is_fraud`, `transaction_status`, currency, and year (19.8% to 20.6% in every group), so ignoring it does not bias any group (data profile of 2026-09-28, dataset 2023-06-17 to 2026-06-17).
 
 | ID | Trigger | Condition | Route |
 |---|---|---|---|
@@ -279,6 +292,7 @@ Template examples (the canonical templates live in the codebase and are versione
 | `DATA-03` | **Claims are not facts.** Customer statements are recorded as claims. Only records read from a data source are verified facts. |
 | `DATA-04` | **Provenance.** Every verified fact in the audit record and handoff packet includes its source table and record ID. |
 | `DATA-05` | **Synthetic data only.** The prototype uses the supplied synthetic dataset and team-generated data. No real customer data is used, and no customer records are sent to external model providers beyond what `DATA-01` allows. |
+| `DATA-06` | **Storage minimization and retention.** Core Banking stores only the columns the system uses plus the `DATA-02` attributes needed for fairness reporting. Names, emails, phone numbers, addresses, city, state, postal codes, balances, and coordinates are not loaded. `date_of_birth` is replaced by an age band computed at the business date. `document_number` is stored only as an HMAC with a secret key (`DOCUMENT_HASH_KEY`), so the identity service can match a document without keeping it. Product numbers keep only their last four digits. |
 
 ## 13. Handoff packet
 
@@ -359,9 +373,11 @@ All parameters live in one versioned configuration file in the codebase; this ta
 |---|---|---|---|---|---|
 | `SESSION_MAX_AGE_MIN` | 60 | minutes | `GATE-02` | Fixed | Bounds the lifetime of an authentication. |
 | `SESSION_IDLE_TIMEOUT_MIN` | 15 | minutes | `GATE-02` | Fixed | Common idle timeout for banking sessions. |
+| `AUTH_MAX_ATTEMPTS` | 3 | attempts | `GATE-02` | Fixed | Usual OTP lockout threshold: tolerates a typo without allowing brute force. |
 | `DISPUTE_WINDOW_DAYS` | 60 | calendar days | `GATE-08` | Fixed | Automated intake only for recent transactions. |
 | `LATE_WINDOW_DAYS` | 120 | calendar days | `GATE-08`, `ESC-07` | Fixed | Late filings still reach a human who can judge exceptions. |
 | `DUPLICATE_WINDOW_HOURS` | 48 | hours | `GATE-10` | Provisional | Covers same-day and next-day reposting. |
+| `FX_MAX_STALENESS_DAYS` | 3 | calendar days | §6 | Fixed | An as-of rate a few days old is close enough for a tier; older rates are not trusted. |
 | `PROVISIONAL_CREDIT_AUTO_MAX_USD` | 100 | USD | §6 | Provisional | Low-value disputes where review cost exceeds risk. |
 | `AUTO_INTAKE_MAX_USD` | 1,000 | USD | §6, `ESC-01` | Provisional | Above this, a human reviews before a case exists. |
 | `AGG_DISPUTED_30D_MAX_USD` | 2,000 | USD | `ESC-02` | Provisional | Limits exposure from many small automated disputes. |
@@ -377,9 +393,12 @@ All parameters live in one versioned configuration file in the codebase; this ta
 | `ESCALATION_RISK_THRESHOLD` | TBD | probability | `ESC-11` | Calibrated | Same method as above. |
 | `RESOLUTION_TARGET_BUSINESS_DAYS` | 10 | business days | `COM-05` | Fixed | Synthetic service level shown to customers. |
 
-`AUTH_MAX_ATTEMPTS` (`GATE-02`) is pending: its value is an open question, and it will be added to this table once decided.
+**Business date.** Rules that depend on transaction age or on calendar windows (`GATE-08`, `ESC-02`, `ESC-07`, and the delivery date of `RC_NOT_RECEIVED`) use a business date instead of the real clock. The supplied data ends on 2026-06-17, so with the real clock every transaction would fail `GATE-08`. Session age and idle time (`GATE-02`) always use real time, because the identity service issues sessions now. The two clocks are a limitation of the prototype.
 
-**Business date.** Rules that depend on transaction age or on calendar windows (`GATE-08`, `ESC-02`, `ESC-07`, and the delivery date of `RC_NOT_RECEIVED`) use a business date, `as_of`, instead of the real clock. The supplied data ends on 2026-06-17, so with the real clock every transaction would fail `GATE-08`. The prototype sets `as_of` from configuration (`BUSINESS_DATE`). Session age and idle time (`GATE-02`) always use real time, because the identity service issues sessions now. The two clocks are a limitation of the prototype.
+- In the data, the business day of a partition `process_date = D` runs from D at 06:00 to D+1 at 05:59: 25% of transactions (1,106,307) have a `transaction_date` on the calendar day after their `process_date`, and none has one before it.
+- The configuration sets `BUSINESS_DATE` (2026-06-17, the last partition) and `BUSINESS_DAY_CUTOFF` (06:00). The engine uses `as_of = BUSINESS_DATE + 1 day at BUSINESS_DAY_CUTOFF`.
+- Loading fails if any row has `process_date` after `BUSINESS_DATE`. It does not compare `transaction_date`, because rows of the last business day legitimately fall on the next calendar day.
+- Dataset timestamps are naive: local time without a time zone, although the data covers three countries. `as_of` is naive too, and the two are compared as they are.
 
 ## 16. Deriving evaluation labels
 
@@ -399,24 +418,28 @@ The full evaluation design, including case mix and metrics, will be documented s
 - The policy is synthetic. A real deployment would require review against the rules of each country's financial authorities (for example, CONDUSEF in Mexico, the SFC in Colombia, the BCRA in Argentina) and against card network dispute rules.
 - The case store, identity service, and card-block tool are mocks with documented contracts.
 - Business days follow a single calendar. Country-specific holidays are not modeled.
-- Transactions are deduplicated by `transaction_id` when the data is loaded (about 2% of rows are duplicates). Otherwise a data-quality duplicate would fail "exactly one transaction" in `GATE-05` or be mistaken for a real `RC_DUPLICATE`.
+- Transactions are deduplicated by `transaction_id` across partitions when the data is loaded. The supplied data has no duplicates, by key or by full row, in `transactions`, `customers`, or `products`; deduplication stays as a safeguard, because a data-quality duplicate would fail "exactly one transaction" in `GATE-05` or be mistaken for a real `RC_DUPLICATE`.
 - `products.product_type` values in the supplied data: `Cuenta Ahorro`, `Cuenta Corriente`, `Inversión`, `Préstamo Hipotecario`, `Préstamo Personal`, `Seguro`, `Tarjeta Crédito`, `Tarjeta Débito`.
+- Every `Adjustment` is a bank-originated charge that `RC_FEE` can dispute (open question 1, closed with this assumption).
+- **Data profile.** Figures in this policy come from profiling the supplied data on 2026-09-28: 1,097 daily partitions from 2023-06-17 to 2026-06-17, 4,425,008 transactions, 400,000 products, and 150,000 customers. Values in the data are in Spanish while the data dictionary is in English; the policy and the code use the values observed in the data.
 
 **Limitations**
 
 - The supplied data contains Spanish only. Portuguese behavior is evaluated with team-generated cases, and results are reported separately by language.
 - Thresholds marked *Provisional* are design choices, not values derived from loss data.
 - The supplied transcripts and complaint descriptions cannot be used to validate natural-language understanding (see the spike).
+- Fees cannot be told apart from other adjustments. All 132,118 `Adjustment` rows have a positive amount, no merchant, no category, and no field that gives their direction, and they appear only on loans, investments, and insurance (`Préstamo Personal`, `Préstamo Hipotecario`, `Inversión`, `Seguro`), never on accounts or cards. If some adjustments were credits in the customer's favor, `RC_FEE` would wrongly treat them as disputable charges.
+- Timestamps carry no time zone, so transaction ages across Mexico, Colombia, and Argentina are compared on one naive clock.
 
 **Open questions**
 
 | # | Question | Affects |
 |---|---|---|
-| 1 | *Partly resolved in 0.2.0:* `transaction_type` and `transaction_status` values in the data dictionary match §4 and `GATE-06`. Still open: how are bank fees represented (assumed `Adjustment`)? | §4, `RC_FEE` |
-| 2 | What is the null rate of `transactions.amount_usd`? | §6 |
-| 3 | What is the distribution of `transactions.fraud_score`, and does `is_fraud` carry signal? | `ESC-04` |
+| 1 | *Closed with an assumption in 0.3.0:* `transaction_type` and `transaction_status` values observed in the data match §4 and `GATE-06`. Bank fees are assumed to be `Adjustment` rows (see limitations). | §4, `RC_FEE` |
+| 2 | *Resolved in 0.3.0:* `amount_usd` is null for every USD transaction (structural) and for about 5% of COP and ARS rows; all are resolved at load time (§6). | §6 |
+| 3 | *Partly resolved in 0.3.0:* `fraud_score` has a median of 15.0, a 99th percentile of 29.7, and 673 rows at or above 80; 20% is null. The mean score is 49.5 when `is_fraud` is true and 15.0 when false. Still open: calibrating `FRAUD_SCORE_ESCALATE`. | `ESC-04` |
 | 4 | Can `complaints` be linked to `transactions` through `affected_product_id` to seed realistic scenarios? | §16 |
-| 5 | What is the value of `AUTH_MAX_ATTEMPTS`? | `GATE-02` |
+| 5 | *Closed in 0.3.0:* `AUTH_MAX_ATTEMPTS` = 3 (§15). | `GATE-02` |
 
 ## 18. Change log
 
@@ -424,3 +447,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 |---|---|---|
 | 0.1.0 | 2026-09-25 | First draft. |
 | 0.2.0 | 2026-09-28 | Two-channel evaluation of gates and triggers (§5). `AUTH_MAX_ATTEMPTS` for `GATE-02`, value pending. Distinct `transaction_id` for `RC_DUPLICATE`. Unknown USD amount treated as `T3` (§6). Null `fraud_score` does not fire `ESC-04`, and `is_fraud` is excluded from rules (§7). Conditions for offering `ACT-03`; confirmation requires a valid session (§8). Business date `as_of` (§15). Deduplication and product types (§17). Open question 1 partly resolved. |
+| 0.3.0 | 2026-09-28 | Figures from the data profile of 2026-09-28. `AUTH_MAX_ATTEMPTS` = 3 and how attempts are counted (§5). USD equivalent with `amount_usd_source` and an as-of exchange rate within `FX_MAX_STALENESS_DAYS` (§6). Null rate of `fraud_score` (§7). `DATA-06` storage minimization (§12). Business-day cutoff and naive timestamps (§15). No duplicates in the data; fees assumed to be `Adjustment` (§17). Open questions 1, 2, and 5 closed; 3 partly resolved. |

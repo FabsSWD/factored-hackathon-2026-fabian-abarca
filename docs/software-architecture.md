@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.1 |
+| Version | 0.1.2 |
 | Last updated | 2026-09-28 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -51,7 +51,7 @@ The central design rule comes from the [dispute policy](dispute-policy.md#2-desi
 
 | Component | What it does | Why it exists |
 |---|---|---|
-| **Core Banking** | Stores customers, products, and transactions loaded from the supplied dataset. The application only reads it. | Source of truth for verified facts. Responses must be grounded in permitted account and transaction data. |
+| **Core Banking** | Stores customers, products, and transactions loaded from the supplied dataset, keeping only the columns the system uses plus the fairness attributes ([DATA-06](dispute-policy.md#12-data-handling-and-fairness)). The application only reads it. | Source of truth for verified facts. Responses must be grounded in permitted account and transaction data. |
 | **Cases** | Stores dispute cases and handoff packets. | Where actions are written and read back for verification ([ACT-02](dispute-policy.md#8-actions-and-confirmations)). |
 | **Audit** | Stores sessions and the execution record of every turn. | Explanations must come from execution records, not from hidden model reasoning. |
 
@@ -160,7 +160,7 @@ Some inputs to the running system are produced once, outside the request path:
 
 | Artifact | Produced by | Consumed by |
 |---|---|---|
-| Core Banking data | Ingestion to Parquet (`scripts/ingest.py`), then a loader into PostgreSQL | Tool Layer |
+| Core Banking data | `scripts/ingest.py` (raw CSV to silver Parquet: all partitions, deduplication by key, source file per row), then `scripts/load_core_banking.py` (silver to core Parquet: data contract, minimization, USD equivalent; then an idempotent upsert into PostgreSQL). Writes `reports/core_build.json`. | Tool Layer |
 | Kev weights | Fine-tuning on team-generated, policy-labeled cases | Kev server |
 | Calibrated thresholds | Validation split during model evaluation | `policy.yaml` |
 | Evaluation reports | Evaluation harness running baseline and system on the held-out set | Metrics Dashboard, final submission |
@@ -181,3 +181,4 @@ The data and ML pipelines will be documented separately.
 |---|---|---|
 | 0.1.0 | 2026-09-26 | First draft. |
 | 0.1.1 | 2026-09-28 | Two clocks limitation; confirmation after mid-conversation session expiry (policy 0.2.0). |
+| 0.1.2 | 2026-09-28 | Core Banking minimization and the offline loading pipeline (policy 0.3.0). |
