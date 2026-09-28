@@ -11,7 +11,7 @@ from pydantic import BaseModel, ValidationError
 from app import contracts as c
 
 NOW = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
-AS_OF = datetime(2026, 6, 17, tzinfo=UTC)
+AS_OF = datetime(2026, 6, 18, 6, 0)  # naive, dataset clock
 CUSTOMER = "CLI-AAA"
 OTHER = "CLI-BBB"
 
@@ -37,7 +37,7 @@ def transaction(**overrides: Any) -> c.TransactionRecord:
         "product_id": "PRD-1",
         "transaction_type": "Purchase",
         "transaction_status": "Approved",
-        "transaction_date": NOW - timedelta(days=3),
+        "transaction_date": AS_OF - timedelta(days=3),
         "amount": Decimal("1250.00"),
         "currency": "MXN",
         "amount_usd": Decimal("68.40"),
@@ -257,7 +257,7 @@ def test_transaction_required_fields(field: str) -> None:
         ("currency", "MXNN"),
         ("fraud_score", 101),
         ("fraud_score", -1),
-        ("transaction_date", datetime(2026, 1, 1)),  # naive datetime
+        ("transaction_date", datetime(2026, 1, 1, tzinfo=UTC)),  # aware: wrong clock
         ("amount_usd", Decimal("-1")),
         ("transaction_id", ""),
     ],
@@ -603,12 +603,12 @@ def test_records_of_another_customer_are_rejected(field: str) -> None:
     "clocks",
     [
         {"now": datetime(2026, 9, 28), "as_of": AS_OF},
-        {"now": NOW, "as_of": datetime(2026, 6, 17)},
+        {"now": NOW, "as_of": datetime(2026, 6, 18, 6, 0, tzinfo=UTC)},
         {"now": NOW},
         {"as_of": AS_OF},
     ],
 )
-def test_policy_request_requires_both_aware_clocks(clocks: dict[str, datetime]) -> None:
+def test_policy_request_requires_both_clocks_with_their_kind(clocks: dict[str, datetime]) -> None:
     with pytest.raises(ValidationError):
         c.PolicyRequest.model_validate({"conversation_id": "CONV-1", **clocks})
 
@@ -616,7 +616,8 @@ def test_policy_request_requires_both_aware_clocks(clocks: dict[str, datetime]) 
 def test_business_date_is_independent_of_real_time() -> None:
     # Policy §15: the dataset ends on 2026-06-17 while sessions run in real time.
     request = c.PolicyRequest(now=NOW, as_of=AS_OF, conversation_id="CONV-1")
-    assert request.as_of < request.now
+    assert request.as_of.tzinfo is None
+    assert request.now.tzinfo is not None
 
 
 # --- Policy decision --------------------------------------------------------

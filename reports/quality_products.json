@@ -1,0 +1,69 @@
+{
+  "table": "products",
+  "ingested_at": "2026-09-28T20:45:33.514373+00:00",
+  "source_files": 1,
+  "raw_rows": 400000,
+  "exact_duplicate_rows": 0,
+  "pk_column": "product_id",
+  "pk_nulls": 0,
+  "pk_duplicate_rows": 0,
+  "silver_rows": 400000,
+  "dropped_rows": 0,
+  "dedup_order": [
+    "last_updated",
+    "_source_file"
+  ],
+  "null_rates": {
+    "credit_limit": 0.6867,
+    "interest_rate": 0.1002,
+    "expiration_date": 0.6671,
+    "days_past_due": 0.6866,
+    "last_transaction_date": 0.2357
+  },
+  "schema_variants": [
+    {
+      "columns": [
+        "product_id",
+        "customer_id",
+        "product_type",
+        "product_number",
+        "currency",
+        "current_balance",
+        "credit_limit",
+        "interest_rate",
+        "opening_date",
+        "expiration_date",
+        "opening_branch_id",
+        "product_status",
+        "opening_channel",
+        "has_linked_app",
+        "days_past_due",
+        "last_transaction_date",
+        "last_updated"
+      ],
+      "file_count": 1,
+      "first_file": "products.csv",
+      "last_file": "products.csv"
+    }
+  ],
+  "column_types": {
+    "product_id": "VARCHAR",
+    "customer_id": "VARCHAR",
+    "product_type": "VARCHAR",
+    "product_number": "VARCHAR",
+    "currency": "VARCHAR",
+    "current_balance": "DOUBLE",
+    "credit_limit": "DOUBLE",
+    "interest_rate": "DOUBLE",
+    "opening_date": "DATE",
+    "expiration_date": "DATE",
+    "opening_branch_id": "VARCHAR",
+    "product_status": "VARCHAR",
+    "opening_channel": "VARCHAR",
+    "has_linked_app": "BOOLEAN",
+    "days_past_due": "DOUBLE",
+    "last_transaction_date": "TIMESTAMP",
+    "last_updated": "TIMESTAMP",
+    "_source_file": "VARCHAR"
+  }
+}

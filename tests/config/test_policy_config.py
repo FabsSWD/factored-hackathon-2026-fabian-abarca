@@ -21,9 +21,11 @@ from app.config import (
 POLICY_TABLE: dict[str, int | Decimal | None] = {
     "SESSION_MAX_AGE_MIN": 60,
     "SESSION_IDLE_TIMEOUT_MIN": 15,
+    "AUTH_MAX_ATTEMPTS": 3,
     "DISPUTE_WINDOW_DAYS": 60,
     "LATE_WINDOW_DAYS": 120,
     "DUPLICATE_WINDOW_HOURS": 48,
+    "FX_MAX_STALENESS_DAYS": 3,
     "PROVISIONAL_CREDIT_AUTO_MAX_USD": Decimal("100"),
     "AUTO_INTAKE_MAX_USD": Decimal("1000"),
     "AGG_DISPUTED_30D_MAX_USD": Decimal("2000"),
@@ -65,7 +67,7 @@ def _with_parameter(tmp_path: Path, name: str, value: object) -> Path:
 def test_repository_policy_file_loads() -> None:
     config = load_policy_config(DEFAULT_POLICY_PATH)
     assert isinstance(config, PolicyConfig)
-    assert config.policy_version == "0.2.0"
+    assert config.policy_version == "0.3.0"
 
 
 def test_policy_version_matches_the_policy_document() -> None:
@@ -75,8 +77,8 @@ def test_policy_version_matches_the_policy_document() -> None:
     assert load_policy_config(DEFAULT_POLICY_PATH).policy_version == match.group(1)
 
 
-def test_policy_has_exactly_the_nineteen_parameters_of_section_15() -> None:
-    assert len(POLICY_TABLE) == 19
+def test_policy_has_exactly_the_parameters_of_section_15() -> None:
+    assert len(POLICY_TABLE) == 21
     assert set(_raw_policy()["parameters"]) == set(POLICY_TABLE)
 
 
@@ -122,7 +124,7 @@ def test_env_variable_selects_the_file(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_default_path_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(POLICY_PATH_ENV, raising=False)
-    assert load_policy_config().policy_version == "0.2.0"
+    assert load_policy_config().policy_version == "0.3.0"
 
 
 def test_get_policy_config_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1,0 +1,31 @@
+{
+  "business_date": "2026-06-17",
+  "as_of": "2026-06-18T06:00:00",
+  "rows": {
+    "customers": 150000,
+    "products": 400000,
+    "transactions": 4425008
+  },
+  "transactions": {
+    "total": 4425008,
+    "process_date_range": [
+      "2023-06-17",
+      "2026-06-17"
+    ],
+    "partitions": 1097,
+    "amount_usd_source": {
+      "fx_rate": 99477,
+      "identity": 2437979,
+      "source": 1887552
+    },
+    "fx_rate_age_days": {
+      "0": 99442,
+      "1": 35
+    },
+    "fx_rate_from_earlier_day": 35,
+    "late_arrivals": 0,
+    "after_midnight_of_process_date": 1106307,
+    "after_as_of": 0,
+    "fraud_score_null": 885157
+  }
+}

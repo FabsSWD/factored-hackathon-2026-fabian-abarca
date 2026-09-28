@@ -49,8 +49,10 @@ LINEAGE_COLS = {"_source_file", "year", "month", "day"}
 
 def source_files(table: str) -> list[Path]:
     folder = RAW / table
-    if folder.is_dir():
-        return sorted(folder.rglob("*.csv"))
+    partitioned = sorted(folder.rglob("*.csv")) if folder.is_dir() else []
+    if partitioned:
+        return partitioned
+    # An empty folder (e.g. data/raw/customers/) must not hide data/raw/customers.csv
     single = RAW / f"{table}.csv"
     return [single] if single.exists() else []
 
