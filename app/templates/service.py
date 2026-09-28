@@ -3,6 +3,16 @@
 The file is validated when it is loaded, so a broken template stops the application instead
 of reaching a customer. ``render`` fails loudly on a missing or unknown value and never
 returns text with an unfilled placeholder.
+
+Composition rules for the Orchestrator (M12):
+
+- Some templates never close a turn alone; ``REQUIRED_FOLLOW_UPS`` lists the templates one of
+  which must follow them. ``tool_failure`` states that an action could not be verified, so it
+  is always followed by ``handoff`` (the case escalates under ESC-10) or ``offer_transfer``.
+- Every INFORM outcome explains why and offers a human transfer (policy §9): the INFORM
+  template is followed by ``offer_transfer``.
+- ``handoff_unauthenticated`` is the only handoff text allowed before GATE-02 passes
+  (ESC-05 or ESC-06 without a session); it mentions no account data.
 """
 
 from __future__ import annotations
@@ -16,7 +26,7 @@ import yaml
 
 from app.config import PolicyParameters
 from app.contracts import ActionId, CaseStatus, InformReason, Language, ReasonCode, SlotName
-from app.templates.formatting import is_masked
+from app.templates.formatting import FormattedAmount, is_masked
 from app.templates.promises import find_promises
 
 DEFAULT_TEMPLATES_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "templates.yaml"
@@ -26,9 +36,17 @@ POLICY_VALUES = frozenset({"days"})
 """Filled from the policy, never by the caller: {days} = RESOLUTION_TARGET_BUSINESS_DAYS."""
 MASKED_VALUES = frozenset({"product"})
 """Must receive a masked product number (COM-06)."""
+FORMATTED_AMOUNT_VALUES = frozenset({"amount"})
+"""Must receive a FormattedAmount from app.templates.formatting.format_amount."""
+
+REQUIRED_FOLLOW_UPS: dict[str, frozenset[str]] = {
+    "tool_failure": frozenset({"handoff", "offer_transfer"}),
+}
+"""Template -> templates one of which must follow it in the same reply."""
 
 INFORM_TEMPLATES: dict[InformReason, str] = {
     InformReason.AUTHENTICATION_DECLINED: "authentication_declined",
+    InformReason.AUTHENTICATION_ATTEMPTS_EXCEEDED: "authentication_attempts_exceeded",
     InformReason.TRANSACTION_PENDING: "pending_transaction",
     InformReason.TRANSACTION_DECLINED: "declined_transaction",
     InformReason.TRANSACTION_REVERSED: "reversed_transaction",
@@ -130,6 +148,9 @@ class TemplateService:
         for name in MASKED_VALUES & template.placeholders:
             if not is_masked(str(values[name])):
                 raise TemplateError(f"{template_id}: {{{name}}} must be a masked product number")
+        for name in FORMATTED_AMOUNT_VALUES & template.placeholders:
+            if not isinstance(values[name], FormattedAmount):
+                raise TemplateError(f"{template_id}: {{{name}}} must come from format_amount")
         return template.texts[lang].format_map({key: str(value) for key, value in values.items()})
 
     def label(self, kind: str, key: str, language: Language | str) -> str:
@@ -186,7 +207,13 @@ class TemplateService:
                         f"{template_id}.{language}: promises a refund or result {promises} (COM-05)"
                     )
             templates[str(template_id)] = _Template(texts, per_language[LANGUAGES[0]])
-        required = set(INFORM_TEMPLATES.values()) | set(CLARIFY_TEMPLATES.values())
+        required = (
+            set(INFORM_TEMPLATES.values())
+            | set(CLARIFY_TEMPLATES.values())
+            | set(REQUIRED_FOLLOW_UPS)
+            | {follow_up for options in REQUIRED_FOLLOW_UPS.values() for follow_up in options}
+            | {"handoff_unauthenticated", "session_expired_reconfirm"}
+        )
         missing = required - set(templates)
         if missing:
             raise TemplateError(f"missing templates {sorted(missing)}")

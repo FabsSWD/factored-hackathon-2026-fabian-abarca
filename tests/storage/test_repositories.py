@@ -60,6 +60,12 @@ def test_get_customer(repo: CoreBankingRepository) -> None:
     assert repo.get_customer("CLI-NOBODY") is None
 
 
+def test_get_customer_country_for_presentation(repo: CoreBankingRepository) -> None:
+    assert repo.get_customer_country(CUSTOMER) == "Colombia"
+    assert repo.get_customer_country(OTHER_CUSTOMER) == "Argentina"
+    assert repo.get_customer_country("CLI-NOBODY") is None
+
+
 def test_list_products_only_own(repo: CoreBankingRepository) -> None:
     products = repo.list_products(CUSTOMER)
     assert {p.customer_id for p in products} == {CUSTOMER}

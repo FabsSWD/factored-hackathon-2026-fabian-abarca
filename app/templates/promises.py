@@ -6,6 +6,10 @@
 The patterns target commitments ("le reembolsaremos", "vai receber o estorno", "a su favor"),
 not neutral facts: "esta transacción ya fue reversada" / "já foi estornada" state what the
 records show and are allowed. Matching ignores case and accents.
+
+Fail closed (M12): if a connecting sentence written by the language model is flagged, that
+sentence is discarded and the reply is built from the templates alone. The detector is never
+used to "fix" a sentence. Its recall on free text is measured in M17.
 """
 
 from __future__ import annotations

@@ -152,7 +152,8 @@ class ClarifyTarget(StrEnum):
 class InformReason(StrEnum):
     """Why an INFORM outcome was produced. Each value maps to a versioned template (COM-02)."""
 
-    AUTHENTICATION_DECLINED = "authentication_declined"  # GATE-02
+    AUTHENTICATION_DECLINED = "authentication_declined"  # GATE-02, explicit refusal
+    AUTHENTICATION_ATTEMPTS_EXCEEDED = "authentication_attempts_exceeded"  # GATE-02
     TRANSACTION_PENDING = "transaction_pending"  # GATE-06
     TRANSACTION_DECLINED = "transaction_declined"  # GATE-06
     TRANSACTION_REVERSED = "transaction_reversed"  # GATE-06

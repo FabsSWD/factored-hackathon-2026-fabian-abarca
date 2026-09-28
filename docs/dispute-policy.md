@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.3.1 |
+| Version | 0.3.2 |
 | Last updated | 2026-09-28 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -274,6 +274,7 @@ Clarification rules:
 | `COM-05` | The system MUST NOT promise a refund, credit, or result. It states that the case will be investigated within `RESOLUTION_TARGET_BUSINESS_DAYS` business days. |
 | `COM-06` | Product numbers are masked to the last four digits. |
 | `COM-07` | Explanations to the customer describe the reason in plain language ("the transaction is still pending"). Rule identifiers appear only in the audit record. |
+| `COM-08` | Amounts are shown with the ISO currency code first and formatted for the customer's locale (conversation language plus customer country): `es-MX` writes `USD 1,250.00`; `es-CO`, `es-AR`, and `pt-BR` write `USD 1.250,00`. The `$` sign is never used, because it is ambiguous between pesos and dollars. |
 
 Template examples (the canonical templates live in the codebase and are versioned):
 
@@ -288,7 +289,7 @@ Template examples (the canonical templates live in the codebase and are versione
 | ID | Rule |
 |---|---|
 | `DATA-01` | **Minimization.** The language model receives only what the current step needs: a pseudonymous customer reference, masked product numbers, and transaction date, amount, currency, merchant, and status. It MUST NOT receive document numbers, dates of birth, addresses, phone numbers, emails, or full names. |
-| `DATA-02` | **Prohibited decision inputs.** These fields MUST NOT influence any outcome, threshold, or model feature: `segment`, `credit_score`, `estimated_monthly_income`, `gender`, `date_of_birth` (or age), `detected_accent`, `occupation`, `marital_status`, `education_level`, and `country` (except for currency conversion and language defaults). They MAY be used only to report outcomes by group for fairness analysis. |
+| `DATA-02` | **Prohibited decision inputs.** These fields MUST NOT influence any outcome, threshold, or model feature: `segment`, `credit_score`, `estimated_monthly_income`, `gender`, `date_of_birth` (or age), `detected_accent`, `occupation`, `marital_status`, `education_level`, and `country` (except for currency conversion, language defaults, and number formatting under `COM-08`). They MAY be used only to report outcomes by group for fairness analysis. |
 | `DATA-03` | **Claims are not facts.** Customer statements are recorded as claims. Only records read from a data source are verified facts. |
 | `DATA-04` | **Provenance.** Every verified fact in the audit record and handoff packet includes its source table and record ID. |
 | `DATA-05` | **Synthetic data only.** The prototype uses the supplied synthetic dataset and team-generated data. No real customer data is used, and no customer records are sent to external model providers beyond what `DATA-01` allows. |
@@ -432,6 +433,7 @@ The full evaluation design, including case mix and metrics, will be documented s
 - The supplied transcripts and complaint descriptions cannot be used to validate natural-language understanding (see the spike).
 - Fees cannot be told apart from other adjustments. All 132,118 `Adjustment` rows have a positive amount, no merchant, no category, and no field that gives their direction, and they appear only on loans, investments, and insurance (`Préstamo Personal`, `Préstamo Hipotecario`, `Inversión`, `Seguro`), never on accounts or cards. If some adjustments were credits in the customer's favor, `RC_FEE` would wrongly treat them as disputable charges.
 - Timestamps carry no time zone, so transaction ages across Mexico, Colombia, and Argentina are compared on one naive clock.
+- The data dictionary lists `MXN`, but no transaction or product uses it: transactions are in `USD`, `COP`, and `ARS`, and every transaction of a customer in Mexico is in `USD` (2,216,431 rows). `daily_exchange_rates` includes `MXN` rates, which the system does not use.
 
 **Open questions**
 
@@ -451,3 +453,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.2.0 | 2026-09-28 | Two-channel evaluation of gates and triggers (§5). `AUTH_MAX_ATTEMPTS` for `GATE-02`, value pending. Distinct `transaction_id` for `RC_DUPLICATE`. Unknown USD amount treated as `T3` (§6). Null `fraud_score` does not fire `ESC-04`, and `is_fraud` is excluded from rules (§7). Conditions for offering `ACT-03`; confirmation requires a valid session (§8). Business date `as_of` (§15). Deduplication and product types (§17). Open question 1 partly resolved. |
 | 0.3.0 | 2026-09-28 | Figures from the data profile of 2026-09-28. `AUTH_MAX_ATTEMPTS` = 3 and how attempts are counted (§5). USD equivalent with `amount_usd_source` and an as-of exchange rate within `FX_MAX_STALENESS_DAYS` (§6). Null rate of `fraud_score` (§7). `DATA-06` storage minimization (§12). Business-day cutoff and naive timestamps (§15). No duplicates in the data; fees assumed to be `Adjustment` (§17). Open questions 1, 2, and 5 closed; 3 partly resolved. |
 | 0.3.1 | 2026-09-28 | Clock rule: transactions and cases use the business clock; cases store `business_created_at`, which `ESC-02` counts (§7, §15). |
+| 0.3.2 | 2026-09-28 | `COM-08` amount format by locale with the currency code first; `country` allowed for number formatting (`DATA-02`). No `MXN` in the data (§17). |

@@ -12,12 +12,21 @@ import yaml
 from app import interfaces
 from app.config import load_policy_config
 from app.contracts import ActionId, CaseStatus, InformReason, Language, ReasonCode, SlotName
-from app.templates.formatting import format_amount, format_date, is_masked, mask_product_number
+from app.templates.formatting import (
+    FormattedAmount,
+    Locale,
+    format_amount,
+    format_date,
+    is_masked,
+    locale_for,
+    mask_product_number,
+)
 from app.templates.promises import contains_promise, find_promises
 from app.templates.service import (
     CLARIFY_TEMPLATES,
     DEFAULT_TEMPLATES_PATH,
     INFORM_TEMPLATES,
+    REQUIRED_FOLLOW_UPS,
     TemplateError,
     TemplateService,
 )
@@ -29,7 +38,7 @@ SAMPLE_VALUES: dict[str, object] = {
     "status": "abierta",
     "transaction_date": "16/06/2026",
     "merchant": "Cafe Sintetico",
-    "amount": "50.00 USD",
+    "amount": format_amount(Decimal("50"), "USD", Locale.ES_MX),
     "product": "****4821",
     "reason": "Cargo duplicado",
     "action": "Registrar una disputa",
@@ -69,7 +78,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.0.0"
+    assert templates.version == "1.1.0"
     assert isinstance(templates, interfaces.TemplateService)
 
 
@@ -204,12 +213,12 @@ def test_confirm_summary_with_labels(templates: TemplateService) -> None:
         "pt",
         transaction_date=format_date(date(2026, 6, 16)),
         merchant=templates.label("misc", "no_merchant", "pt"),
-        amount=format_amount(Decimal("200000"), "COP"),
+        amount=format_amount(Decimal("200000"), "COP", Locale.PT_BR),
         product=mask_product_number("4111111111114821"),
         reason=templates.label("reason_code", ReasonCode.DUPLICATE.value, "pt"),
         action=templates.label("action", ActionId.CREATE_CASE.value, "pt"),
     )
-    assert "16/06/2026, sem estabelecimento, 200.000,00 COP" in text
+    assert "16/06/2026, sem estabelecimento, COP 200.000,00" in text
     assert "Produto: ****4821" in text
     assert "Cobrança duplicada" in text
     assert "sim, confirmo" in text
@@ -259,17 +268,81 @@ def test_full_or_malformed_product_numbers_are_never_rendered(
 
 
 @pytest.mark.parametrize(
-    ("amount", "currency", "text"),
+    ("language", "country", "locale"),
     [
-        (Decimal("1250.5"), "USD", "1,250.50 USD"),
-        (Decimal("1250.5"), "COP", "1.250,50 COP"),
-        (Decimal("40000000"), "ARS", "40.000.000,00 ARS"),
-        (Decimal("0.005"), "usd", "0.01 USD"),
-        (Decimal("18.9"), "BRL", "18,90 BRL"),
+        ("es", "México", Locale.ES_MX),
+        ("es", "Mexico", Locale.ES_MX),
+        ("es", "Colombia", Locale.ES_CO),
+        ("es", "Argentina", Locale.ES_AR),
+        (Language.ES, " ARGENTINA ", Locale.ES_AR),
+        ("es", None, Locale.ES_CO),
+        ("es", "Chile", Locale.ES_CO),
+        ("pt", "México", Locale.PT_BR),
+        (Language.PT, None, Locale.PT_BR),
     ],
 )
-def test_format_amount(amount: Decimal, currency: str, text: str) -> None:
-    assert format_amount(amount, currency) == text
+def test_locale_from_language_and_country(
+    language: Language | str, country: str | None, locale: Locale
+) -> None:
+    assert locale_for(language, country) is locale
+
+
+def test_locale_rejects_unsupported_language() -> None:
+    with pytest.raises(ValueError, match="unsupported language"):
+        locale_for("en", "México")
+
+
+@pytest.mark.parametrize(
+    ("locale", "text"),
+    [
+        (Locale.ES_MX, "USD 1,250.50"),
+        (Locale.ES_CO, "USD 1.250,50"),
+        (Locale.ES_AR, "USD 1.250,50"),
+        (Locale.PT_BR, "USD 1.250,50"),
+    ],
+)
+def test_same_usd_amount_per_locale(locale: Locale, text: str) -> None:
+    assert format_amount(Decimal("1250.5"), "USD", locale) == text
+
+
+@pytest.mark.parametrize(
+    ("amount", "currency", "locale", "text"),
+    [
+        (Decimal("1250000"), "COP", Locale.ES_CO, "COP 1.250.000,00"),
+        (Decimal("40000000"), "ARS", Locale.ES_AR, "ARS 40.000.000,00"),
+        (Decimal("0.005"), "usd", Locale.ES_MX, "USD 0.01"),
+        (Decimal("18.9"), " brl ", Locale.PT_BR, "BRL 18,90"),
+    ],
+)
+def test_format_amount(amount: Decimal, currency: str, locale: Locale, text: str) -> None:
+    formatted = format_amount(amount, currency, locale)
+    assert formatted == text
+    assert isinstance(formatted, FormattedAmount)
+
+
+@pytest.mark.parametrize("currency", ["", "$", "US", "DOLLAR", "12A"])
+def test_format_amount_needs_a_currency_code(currency: str) -> None:
+    with pytest.raises(ValueError, match="currency code"):
+        format_amount(Decimal("1"), currency, Locale.ES_CO)
+
+
+@pytest.mark.parametrize("locale", list(Locale))
+@pytest.mark.parametrize("currency", ["USD", "COP", "ARS"])
+def test_no_amount_is_shown_without_its_currency_code(locale: Locale, currency: str) -> None:
+    text = format_amount(Decimal("987654.321"), currency, locale)
+    assert re.fullmatch(rf"{currency} \d{{1,3}}(?:[.,]\d{{3}})*[.,]\d{{2}}", text)
+    assert "$" not in text
+
+
+@pytest.mark.parametrize("value", [50.0, Decimal("50"), "USD 50.00", "50.00 USD", 50])
+def test_raw_amounts_are_never_rendered(templates: TemplateService, value: object) -> None:
+    with pytest.raises(TemplateError, match="must come from format_amount"):
+        templates.render("clarify_duplicate_ref", "es", transaction_date="16/06/2026", amount=value)
+
+
+def test_every_amount_placeholder_is_checked(templates: TemplateService) -> None:
+    with_amount = [t for t in templates.template_ids if "amount" in templates.placeholders(t)]
+    assert set(with_amount) == {"confirm_summary", "candidate_line", "clarify_duplicate_ref"}
 
 
 def test_format_date() -> None:
@@ -293,6 +366,64 @@ def test_every_label_exists(templates: TemplateService, language: str) -> None:
 def test_unknown_label_fails(templates: TemplateService) -> None:
     with pytest.raises(TemplateError, match="unknown label"):
         templates.label("reason_code", "RC_OTHER", "es")
+
+
+# --- Composition and specific cases ------------------------------------------------------
+
+
+def test_tool_failure_never_closes_a_turn_alone(templates: TemplateService) -> None:
+    follow_ups = REQUIRED_FOLLOW_UPS["tool_failure"]
+    assert follow_ups == {"handoff", "offer_transfer"}
+    assert follow_ups <= templates.template_ids
+
+
+def test_session_expired_mid_conversation_asks_to_reauthenticate_and_reconfirm(
+    templates: TemplateService,
+) -> None:
+    es = templates.render("session_expired_reconfirm", "es")
+    pt = templates.render("session_expired_reconfirm", "pt")
+    assert "expiró" in es and "resumen" in es and "confirme" in es
+    assert "expirou" in pt and "resumo" in pt and "confirmar" in pt
+
+
+def test_attempts_exceeded_has_its_own_inform_text(templates: TemplateService) -> None:
+    exceeded = templates.inform(InformReason.AUTHENTICATION_ATTEMPTS_EXCEEDED, "es")
+    declined = templates.inform(InformReason.AUTHENTICATION_DECLINED, "es")
+    assert "varios intentos" in exceeded
+    assert exceeded != declined
+
+
+def test_unauthenticated_handoff_mentions_no_account_data(templates: TemplateService) -> None:
+    assert templates.placeholders("handoff_unauthenticated") == frozenset()
+    for language in ("es", "pt"):
+        text = templates.render("handoff_unauthenticated", language).lower()
+        for word in (
+            "tarjeta",
+            "cartão",
+            "cuenta",
+            "conta",
+            "transac",
+            "monto",
+            "valor",
+            "caso",
+            "información que",
+            "informações que",
+        ):
+            assert word not in text, (language, word)
+
+
+def test_card_block_confirmation_is_informed(templates: TemplateService) -> None:
+    es = templates.render("confirm_block_card", "es", product="****4821")
+    pt = templates.render("confirm_block_card", "pt", product="****4821")
+    assert "incluidos los pagos automáticos" in es
+    assert "Si más adelante necesita desbloquearla, puede solicitarlo a un agente" in es
+    assert "incluindo os pagamentos automáticos" in pt
+    assert "precisar desbloqueá-lo, pode solicitar a um atendente" in pt
+    label_es = templates.label("action", "ACT-03", "es")
+    label_pt = templates.label("action", "ACT-03", "pt")
+    assert "automáticos" in label_es and "automáticos" in label_pt
+    for text in (es, pt, label_es, label_pt):
+        assert not re.search(r"reposici|reposi[cç][aã]o|nueva tarjeta|novo cartão", text.lower())
 
 
 # --- COM-05 and COM-07 ------------------------------------------------------------------

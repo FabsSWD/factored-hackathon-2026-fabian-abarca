@@ -6,11 +6,15 @@
 # - placeholders are plain names: no attributes, indexes or format specs, no literal braces;
 # - no text promises a refund, credit or result (COM-05);
 # - {days} is filled from RESOLUTION_TARGET_BUSINESS_DAYS, never by the caller;
-# - {product} only accepts a masked product number (COM-06).
+# - {product} only accepts a masked product number (COM-06);
+# - {amount} only accepts an amount formatted by app/templates/formatting.py: currency code
+#   first and the customer's locale (es-MX 1,250.00; es-CO, es-AR, pt-BR 1.250,00).
+# - Composition rules (follow-ups, INFORM + offer_transfer) are documented in
+#   app/templates/service.py.
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.0.0"
+template_version: "1.1.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -23,11 +27,16 @@ templates:
     es: "Voy a transferir su caso a un agente, que ya tendrá la información que me compartió."
     pt: "Vou transferir seu caso para um atendente, que já terá as informações que você me passou."
 
+  handoff_unauthenticated:  # ESC-05/ESC-06 before GATE-02: no account data at all
+    es: "Voy a transferirle con un agente. Por seguridad, el agente verificará su identidad antes de revisar su solicitud."
+    pt: "Vou transferir você para um atendente. Por segurança, o atendente vai verificar sua identidade antes de analisar sua solicitação."
+
   refuse:  # REFUSE; never confirms or denies that a record exists (GATE-04)
     es: "No puedo ayudarle con esa solicitud. Solo puedo consultar la información de sus propios productos."
     pt: "Não posso ajudar com essa solicitação. Só posso consultar as informações dos seus próprios produtos."
 
-  tool_failure:  # ESC-10: the action could not be verified (COM-04)
+  tool_failure:  # ESC-10: the action could not be verified (COM-04). Never closes a turn
+                 # alone: always followed by handoff or offer_transfer.
     es: "No pude confirmar que la acción se haya completado. Un agente revisará su caso con esta información."
     pt: "Não consegui confirmar que a ação foi concluída. Um atendente vai revisar seu caso com essas informações."
 
@@ -61,9 +70,13 @@ templates:
     es: "Ya existe una disputa para esta transacción con la referencia {case_ref}. Su estado actual es: {status}."
     pt: "Já existe uma contestação para esta transação com a referência {case_ref}. O status atual é: {status}."
 
-  authentication_declined:  # GATE-02, refusal or AUTH_MAX_ATTEMPTS exceeded
+  authentication_declined:  # GATE-02, explicit refusal
     es: "Sin verificar su identidad no puedo consultar sus productos ni registrar una disputa."
     pt: "Sem verificar sua identidade, não posso consultar seus produtos nem registrar uma contestação."
+
+  authentication_attempts_exceeded:  # GATE-02, AUTH_MAX_ATTEMPTS exceeded
+    es: "No pude verificar su identidad después de varios intentos, así que no puedo continuar con la disputa por este canal."
+    pt: "Não consegui verificar sua identidade depois de várias tentativas, então não posso continuar com a contestação por este canal."
 
   amount_not_exceeded:  # GATE-10 RC_INCORRECT_AMOUNT
     es: "El monto cobrado no supera el monto que usted indica haber acordado, así que no corresponde una disputa por monto incorrecto."
@@ -84,8 +97,8 @@ templates:
     pt: "Antes de continuar, confira estes dados:\n- Transação: {transaction_date}, {merchant}, {amount}\n- Produto: {product}\n- Motivo: {reason}\n- Ação: {action}\nSe estiver tudo certo, responda “sim, confirmo”."
 
   confirm_block_card:  # ACT-03 offered without a specific transaction (ESC-03)
-    es: "Para proteger su cuenta, puedo bloquear temporalmente su tarjeta {product}. Un agente podrá desbloquearla después. Si está de acuerdo, responda “sí, confirmo”."
-    pt: "Para proteger sua conta, posso bloquear temporariamente seu cartão {product}. Um atendente poderá desbloqueá-lo depois. Se você concordar, responda “sim, confirmo”."
+    es: "Para proteger su cuenta, puedo bloquear temporalmente su tarjeta {product}. Mientras esté bloqueada, no funcionará para ninguna compra ni pago, incluidos los pagos automáticos. Si más adelante necesita desbloquearla, puede solicitarlo a un agente. Si está de acuerdo, responda “sí, confirmo”."
+    pt: "Para proteger sua conta, posso bloquear temporariamente seu cartão {product}. Enquanto estiver bloqueado, ele não vai funcionar para nenhuma compra ou pagamento, incluindo os pagamentos automáticos. Se depois você precisar desbloqueá-lo, pode solicitar a um atendente. Se você concordar, responda “sim, confirmo”."
 
   card_blocked:  # after ACT-03 read-back
     es: "Bloqueamos temporalmente su tarjeta {product}."
@@ -100,6 +113,10 @@ templates:
   ask_language:  # GATE-01, COM-01: the language is unknown, so both texts are bilingual
     es: "¿Prefiere continuar en español o en portugués? / Prefere continuar em espanhol ou em português?"
     pt: "¿Prefiere continuar en español o en portugués? / Prefere continuar em espanhol ou em português?"
+
+  session_expired_reconfirm:  # GATE-02 fails before a pending COM-03 confirmation
+    es: "Su sesión expiró por seguridad. Por favor, ingrese de nuevo con su número de documento y el código de verificación. Después le mostraré otra vez el resumen para que lo confirme."
+    pt: "Sua sessão expirou por segurança. Por favor, entre novamente com o número do seu documento e o código de verificação. Depois vou mostrar o resumo outra vez para você confirmar."
 
   ask_authentication:  # GATE-02
     es: "Para proteger su información, primero necesito verificar su identidad. Por favor, ingrese con su número de documento y el código de verificación."
@@ -177,9 +194,9 @@ labels:
     ACT-02:
       es: "Registrar una disputa"
       pt: "Registrar uma contestação"
-    ACT-03:
-      es: "Bloquear temporalmente la tarjeta"
-      pt: "Bloquear temporariamente o cartão"
+    ACT-03:  # includes the consequence, so the COM-03 confirmation is informed
+      es: "Bloquear temporalmente la tarjeta (dejará de funcionar para todas las compras y pagos, incluidos los automáticos)"
+      pt: "Bloquear temporariamente o cartão (ele deixará de funcionar para todas as compras e pagamentos, incluindo os automáticos)"
   case_status:
     Draft:
       es: "borrador"

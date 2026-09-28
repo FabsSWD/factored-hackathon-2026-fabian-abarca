@@ -40,6 +40,13 @@ class CoreBankingRepository:
             return None
         return CustomerRecord(customer_id=row.customer_id, customer_status=row.customer_status)
 
+    def get_customer_country(self, customer_id: str) -> str | None:
+        """Presentation only (number format of templates). Kept out of CustomerRecord so the
+        country can never reach the Policy Engine (DATA-02)."""
+        return self._session.scalar(
+            select(Customer.country).where(Customer.customer_id == customer_id)
+        )
+
     def list_products(self, customer_id: str) -> list[ProductRecord]:
         rows = self._session.scalars(
             select(Product).where(Product.customer_id == customer_id).order_by(Product.product_id)
