@@ -221,7 +221,7 @@ class HandoffPacketRow(Base):
     status: Mapped[str] = mapped_column(String(16), server_default="pending")
     policy_version: Mapped[str] = mapped_column(String(16))
     # The full §13 packet, validated by app.contracts.HandoffPacket before it is written.
-    packet: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    packet: Mapped[dict[str, Any]] = mapped_column(JSONB(none_as_null=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -258,7 +258,7 @@ class AuditLog(Base):
     trace_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     conversation_id: Mapped[str | None] = mapped_column(String(64), index=True)
     session_id: Mapped[str | None] = mapped_column(ForeignKey("sessions.session_id"))
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB(none_as_null=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
