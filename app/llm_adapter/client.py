@@ -15,7 +15,9 @@ directly; tests inject an ``httpx.MockTransport``, so no test ever reaches the r
 - After the last attempt a controlled ``LLMError`` is raised; httpx errors never escape.
 
 Without ``temperature`` the answers can vary between runs: M18 measures variability with at
-least three runs per case.
+least three runs per case. The API reports only the alias (``gpt-6-luna``) and no
+``system_fingerprint``, so the underlying model can change without notice; recorded answers in
+tests/fixtures/llm/ catch parser regressions.
 """
 
 from __future__ import annotations
@@ -94,6 +96,14 @@ Validator = Callable[[dict[str, Any]], Any]
 """Turns the JSON answer into a typed value; raises ValueError when it is out of schema."""
 
 
+@dataclass(frozen=True)
+class Adjusted:
+    """A validator result with deterministic corrections, recorded in the ModelCall."""
+
+    value: Any
+    adjustments: tuple[str, ...] = ()
+
+
 def prompt_hash(system: str, schema: dict[str, Any]) -> str:
     digest = hashlib.sha256(
         (system + "\n" + json.dumps(schema, sort_keys=True)).encode("utf-8")
@@ -111,6 +121,7 @@ class _Attempt:
     tokens_out: int | None = None
     response_model: str | None = None
     fingerprint: str | None = None
+    adjustments: tuple[str, ...] = ()
 
 
 class OpenAIJsonClient:
@@ -236,6 +247,9 @@ class OpenAIJsonClient:
             if not isinstance(data, dict):
                 raise _RetryableError("the answer is not a JSON object")
             value = validate(data) if validate is not None else data
+            if isinstance(value, Adjusted):
+                record.adjustments = value.adjustments
+                value = value.value
         except httpx.TimeoutException as exc:
             self._record(record, "timeout")
             raise _RetryableError("timeout") from exc
@@ -271,6 +285,7 @@ class OpenAIJsonClient:
                 latency_ms=max(0.0, (self._monotonic() - record.started) * 1000),
                 success=error is None,
                 error=error,
+                adjustments=list(record.adjustments),
             )
         )
 

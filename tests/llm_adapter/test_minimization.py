@@ -68,6 +68,7 @@ def test_context_payload_with_empty_lists() -> None:
         "masked_products": [],
         "transactions": [],
         "pending_slot": None,
+        "shown_candidates": [],
     }
 
 

@@ -63,8 +63,8 @@ def sent_user(fake: FakeOpenAI, index: int = 0) -> dict[str, Any]:
 CASES: list[tuple[str, str, dict[str, Any], dict[str, Any]]] = [
     (
         "es-unrecognized",
-        "No reconozco el cargo de 50 dólares en Cafe Sintetico, tengo mi tarjeta y no di "
-        "mis claves",
+        "No reconozco la transacción TRX-T1-PURCHASE de 50 dólares en Cafe Sintetico, tengo mi "
+        "tarjeta y no di mis claves",
         extraction(
             slots={
                 "transaction_ref": {
@@ -350,7 +350,7 @@ def test_request_has_model_prompt_and_strict_schema(
         "masked_products": ["****4821"],
         "transactions": [
             {
-                "transaction_ref": "TRX-T1-PURCHASE",
+                "alias": "C1",
                 "transaction_date": "2026-06-16",
                 "amount": "50.00",
                 "currency": "USD",
@@ -359,6 +359,7 @@ def test_request_has_model_prompt_and_strict_schema(
             }
         ],
         "pending_slot": "confirmation",
+        "shown_candidates": [],
     }
     assert calls[0].purpose == EXTRACT_PURPOSE
     assert calls[0].prompt_version == prompts.EXTRACT_PROMPT_VERSION
@@ -648,3 +649,105 @@ def test_extraction_with_the_default_client_factory(fake: FakeOpenAI) -> None:
     assert calls[0].input_tokens == 120
     assert calls[0].output_tokens == 40
     assert calls[0].latency_ms >= 0
+
+
+# --- Aliases instead of internal transaction IDs (DATA-01) --------------------------------------
+
+
+def aliased_context(shown: list[str]) -> LLMContext:
+    def tx(ref: str, day: int, amount: str, merchant: str) -> LLMTransaction:
+        return LLMTransaction(transaction_ref=ref, transaction_date=date(2026, 6, day),
+                              amount=Decimal(amount), currency="USD", merchant_name=merchant,
+                              transaction_status="Approved")  # fmt: skip
+
+    return LLMContext(
+        customer_ref="CUS-pseudonym-7f3a",
+        language=Language.ES,
+        transactions=[
+            tx("TRX-REAL-AAA111", 14, "18.90", "Streaming Plus"),
+            tx("TRX-REAL-BBB222", 15, "18.90", "Streaming Plus"),
+            tx("TRX-REAL-CCC333", 16, "50.00", "Cafe Sintetico"),
+        ],
+        shown_candidates=shown,
+    )
+
+
+def answer_with(transaction_id: str | None) -> dict[str, Any]:
+    ref = {"transaction_id": transaction_id, "transaction_date": None, "amount": 18.9,
+           "merchant": "Streaming Plus"}  # fmt: skip
+    return extraction(slots={"transaction_ref": ref, "reason_code": "RC_DUPLICATE"})
+
+
+def test_payload_never_contains_internal_transaction_ids(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [completion(extraction())]
+    extract(
+        adapter, "Me cobraron dos veces", aliased_context(["TRX-REAL-BBB222", "TRX-REAL-AAA111"])
+    )
+    raw = fake.requests[0].content.decode()
+    assert "TRX-REAL" not in raw
+    sent = sent_user(fake)["context"]
+    # Shown candidates come first, in the order they were listed to the customer.
+    assert sent["shown_candidates"] == ["C1", "C2"]
+    assert [(t["alias"], t["transaction_date"]) for t in sent["transactions"]] == [
+        ("C2", "2026-06-14"),
+        ("C1", "2026-06-15"),
+        ("C3", "2026-06-16"),
+    ]
+
+
+def test_chosen_alias_is_translated_to_the_real_id(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, calls: list[ModelCall]
+) -> None:
+    fake.responses = [completion(answer_with("C2"))]
+    result = extract(adapter, "La segunda", aliased_context(["TRX-REAL-BBB222", "TRX-REAL-AAA111"]))
+    assert result.slots.transaction_ref is not None
+    assert result.slots.transaction_ref.transaction_id == "TRX-REAL-AAA111"
+    assert calls[0].adjustments == []
+
+
+@pytest.mark.parametrize(
+    ("proposed", "message"),
+    [
+        ("C7", "La séptima"),  # never shown
+        ("C3", "La de Cafe Sintetico"),  # exists in the context, but was not shown
+        ("C1", "La primera"),  # nothing was shown this time
+        ("TRX-REAL-AAA111", "La primera"),  # a real ID the customer did not type
+    ],
+)
+def test_alias_or_id_that_was_not_offered_is_discarded(
+    adapter: OpenAILLMAdapter,
+    fake: FakeOpenAI,
+    calls: list[ModelCall],
+    proposed: str,
+    message: str,
+) -> None:
+    shown = [] if proposed == "C1" else ["TRX-REAL-BBB222", "TRX-REAL-AAA111"]
+    fake.responses = [completion(answer_with(proposed))]
+    result = extract(adapter, message, aliased_context(shown))
+    ref = result.slots.transaction_ref
+    assert ref is not None
+    assert ref.transaction_id is None
+    assert ref.amount == Decimal("18.9")
+    assert ref.merchant == "Streaming Plus"
+    assert calls[0].adjustments == ["transaction_id_discarded"]
+
+
+def test_real_id_typed_by_the_customer_is_kept(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, calls: list[ModelCall]
+) -> None:
+    fake.responses = [completion(answer_with("TRX-REAL-CCC333"))]
+    result = extract(adapter, "No reconozco TRX-REAL-CCC333", aliased_context([]))
+    assert result.slots.transaction_ref is not None
+    assert result.slots.transaction_ref.transaction_id == "TRX-REAL-CCC333"
+    assert calls[0].adjustments == []
+
+
+def test_alias_typed_by_the_customer_but_not_shown_is_discarded(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [completion(answer_with("C2"))]
+    result = extract(adapter, "Quiero la C2", aliased_context([]))
+    assert result.slots.transaction_ref is not None
+    assert result.slots.transaction_ref.transaction_id is None

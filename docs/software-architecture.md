@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.3 |
+| Version | 0.1.4 |
 | Last updated | 2026-09-28 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -172,6 +172,7 @@ The data and ML pipelines will be documented separately.
 - The identity service, core banking data, and case store are mocks with documented contracts; they are not production integrations.
 - A production deployment with strict data residency would replace the OpenAI API with a self-hosted model; that requires GPU hardware not available for this prototype.
 - Kev 0.8B has a limited knowledge base and its calibration is verified only on our evaluation data.
+- The conversational model is identified only by its alias: the API reports `gpt-6-luna` as the model and no `system_fingerprint`, so the provider can change the underlying model without notice. Mitigation: parser regression tests on recorded answers (`tests/fixtures/llm/`), and repeated runs per case in the evaluation (M18), since no `temperature` is sent.
 - Capacity limits of the deployment have not been measured yet; they will be reported with the evaluation results.
 - Two clocks: transaction-age rules use a simulated business date (`BUSINESS_DATE`, because the supplied data ends on 2026-06-17), while session age uses real time ([policy §15](dispute-policy.md#15-parameters)).
 
@@ -183,3 +184,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.1 | 2026-09-28 | Two clocks limitation; confirmation after mid-conversation session expiry (policy 0.2.0). |
 | 0.1.2 | 2026-09-28 | Core Banking minimization and the offline loading pipeline (policy 0.3.0). |
 | 0.1.3 | 2026-09-28 | Identity Service: document + OTP login, HS256 only, revocable sessions, OTP lockout. |
+| 0.1.4 | 2026-09-28 | Limitation: the conversational model is identified only by its alias. |

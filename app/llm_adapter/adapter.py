@@ -5,8 +5,12 @@
   the schema are rejected and retried within the bounds. The interrupt signals of ESC-05 and
   ESC-06 are the union of the model and ``RuleBasedSignalDetector``. When the model gives no
   usable answer, ``ExtractionUnavailableError`` carries the rule-only result as ``fallback``
-  (contract for M12 in ``app.interfaces.LLMAdapter``). It is called only for messages the
-  Input Guard did not flag (see ``app.interfaces.InputGuard``).
+  (contract for M12 in ``app.interfaces.LLMAdapter``). A ``transaction_id`` proposed by the
+  model (it only sees aliases C1, C2, ...) is kept only if it is the alias of a candidate shown
+  in the previous turn, translated to the real ID, or the real ID the customer typed; otherwise
+  it is set to null (date, amount and merchant stay) and the
+  ModelCall records ``transaction_id_discarded``. It is called only for messages the Input
+  Guard did not flag (see ``app.interfaces.InputGuard``).
 - ``connect`` returns the committed template text with optional connecting sentences around
   it. The template is inserted by this code, never copied by the model, so it reaches the
   customer unchanged (COM-02). A template in another language than the conversation is a
@@ -39,13 +43,19 @@ from app.contracts import (
 )
 from app.deadline import Deadline
 from app.llm_adapter import prompts
-from app.llm_adapter.client import MIN_ATTEMPT_SECONDS, LLMError, OpenAIJsonClient
+from app.llm_adapter.client import MIN_ATTEMPT_SECONDS, Adjusted, LLMError, OpenAIJsonClient
 from app.llm_adapter.language import guess_language
-from app.llm_adapter.minimization import context_payload, scrub_message
+from app.llm_adapter.minimization import (
+    ALIAS_PREFIX,
+    candidate_aliases,
+    context_payload,
+    scrub_message,
+)
 from app.llm_adapter.signals import RuleBasedSignalDetector, merge_flags
 from app.templates.promises import find_promises
 
 EXTRACT_PURPOSE = "extract_slots"
+TRANSACTION_ID_DISCARDED = "transaction_id_discarded"
 CONNECT_PURPOSE = "connect_sentences"
 MAX_CLAIMS = 5
 MAX_CLAIM_CHARS = 200
@@ -110,7 +120,7 @@ class OpenAILLMAdapter:
                 schema_name="dispute_extraction",
                 schema=prompts.EXTRACT_SCHEMA,
                 max_output_tokens=EXTRACT_MAX_TOKENS,
-                validate=parse_extraction,
+                validate=lambda data: _validated(data, message, context),
                 deadline=deadline,
             )
         except LLMError as exc:
@@ -164,6 +174,43 @@ class OpenAILLMAdapter:
             _safe_sentence(after, language),
         ]
         return " ".join(part for part in parts if part)
+
+
+def _validated(data: dict[str, Any], message: str, context: LLMContext) -> Adjusted:
+    aliases = candidate_aliases(context)
+    shown = {aliases[ref]: ref for ref in context.shown_candidates if ref in aliases}
+    result, adjustments = enforce_transaction_id(parse_extraction(data), message, shown)
+    return Adjusted(result, adjustments)
+
+
+def enforce_transaction_id(
+    result: ExtractionResult, message: str, shown_aliases: dict[str, str]
+) -> tuple[ExtractionResult, tuple[str, ...]]:
+    """Resolve the model's transaction_id, or discard it.
+
+    The model only ever sees aliases (C1, C2, ...). Its answer is kept only if it is the alias
+    of a candidate shown to the customer (translated to the real ID) or the real ID the
+    customer typed literally. Anything else is set to null, keeping date, amount and merchant.
+    GATE-05 still matches deterministically afterwards (see ``TransactionRef``).
+    """
+    ref = result.slots.transaction_ref
+    if ref is None or ref.transaction_id is None:
+        return result, ()
+    proposed = ref.transaction_id.strip()
+    shown = {alias.upper(): real for alias, real in shown_aliases.items()}
+    resolved: str | None = shown.get(proposed.upper())
+    is_alias = re.fullmatch(rf"{ALIAS_PREFIX}\d+", proposed, re.I) is not None
+    if resolved is None and not is_alias:
+        typed = re.search(rf"(?<![\w-]){re.escape(proposed)}(?![\w-])", message, re.I)
+        resolved = proposed if typed else None
+    if resolved is not None:
+        kept_ref = ref.model_copy(update={"transaction_id": resolved})
+        slots = result.slots.model_copy(update={"transaction_ref": kept_ref})
+        return result.model_copy(update={"slots": slots}), ()
+    rest = ref.model_dump(exclude={"transaction_id"}, exclude_none=True)
+    kept = TransactionRef.model_validate(rest) if rest else None
+    slots = result.slots.model_copy(update={"transaction_ref": kept})
+    return result.model_copy(update={"slots": slots}), (TRANSACTION_ID_DISCARDED,)
 
 
 def parse_extraction(data: dict[str, Any]) -> ExtractionResult:

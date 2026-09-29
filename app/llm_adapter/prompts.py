@@ -12,7 +12,7 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode
 
-EXTRACT_PROMPT_VERSION = "extract@1.1.0"
+EXTRACT_PROMPT_VERSION = "extract@1.3.0"
 CONNECT_PROMPT_VERSION = "connect@1.0.0"
 
 EXTRACT_SYSTEM = """\
@@ -28,9 +28,10 @@ language_ambiguous is true when the message mixes languages or is too short to t
   - transaction_ref: the transaction the customer refers to; null if they refer to none. \
 Always fill transaction_date (YYYY-MM-DD), amount (number, in the transaction currency) \
 and merchant with what the customer says in this message, whether or not the context lists \
-candidates. Fill transaction_id only when the customer gives the ID or picks one of the \
-transactions listed in the context as shown to them ("la segunda", "la de Streaming \
-Plus"); a deterministic check verifies it against the other fields.
+candidates. Transactions in the context are identified only by an alias (C1, C2, ...). \
+Fill transaction_id only with the alias of a transaction in context.shown_candidates that \
+the customer picks ("la segunda", "la de Streaming Plus"), or with a transaction ID the \
+customer types literally. Any other value is discarded by a deterministic check.
   - reason_code: RC_UNRECOGNIZED (did not make or authorize it), RC_DUPLICATE (charged \
 more than once), RC_INCORRECT_AMOUNT (authorized, but charged more than agreed), \
 RC_NOT_RECEIVED (paid, goods or services not delivered), RC_FEE (a bank fee the customer \

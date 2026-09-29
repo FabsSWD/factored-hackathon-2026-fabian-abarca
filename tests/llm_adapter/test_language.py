@@ -45,12 +45,14 @@ def test_short_sentences(text: str, language: Language | None) -> None:
     assert guess_language(text) is language
 
 
-def test_extract_prompt_1_1_0_rules() -> None:
-    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.1.0"
+def test_extract_prompt_rules() -> None:
+    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.3.0"
     text = " ".join(prompts.EXTRACT_SYSTEM.split())
     assert "Always fill transaction_date" in text
     assert "whether or not the context lists candidates" in text
-    assert "Fill transaction_id only when the customer gives the ID or picks one" in text
+    assert "Fill transaction_id only with the alias of a transaction" in text
+    assert "context.shown_candidates" in text
+    assert "identified only by an alias (C1, C2, ...)" in text
     assert "always in the third person and in the conversation's language" in text
     assert '"El cliente indica que..."' in text
     assert '"O cliente informa que..."' in text

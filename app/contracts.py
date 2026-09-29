@@ -294,7 +294,9 @@ class TransactionRef(Contract):
 
     For M8/M9: GATE-05 matches deterministically. A ``transaction_id`` proposed by the model is
     accepted only if it is consistent with the date, amount and merchant the customer gave;
-    otherwise the reference counts as ambiguous and the outcome is CLARIFY.
+    otherwise the reference counts as ambiguous and the outcome is CLARIFY. The currency the
+    customer names ("dólares") is not extracted: policy §10 matches on date (±1 day), amount
+    and merchant. If M8 needs it to separate same-amount candidates, add it here then.
     """
 
     transaction_id: NonEmptyStr | None = None
@@ -422,6 +424,10 @@ class LLMContext(Contract):
     masked_products: list[MaskedProductNumber] = Field(default_factory=list)
     transactions: list[LLMTransaction] = Field(default_factory=list)
     pending_slot: SlotName | None = None
+    # Transaction refs listed to the customer in the previous turn (choose_transaction). A
+    # transaction_id proposed by the model is kept only if it is one of these or appears
+    # literally in the customer's message.
+    shown_candidates: list[NonEmptyStr] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -712,6 +718,8 @@ class ModelCall(Contract):
     latency_ms: NonNegativeFloat
     success: bool
     error: str | None = None
+    # Deterministic corrections applied to the model's answer, e.g. "transaction_id_discarded".
+    adjustments: list[NonEmptyStr] = Field(default_factory=list)
 
 
 class TraceRecord(Contract):

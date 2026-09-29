@@ -1,9 +1,13 @@
 """DATA-01: only minimized data reaches the language model.
 
-Two layers:
+Three layers:
 
 1. The context is serialized from an explicit allow-list of LLMContext fields, never with a
    generic dump, so a field attached by mistake (even bypassing validation) is dropped.
+   Internal transaction IDs never leave: each transaction is sent under a per-conversation
+   alias (C1, C2, ...) with its date, amount, currency, merchant and status. The candidates
+   shown to the customer come first, in the order they were listed, so "la segunda" is C2.
+   ``candidate_aliases`` gives the mapping the adapter uses to translate answers back.
 2. The customer's own message is scrubbed of personal data it may contain: emails, card
    numbers (kept as ****last4, COM-06), phone numbers, document numbers and dates of birth
    announced by a keyword, and CPF-shaped numbers. Names and street addresses cannot be
@@ -19,9 +23,10 @@ from typing import Any
 from app.contracts import LLMContext
 
 ALLOWED_CONTEXT_FIELDS = ("customer_ref", "language", "masked_products", "transactions",
-                          "pending_slot")  # fmt: skip
-ALLOWED_TRANSACTION_FIELDS = ("transaction_ref", "transaction_date", "amount", "currency",
-                              "merchant_name", "transaction_status")  # fmt: skip
+                          "pending_slot", "shown_candidates")  # fmt: skip
+ALLOWED_TRANSACTION_FIELDS = ("transaction_date", "amount", "currency", "merchant_name",
+                              "transaction_status")  # fmt: skip
+ALIAS_PREFIX = "C"
 
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _CARD = re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)")
@@ -58,21 +63,42 @@ def scrub_message(message: str) -> str:
     return _CARD.sub(_mask_card, text)
 
 
+def candidate_aliases(context: LLMContext) -> dict[str, str]:
+    """Real transaction ref -> alias: shown candidates first (C1..), then the other transactions."""
+    refs = [str(ref) for ref in (getattr(context, "shown_candidates", None) or [])]
+    refs += [
+        str(getattr(transaction, "transaction_ref", ""))
+        for transaction in (getattr(context, "transactions", None) or [])
+    ]
+    aliases: dict[str, str] = {}
+    for ref in refs:
+        if ref and ref not in aliases:
+            aliases[ref] = f"{ALIAS_PREFIX}{len(aliases) + 1}"
+    return aliases
+
+
 def context_payload(context: LLMContext) -> dict[str, Any]:
-    """The context as sent to the model, built only from allow-listed fields."""
+    """The context as sent to the model, built only from allow-listed fields and aliases."""
+    aliases = candidate_aliases(context)
     payload: dict[str, Any] = {}
     for name in ALLOWED_CONTEXT_FIELDS:
         value = getattr(context, name, None)
         if name == "transactions":
             payload[name] = [
                 {
-                    field: _plain(getattr(transaction, field, None))
-                    for field in ALLOWED_TRANSACTION_FIELDS
+                    "alias": aliases[str(getattr(transaction, "transaction_ref", ""))],
+                    **{
+                        field: _plain(getattr(transaction, field, None))
+                        for field in ALLOWED_TRANSACTION_FIELDS
+                    },
                 }
                 for transaction in (value or [])
+                if str(getattr(transaction, "transaction_ref", "")) in aliases
             ]
+        elif name == "shown_candidates":
+            payload[name] = [aliases[str(ref)] for ref in (value or []) if str(ref) in aliases]
         elif name == "masked_products":
-            payload[name] = [str(product) for product in (value or [])]
+            payload[name] = [str(item) for item in (value or [])]
         else:
             payload[name] = _plain(value)
     return payload
