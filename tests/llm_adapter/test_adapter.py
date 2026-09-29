@@ -93,7 +93,7 @@ CASES: list[tuple[str, str, dict[str, Any], dict[str, Any]]] = [
             slots={
                 "transaction_ref": {
                     "transaction_id": None,
-                    "transaction_date": "2026-06-15",
+                    "transaction_date": {"day": 15, "month": 6, "year": 2026},
                     "amount": 18.9,
                     "merchant": "Streaming Plus",
                 },
@@ -360,6 +360,7 @@ def test_request_has_model_prompt_and_strict_schema(
         ],
         "pending_slot": "confirmation",
         "shown_candidates": [],
+        "business_date": None,
     }
     assert calls[0].purpose == EXTRACT_PURPOSE
     assert calls[0].prompt_version == prompts.EXTRACT_PROMPT_VERSION
@@ -751,3 +752,121 @@ def test_alias_typed_by_the_customer_but_not_shown_is_discarded(
     result = extract(adapter, "Quiero la C2", aliased_context([]))
     assert result.slots.transaction_ref is not None
     assert result.slots.transaction_ref.transaction_id is None
+
+
+# --- Transaction dates: the year is resolved in code -------------------------------------------
+
+BUSINESS_DATE = date(2026, 6, 17)
+
+
+def dated(parts: Any) -> dict[str, Any]:
+    ref = {"transaction_id": None, "transaction_date": parts, "amount": 50,
+           "merchant": "Cafe Sintetico"}  # fmt: skip
+    return extraction(slots={"transaction_ref": ref})
+
+
+def with_business_date(business_date: date | None = BUSINESS_DATE) -> LLMContext:
+    return context().model_copy(update={"business_date": business_date})
+
+
+@pytest.mark.parametrize(
+    ("parts", "expected"),
+    [
+        ({"day": 16, "month": 6, "year": None}, date(2026, 6, 16)),  # before business date
+        ({"day": 17, "month": 6, "year": None}, date(2026, 6, 17)),  # the business date itself
+        ({"day": 20, "month": 6, "year": None}, date(2025, 6, 20)),  # after it: previous year
+        ({"day": 16, "month": 6, "year": 2026}, date(2026, 6, 16)),  # full date
+        ({"day": 16, "month": 6, "year": 2025}, date(2025, 6, 16)),  # full date, 366 days back
+    ],
+)
+def test_transaction_date_is_completed_in_code(
+    adapter: OpenAILLMAdapter,
+    fake: FakeOpenAI,
+    calls: list[ModelCall],
+    parts: dict[str, Any],
+    expected: date,
+) -> None:
+    fake.responses = [completion(dated(parts))]
+    result = extract(adapter, "el cargo del 16 de junio", with_business_date())
+    assert result.slots.transaction_ref is not None
+    assert result.slots.transaction_ref.transaction_date == expected
+    assert calls[0].adjustments == []
+
+
+def test_relative_date_resolved_by_the_model_is_kept(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [completion(dated({"day": 16, "month": 6, "year": 2026}))]
+    result = extract(adapter, "el cargo de ayer", with_business_date())
+    assert result.slots.transaction_ref is not None
+    assert result.slots.transaction_ref.transaction_date == date(2026, 6, 16)
+    assert json.loads(fake.bodies()[0]["messages"][1]["content"])["context"]["business_date"] == (
+        "2026-06-17"
+    )
+
+
+@pytest.mark.parametrize(
+    ("parts", "business_date"),
+    [
+        ({"day": 18, "month": 6, "year": 2026}, BUSINESS_DATE),  # future
+        ({"day": 1, "month": 1, "year": 2025}, BUSINESS_DATE),  # 532 days back
+        ({"day": 12, "month": 5, "year": 2025}, BUSINESS_DATE),  # 401 days back
+        ({"day": 29, "month": 2, "year": None}, BUSINESS_DATE),  # latest is 2024-02-29: too old
+        ({"day": 31, "month": 2, "year": 2026}, BUSINESS_DATE),  # impossible date
+        ({"day": 31, "month": 2, "year": None}, BUSINESS_DATE),  # impossible in any year
+        ({"day": 16, "month": 6, "year": None}, None),  # no business date to complete the year
+    ],
+)
+def test_unresolvable_or_out_of_window_dates_are_discarded(
+    adapter: OpenAILLMAdapter,
+    fake: FakeOpenAI,
+    calls: list[ModelCall],
+    parts: dict[str, Any],
+    business_date: date | None,
+) -> None:
+    fake.responses = [completion(dated(parts))]
+    result = extract(adapter, "el cargo", with_business_date(business_date))
+    ref = result.slots.transaction_ref
+    assert ref is not None
+    assert ref.transaction_date is None
+    assert ref.amount == Decimal("50")
+    assert calls[0].adjustments == ["transaction_date_discarded"]
+
+
+def test_29_february_without_year_in_a_leap_year(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [completion(dated({"day": 29, "month": 2, "year": None}))]
+    result = extract(adapter, "el 29 de febrero", with_business_date(date(2028, 6, 17)))
+    assert result.slots.transaction_ref is not None
+    assert result.slots.transaction_ref.transaction_date == date(2028, 2, 29)
+
+
+@pytest.mark.parametrize(
+    "parts",
+    [
+        "2026-06-16",
+        {"day": 32, "month": 6, "year": None},
+        {"day": 16, "month": 13, "year": None},
+        {"day": "16", "month": 6, "year": None},
+        {"day": 16, "month": 6},
+        {"day": 16, "month": 6, "year": 2026, "hour": 10},
+        {"day": True, "month": 6, "year": None},
+    ],
+)
+def test_malformed_dates_are_out_of_schema(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, parts: Any
+) -> None:
+    fake.responses = [completion(dated(parts))] * 3
+    with pytest.raises(LLMError):
+        extract(adapter, "el cargo", with_business_date())
+
+
+def test_date_and_id_adjustments_are_both_recorded(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, calls: list[ModelCall]
+) -> None:
+    answer = dated({"day": 18, "month": 6, "year": 2026})
+    answer["slots"]["transaction_ref"]["transaction_id"] = "C9"
+    fake.responses = [completion(answer)]
+    extract(adapter, "el cargo", with_business_date())
+    assert calls[0].adjustments == ["transaction_date_discarded", "transaction_id_discarded"]

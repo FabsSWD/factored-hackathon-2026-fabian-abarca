@@ -428,6 +428,9 @@ class LLMContext(Contract):
     # transaction_id proposed by the model is kept only if it is one of these or appears
     # literally in the customer's message.
     shown_candidates: list[NonEmptyStr] = Field(default_factory=list)
+    # The business date (as_of), so the model can resolve "ayer" and the code can complete the
+    # year of a partial date (policy §15, business clock).
+    business_date: date | None = None
 
 
 # ---------------------------------------------------------------------------

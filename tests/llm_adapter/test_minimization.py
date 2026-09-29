@@ -69,6 +69,7 @@ def test_context_payload_with_empty_lists() -> None:
         "transactions": [],
         "pending_slot": None,
         "shown_candidates": [],
+        "business_date": None,
     }
 
 

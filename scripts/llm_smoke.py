@@ -90,7 +90,9 @@ async def main(record: bool) -> None:
 
     for name, language, message in MESSAGES:
         deadline = adapter.new_deadline()
-        context = CONTEXT.model_copy(update={"language": language})
+        context = CONTEXT.model_copy(
+            update={"language": language, "business_date": settings.business_date}
+        )
         print(f"\n=== {name} [{language.value}] {message}")
         result = await adapter.extract(message, context, deadline)
         print(result.model_dump_json(indent=2))

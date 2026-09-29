@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -44,6 +45,7 @@ from app.contracts import (
 from app.deadline import Deadline
 from app.llm_adapter import prompts
 from app.llm_adapter.client import MIN_ATTEMPT_SECONDS, Adjusted, LLMError, OpenAIJsonClient
+from app.llm_adapter.dates import parse_date_parts, resolve_date
 from app.llm_adapter.language import guess_language
 from app.llm_adapter.minimization import (
     ALIAS_PREFIX,
@@ -56,6 +58,7 @@ from app.templates.promises import find_promises
 
 EXTRACT_PURPOSE = "extract_slots"
 TRANSACTION_ID_DISCARDED = "transaction_id_discarded"
+TRANSACTION_DATE_DISCARDED = "transaction_date_discarded"
 CONNECT_PURPOSE = "connect_sentences"
 MAX_CLAIMS = 5
 MAX_CLAIM_CHARS = 200
@@ -179,8 +182,9 @@ class OpenAILLMAdapter:
 def _validated(data: dict[str, Any], message: str, context: LLMContext) -> Adjusted:
     aliases = candidate_aliases(context)
     shown = {aliases[ref]: ref for ref in context.shown_candidates if ref in aliases}
-    result, adjustments = enforce_transaction_id(parse_extraction(data), message, shown)
-    return Adjusted(result, adjustments)
+    parsed, date_adjustments = parse_extraction(data, context.business_date)
+    result, id_adjustments = enforce_transaction_id(parsed, message, shown)
+    return Adjusted(result, date_adjustments + id_adjustments)
 
 
 def enforce_transaction_id(
@@ -213,8 +217,16 @@ def enforce_transaction_id(
     return result.model_copy(update={"slots": slots}), (TRANSACTION_ID_DISCARDED,)
 
 
-def parse_extraction(data: dict[str, Any]) -> ExtractionResult:
-    """Validate the model's JSON against the contract. Raises ValueError when out of schema."""
+def parse_extraction(
+    data: dict[str, Any], business_date: date | None = None
+) -> tuple[ExtractionResult, tuple[str, ...]]:
+    """Validate the model's JSON against the contract. Raises ValueError when out of schema.
+
+    Returns the result and the deterministic corrections applied: a transaction date is
+    completed and checked in code (``app.llm_adapter.dates``), and set to null with
+    ``transaction_date_discarded`` when it cannot be resolved or falls outside the window.
+    """
+    adjustments: tuple[str, ...] = ()
     # Pydantic's lax mode would read "yes" or 1 as True; the schema allows only JSON booleans.
     slots = dict(data.get("slots") or {})
     flags = data.get("flags") or {}
@@ -224,6 +236,14 @@ def parse_extraction(data: dict[str, Any]) -> ExtractionResult:
         raise ValueError("extraction outside the schema: booleans must be true, false or null")
     ref = slots.get("transaction_ref")
     if isinstance(ref, dict):
+        ref = dict(ref)
+        parts = parse_date_parts(ref.get("transaction_date"))
+        ref["transaction_date"] = None
+        if parts is not None:
+            resolved = resolve_date(*parts, business_date)
+            if resolved is None:
+                adjustments = (TRANSACTION_DATE_DISCARDED,)
+            ref["transaction_date"] = resolved
         cleaned = {key: value for key, value in ref.items() if value not in (None, "")}
         slots["transaction_ref"] = (
             TransactionRef.model_validate(_decimals(cleaned)) if cleaned else None
@@ -231,13 +251,14 @@ def parse_extraction(data: dict[str, Any]) -> ExtractionResult:
     slots = _decimals(slots)
     claims = [str(claim).strip()[:MAX_CLAIM_CHARS] for claim in data.get("customer_claims") or []]
     try:
-        return ExtractionResult(
+        result = ExtractionResult(
             detected_language=data.get("detected_language"),
             language_ambiguous=data.get("language_ambiguous", False),
             slots=Slots.model_validate(slots),
             flags=ConversationFlags.model_validate(flags),
             customer_claims=[claim for claim in claims if claim][:MAX_CLAIMS],
         )
+        return result, adjustments
     except ValidationError as exc:
         raise ValueError(f"extraction outside the schema: {exc.error_count()} error(s)") from exc
 

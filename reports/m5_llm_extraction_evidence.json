@@ -1,0 +1,22 @@
+{
+  "description": "Real-model behaviour of the extraction prompt on the three smoke messages (scripts/llm_smoke.py). Evidence for the M17 report; historical data, not asserted by tests.",
+  "model": "gpt-6-luna (alias only; no system_fingerprint reported)",
+  "messages": ["es_unrecognized", "pt_duplicate_human", "es_not_received_legal"],
+  "runs": [
+    {
+      "prompt_version": "extract@1.1.0",
+      "date": "2026-09-28",
+      "transaction_id_invented": 2,
+      "cases": 3,
+      "notes": "Filled transaction_id (TRX-SMOKE-1, TRX-SMOKE-2) although the customer neither gave it nor picked a shown candidate. es_unrecognized transaction_date = 2026-06-16."
+    },
+    {
+      "prompt_version": "extract@1.3.0",
+      "date": "2026-09-29",
+      "transaction_id_invented": 0,
+      "cases": 3,
+      "notes": "Aliases instead of internal IDs: no transaction_id proposed, zero discards. Regression: es_unrecognized transaction_date = null although the customer said 'del 16 de junio'. Fixed in extract@1.4.0 by resolving the year in code."
+    }
+  ],
+  "latency_seconds": {"extract": [2.9, 4.4], "connect": [2.0, 2.6], "sequential_per_turn": [4.9, 7.0]}
+}

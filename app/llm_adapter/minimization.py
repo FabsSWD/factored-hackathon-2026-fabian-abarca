@@ -23,7 +23,7 @@ from typing import Any
 from app.contracts import LLMContext
 
 ALLOWED_CONTEXT_FIELDS = ("customer_ref", "language", "masked_products", "transactions",
-                          "pending_slot", "shown_candidates")  # fmt: skip
+                          "pending_slot", "shown_candidates", "business_date")  # fmt: skip
 ALLOWED_TRANSACTION_FIELDS = ("transaction_date", "amount", "currency", "merchant_name",
                               "transaction_status")  # fmt: skip
 ALIAS_PREFIX = "C"

@@ -12,7 +12,7 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode
 
-EXTRACT_PROMPT_VERSION = "extract@1.3.0"
+EXTRACT_PROMPT_VERSION = "extract@1.4.0"
 CONNECT_PROMPT_VERSION = "connect@1.0.0"
 
 EXTRACT_SYSTEM = """\
@@ -26,9 +26,13 @@ Return JSON matching the schema:
 language_ambiguous is true when the message mixes languages or is too short to tell.
 - slots: values the customer states in THIS message; null when not stated. Do not guess.
   - transaction_ref: the transaction the customer refers to; null if they refer to none. \
-Always fill transaction_date (YYYY-MM-DD), amount (number, in the transaction currency) \
-and merchant with what the customer says in this message, whether or not the context lists \
-candidates. Transactions in the context are identified only by an alias (C1, C2, ...). \
+Always fill transaction_date, amount (number, in the transaction currency) and merchant \
+with what the customer says in this message, whether or not the context lists candidates. \
+transaction_date is {day, month, year}: copy the day and month the customer gives and set \
+year only if the customer says it (never guess the year; the code completes it). For a \
+relative day ("ayer", "anteayer", "el lunes pasado", "ontem"), resolve it against \
+context.business_date and give the full date. Transactions in the context are identified \
+only by an alias (C1, C2, ...). \
 Fill transaction_id only with the alias of a transaction in context.shown_candidates that \
 the customer picks ("la segunda", "la de Streaming Plus"), or with a transaction ID the \
 customer types literally. Any other value is discarded by a deterministic check.
@@ -56,7 +60,8 @@ serious hardship or distress caused by the charge.
 third person and in the conversation's language ("El cliente indica que...", "O cliente \
 informa que...").
 
-Dates relative to "today" cannot be resolved: leave them null unless a full date is given."""
+Today is context.business_date. expected_delivery_date uses YYYY-MM-DD; leave it null if \
+the customer gives no year and it cannot be resolved from a relative expression."""
 
 CONNECT_SYSTEM = """\
 You write at most one short, warm sentence to go BEFORE and at most one to go AFTER a fixed \
@@ -92,7 +97,18 @@ EXTRACT_SCHEMA: dict[str, Any] = _object(
                         _object(
                             {
                                 "transaction_id": _NULLABLE_STRING,
-                                "transaction_date": _NULLABLE_STRING,
+                                "transaction_date": {
+                                    "anyOf": [
+                                        _object(
+                                            {
+                                                "day": {"type": "integer"},
+                                                "month": {"type": "integer"},
+                                                "year": {"type": ["integer", "null"]},
+                                            }
+                                        ),
+                                        {"type": "null"},
+                                    ]
+                                },
                                 "amount": _NULLABLE_NUMBER,
                                 "merchant": _NULLABLE_STRING,
                             }
