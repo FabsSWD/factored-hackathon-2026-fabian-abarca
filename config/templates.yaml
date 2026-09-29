@@ -14,7 +14,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.3.1"
+template_version: "1.4.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -41,8 +41,8 @@ templates:
     pt: "Não consegui confirmar que a ação foi concluída. Um atendente vai revisar seu caso com essas informações."
 
   ask_rephrase:  # Input Guard flagged the message (ESC-13): neutral, reveals nothing detected
-    es: "No pude procesar ese mensaje. ¿Puede contarme de nuevo, con sus propias palabras, qué problema tiene con su transacción?"
-    pt: "Não consegui processar essa mensagem. Pode me contar de novo, com suas próprias palavras, qual é o problema com a sua transação?"
+    es: "No pude procesar ese mensaje. ¿Puede contarme de nuevo qué problema tiene con su transacción?"
+    pt: "Não consegui processar essa mensagem. Pode me contar de novo qual é o problema com a sua transação?"
 
   offer_transfer:  # appended to INFORM outcomes that offer a human transfer
     es: "Si lo desea, puedo transferirle con un agente."
@@ -68,7 +68,7 @@ templates:
 
   outside_window:  # GATE-08, older than LATE_WINDOW_DAYS
     es: "Esta transacción supera el plazo para registrar una disputa por este canal."
-    pt: "Esta transação passou do prazo para registrar uma contestação por este canal."
+    pt: "Esta transação está fora do prazo para registrar uma contestação por este canal."
 
   duplicate_case:  # GATE-11
     es: "Ya existe una disputa para esta transacción con la referencia {case_ref}. Su estado actual es: {status}."
@@ -92,7 +92,7 @@ templates:
 
   merchant_not_contacted:  # GATE-10 RC_NOT_RECEIVED
     es: "Antes de registrar esta disputa, le recomendamos contactar al comercio para intentar resolver la entrega. Si no obtiene respuesta, puede volver a escribirnos."
-    pt: "Antes de registrar esta contestação, recomendamos entrar em contato com a loja para tentar resolver a entrega. Se não tiver resposta, você pode falar com a gente novamente."
+    pt: "Antes de registrar esta contestação, recomendamos entrar em contato com o estabelecimento para tentar resolver a entrega. Se não tiver resposta, você pode nos procurar novamente."
 
   # --- Confirmations (COM-03) and card block (ACT-03) ---------------------------
   # One confirmation turn covers exactly one action. When both apply, confirm_block_card
@@ -105,7 +105,7 @@ templates:
 
   confirm_block_card:  # ACT-03, always confirmed on its own
     es: "Para proteger su cuenta, puedo bloquear temporalmente su tarjeta {product}. Mientras esté bloqueada, no funcionará para ninguna compra ni pago, incluidos los pagos automáticos. Si más adelante necesita desbloquearla, puede solicitarlo a un agente. Si está de acuerdo, responda “sí, confirmo”."
-    pt: "Para proteger sua conta, posso bloquear temporariamente seu cartão {product}. Enquanto estiver bloqueado, ele não vai funcionar para nenhuma compra ou pagamento, incluindo os pagamentos automáticos. Se depois você precisar desbloqueá-lo, pode solicitar a um atendente. Se você concordar, responda “sim, confirmo”."
+    pt: "Para proteger sua conta, posso bloquear temporariamente seu cartão {product}. Enquanto estiver bloqueado, ele não vai funcionar para nenhuma compra ou pagamento, incluindo os pagamentos automáticos. Se depois você precisar desbloqueá-lo, pode pedir isso a um atendente. Se você concordar, responda “sim, confirmo”."
 
   card_blocked:  # after ACT-03 read-back
     es: "Bloqueamos temporalmente su tarjeta {product}."
@@ -145,7 +145,7 @@ templates:
 
   clarify_reason_code:
     es: "¿Qué problema tiene con esta transacción? Por ejemplo: no la reconoce, se cobró dos veces, el monto es incorrecto, no recibió lo que compró o es un cargo del banco que no corresponde."
-    pt: "Qual é o problema com esta transação? Por exemplo: você não a reconhece, foi cobrada duas vezes, o valor está errado, você não recebeu o que comprou ou é uma tarifa do banco indevida."
+    pt: "Qual é o problema com esta transação? Por exemplo: você não a reconhece, foi cobrada duas vezes, o valor está errado, você não recebeu o que comprou ou é uma tarifa bancária indevida."
 
   clarify_card_in_possession:
     es: "¿Tiene su tarjeta con usted en este momento?"
@@ -157,7 +157,7 @@ templates:
 
   clarify_duplicate_ref:
     es: "Encontré un cargo igual el {transaction_date} por {amount}. ¿Es ese el cargo duplicado que menciona?"
-    pt: "Encontrei uma cobrança igual em {transaction_date} de {amount}. É essa a cobrança duplicada que você mencionou?"
+    pt: "Encontrei uma cobrança igual no dia {transaction_date}, no valor de {amount}. É essa a cobrança duplicada que você mencionou?"
 
   clarify_expected_amount:
     es: "¿Cuál era el monto acordado, en {currency}?"
@@ -169,7 +169,7 @@ templates:
 
   clarify_merchant_contacted:
     es: "¿Ya se comunicó con el comercio para resolver la entrega?"
-    pt: "Você já entrou em contato com a loja para resolver a entrega?"
+    pt: "Você já entrou em contato com o estabelecimento para resolver a entrega?"
 
   clarify_fee_ref:
     es: "¿Qué cargo del banco quiere disputar? Me ayuda saber la fecha y el monto."
@@ -204,10 +204,8 @@ labels:
     ACT-03:  # for the handoff packet and the audit trace; never listed in confirm_summary
       es: "Bloquear temporalmente la tarjeta (dejará de funcionar para todas las compras y pagos, incluidos los automáticos)"
       pt: "Bloquear temporariamente o cartão (ele deixará de funcionar para todas as compras e pagamentos, incluindo os automáticos)"
-  case_status:
-    Draft:
-      es: "borrador"
-      pt: "rascunho"
+  case_status:  # Draft is absent on purpose: it exists only inside a conversation and is
+                 # never shown to a customer (GATE-11 does not count it as an open case).
     Open:
       es: "abierta"
       pt: "aberta"

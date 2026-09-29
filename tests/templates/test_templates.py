@@ -80,7 +80,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.3.1"
+    assert templates.version == "1.4.0"
     assert isinstance(templates, interfaces.TemplateService)
 
 
@@ -359,6 +359,8 @@ def test_every_label_exists(templates: TemplateService, language: str) -> None:
     for code in ReasonCode:
         assert templates.label("reason_code", code.value, language)
     for status in CaseStatus:
+        if status is CaseStatus.DRAFT:
+            continue
         assert templates.label("case_status", status.value, language)
     for action in (ActionId.CREATE_CASE, ActionId.BLOCK_CARD):
         assert templates.label("action", action.value, language)
@@ -445,7 +447,7 @@ def test_card_block_confirmation_is_informed(templates: TemplateService) -> None
     assert "incluidos los pagos automáticos" in es
     assert "Si más adelante necesita desbloquearla, puede solicitarlo a un agente" in es
     assert "incluindo os pagamentos automáticos" in pt
-    assert "precisar desbloqueá-lo, pode solicitar a um atendente" in pt
+    assert "precisar desbloqueá-lo, pode pedir isso a um atendente" in pt
     label_es = templates.label("action", "ACT-03", "es")
     label_pt = templates.label("action", "ACT-03", "pt")
     assert "automáticos" in label_es and "automáticos" in label_pt
@@ -645,7 +647,8 @@ def test_ask_rephrase_reveals_nothing_about_the_detection(
         "regla",
         "regra",
         "polític",
-        "polític",
+        "propias palabras",
+        "próprias palavras",
     ):
         assert word not in text, word
 
@@ -672,3 +675,30 @@ def test_handoff_after_esc_13_reveals_nothing_about_the_detection(
             "security",
         ):
             assert word not in text, (template_id, word)
+
+
+def test_draft_status_has_no_customer_label(templates: TemplateService) -> None:
+    # Draft exists only inside a conversation; GATE-11 does not count it (policy §5).
+    for language in ("es", "pt"):
+        with pytest.raises(TemplateError, match="unknown label"):
+            templates.label("case_status", CaseStatus.DRAFT.value, language)
+
+
+@pytest.mark.parametrize("language", ["es", "pt"])
+def test_duplicate_case_never_shows_a_draft(templates: TemplateService, language: str) -> None:
+    for status in CaseStatus:
+        if status is CaseStatus.DRAFT:
+            continue
+        text = templates.render(
+            "duplicate_case",
+            language,
+            case_ref="DSP-1",
+            status=templates.label("case_status", status.value, language),
+        ).lower()
+        assert "borrador" not in text
+        assert "rascunho" not in text
+
+
+def test_portuguese_uses_estabelecimento_for_merchant() -> None:
+    for entry in RAW["templates"].values():
+        assert "loja" not in entry["pt"].lower()

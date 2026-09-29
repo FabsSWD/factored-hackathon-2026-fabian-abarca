@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.3.5 |
+| Version | 0.3.6 |
 | Last updated | 2026-09-28 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -122,7 +122,7 @@ Gates are evaluated in the order listed. Evaluation stops at the first gate that
 | `GATE-08` | Filing window | Transaction age at filing is at most `DISPUTE_WINDOW_DAYS`. | Age up to `LATE_WINDOW_DAYS`: [ESC-07](#7-mandatory-escalation-triggers). Older: `INFORM` (outside the filing window) with an offer to transfer. |
 | `GATE-09` | Product status | `products.product_status` is `Active` or `Blocked`. | [ESC-08](#7-mandatory-escalation-triggers). |
 | `GATE-10` | Reason-specific preconditions | See the table below. | See the table below. |
-| `GATE-11` | No duplicate case | No open case exists for the same `transaction_id`. | `INFORM` with the existing case reference and status. |
+| `GATE-11` | No duplicate case | No open case exists for the same `transaction_id`. A `Draft` case exists only inside a conversation and does not count. | `INFORM` with the existing case reference and status. A `Draft` status is never shown to the customer. |
 
 **Authentication attempts (`GATE-02`).** Every turn in which the system asks the customer to authenticate and the customer does not end up authenticated counts as one attempt, including a wrong OTP. When the attempts exceed `AUTH_MAX_ATTEMPTS`, the outcome is `INFORM` with an offer to transfer. An explicit refusal to authenticate gives `INFORM` immediately. Authentication is not a slot of [§10](#10-required-information-and-clarification), so attempts do not count toward `MAX_CLARIFICATION_TURNS` or `MAX_TOTAL_CLARIFICATIONS`. Every failed OTP is recorded as a security event in the audit record.
 
@@ -459,3 +459,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.3.3 | 2026-09-28 | `COM-03`: one confirmation per action; the card block is confirmed first and separately, and declining it does not affect the dispute. |
 | 0.3.4 | 2026-09-28 | `ESC-13`: counted per conversation; impersonation is a first-person claim, and reported vishing belongs to `ESC-03`. Limitation: a new conversation starts at zero (§17). |
 | 0.3.5 | 2026-09-28 | §17: the reported-speech exception of `ESC-13` is evadable by design, and why that is acceptable. |
+| 0.3.6 | 2026-09-28 | `GATE-11`: `Draft` cases do not count as open and their status is never shown to the customer. |

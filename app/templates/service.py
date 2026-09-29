@@ -76,7 +76,8 @@ CLARIFY_TEMPLATES[SlotName.CONFIRMATION] = "clarify_confirmation"
 LABEL_KINDS: dict[str, frozenset[str]] = {
     "reason_code": frozenset(code.value for code in ReasonCode),
     "action": frozenset({ActionId.CREATE_CASE.value, ActionId.BLOCK_CARD.value}),
-    "case_status": frozenset(status.value for status in CaseStatus),
+    # Draft exists only inside a conversation and is never shown to a customer.
+    "case_status": frozenset(s.value for s in CaseStatus if s is not CaseStatus.DRAFT),
     "misc": frozenset({"no_merchant"}),
 }
 
