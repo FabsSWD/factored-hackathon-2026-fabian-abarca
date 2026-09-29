@@ -121,7 +121,7 @@ CASES: list[tuple[str, str, dict[str, Any], dict[str, Any]]] = [
         extraction(
             slots={
                 "reason_code": "RC_NOT_RECEIVED",
-                "expected_delivery_date": "2026-06-01",
+                "expected_delivery_date": {"day": 1, "month": 6, "year": 2026},
                 "merchant_contacted": True,
             }
         ),
@@ -184,7 +184,7 @@ CASES: list[tuple[str, str, dict[str, Any], dict[str, Any]]] = [
             detected_language="pt",
             slots={
                 "reason_code": "RC_NOT_RECEIVED",
-                "expected_delivery_date": "2026-06-05",
+                "expected_delivery_date": {"day": 5, "month": 6, "year": 2026},
                 "merchant_contacted": False,
             },
         ),
@@ -657,9 +657,14 @@ def test_extraction_with_the_default_client_factory(fake: FakeOpenAI) -> None:
 
 def aliased_context(shown: list[str]) -> LLMContext:
     def tx(ref: str, day: int, amount: str, merchant: str) -> LLMTransaction:
-        return LLMTransaction(transaction_ref=ref, transaction_date=date(2026, 6, day),
-                              amount=Decimal(amount), currency="USD", merchant_name=merchant,
-                              transaction_status="Approved")  # fmt: skip
+        return LLMTransaction(
+            transaction_ref=ref,
+            transaction_date=date(2026, 6, day),
+            amount=Decimal(amount),
+            currency="USD",
+            merchant_name=merchant,
+            transaction_status="Approved",
+        )
 
     return LLMContext(
         customer_ref="CUS-pseudonym-7f3a",
@@ -674,8 +679,12 @@ def aliased_context(shown: list[str]) -> LLMContext:
 
 
 def answer_with(transaction_id: str | None) -> dict[str, Any]:
-    ref = {"transaction_id": transaction_id, "transaction_date": None, "amount": 18.9,
-           "merchant": "Streaming Plus"}  # fmt: skip
+    ref = {
+        "transaction_id": transaction_id,
+        "transaction_date": None,
+        "amount": 18.9,
+        "merchant": "Streaming Plus",
+    }
     return extraction(slots={"transaction_ref": ref, "reason_code": "RC_DUPLICATE"})
 
 
@@ -760,8 +769,12 @@ BUSINESS_DATE = date(2026, 6, 17)
 
 
 def dated(parts: Any) -> dict[str, Any]:
-    ref = {"transaction_id": None, "transaction_date": parts, "amount": 50,
-           "merchant": "Cafe Sintetico"}  # fmt: skip
+    ref = {
+        "transaction_id": None,
+        "transaction_date": parts,
+        "amount": 50,
+        "merchant": "Cafe Sintetico",
+    }
     return extraction(slots={"transaction_ref": ref})
 
 
@@ -870,3 +883,46 @@ def test_date_and_id_adjustments_are_both_recorded(
     fake.responses = [completion(answer)]
     extract(adapter, "el cargo", with_business_date())
     assert calls[0].adjustments == ["transaction_date_discarded", "transaction_id_discarded"]
+
+
+def delivery(parts: Any) -> dict[str, Any]:
+    return extraction(slots={"reason_code": "RC_NOT_RECEIVED", "expected_delivery_date": parts})
+
+
+@pytest.mark.parametrize(
+    ("parts", "expected"),
+    [
+        ({"day": 1, "month": 6, "year": None}, date(2026, 6, 1)),
+        ({"day": 20, "month": 6, "year": None}, date(2026, 6, 20)),  # future: valid
+        ({"day": 17, "month": 12, "year": None}, date(2025, 12, 17)),  # closest wins
+    ],
+)
+def test_expected_delivery_date_takes_the_closest_occurrence(
+    adapter: OpenAILLMAdapter,
+    fake: FakeOpenAI,
+    calls: list[ModelCall],
+    parts: dict[str, Any],
+    expected: date,
+) -> None:
+    fake.responses = [completion(delivery(parts))]
+    result = extract(adapter, "debía llegar", with_business_date())
+    assert result.slots.expected_delivery_date == expected
+    assert calls[0].adjustments == []
+
+
+@pytest.mark.parametrize(
+    "parts",
+    [
+        {"day": 18, "month": 6, "year": 2027},
+        {"day": 16, "month": 6, "year": 2025},
+        {"day": 31, "month": 2, "year": None},
+    ],
+)
+def test_expected_delivery_date_out_of_range_is_discarded(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, calls: list[ModelCall], parts: dict[str, Any]
+) -> None:
+    fake.responses = [completion(delivery(parts))]
+    result = extract(adapter, "debía llegar", with_business_date())
+    assert result.slots.expected_delivery_date is None
+    assert result.slots.reason_code is ReasonCode.NOT_RECEIVED
+    assert calls[0].adjustments == ["expected_delivery_date_discarded"]

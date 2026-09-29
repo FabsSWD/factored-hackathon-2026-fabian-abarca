@@ -45,7 +45,7 @@ from app.contracts import (
 from app.deadline import Deadline
 from app.llm_adapter import prompts
 from app.llm_adapter.client import MIN_ATTEMPT_SECONDS, Adjusted, LLMError, OpenAIJsonClient
-from app.llm_adapter.dates import parse_date_parts, resolve_date
+from app.llm_adapter.dates import parse_date_parts, resolve_date, resolve_delivery_date
 from app.llm_adapter.language import guess_language
 from app.llm_adapter.minimization import (
     ALIAS_PREFIX,
@@ -59,6 +59,7 @@ from app.templates.promises import find_promises
 EXTRACT_PURPOSE = "extract_slots"
 TRANSACTION_ID_DISCARDED = "transaction_id_discarded"
 TRANSACTION_DATE_DISCARDED = "transaction_date_discarded"
+DELIVERY_DATE_DISCARDED = "expected_delivery_date_discarded"
 CONNECT_PURPOSE = "connect_sentences"
 MAX_CLAIMS = 5
 MAX_CLAIM_CHARS = 200
@@ -224,7 +225,9 @@ def parse_extraction(
 
     Returns the result and the deterministic corrections applied: a transaction date is
     completed and checked in code (``app.llm_adapter.dates``), and set to null with
-    ``transaction_date_discarded`` when it cannot be resolved or falls outside the window.
+    ``transaction_date_discarded`` when it cannot be resolved or falls outside the window. The
+    expected delivery date follows its own rule (closest occurrence, past or future) and is
+    discarded with ``expected_delivery_date_discarded``.
     """
     adjustments: tuple[str, ...] = ()
     # Pydantic's lax mode would read "yes" or 1 as True; the schema allows only JSON booleans.
@@ -248,6 +251,12 @@ def parse_extraction(
         slots["transaction_ref"] = (
             TransactionRef.model_validate(_decimals(cleaned)) if cleaned else None
         )
+    delivery = parse_date_parts(slots.get("expected_delivery_date"))
+    slots["expected_delivery_date"] = None
+    if delivery is not None:
+        slots["expected_delivery_date"] = resolve_delivery_date(*delivery, business_date)
+        if slots["expected_delivery_date"] is None:
+            adjustments += (DELIVERY_DATE_DISCARDED,)
     slots = _decimals(slots)
     claims = [str(claim).strip()[:MAX_CLAIM_CHARS] for claim in data.get("customer_claims") or []]
     try:

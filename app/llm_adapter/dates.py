@@ -10,6 +10,10 @@ business date in the context. Here:
 - any resulting date after the business date, or more than MAX_PAST_DAYS before it, is
   discarded (``transaction_date_discarded``), as is an impossible date (31 February).
 
+Expected delivery dates follow another rule (``resolve_delivery_date``): the closest
+occurrence to the business date, before or after it, within MAX_DELIVERY_DISTANCE_DAYS
+(``expected_delivery_date_discarded`` otherwise).
+
 Dates are on the business clock (policy §15), never the real clock.
 """
 
@@ -79,3 +83,42 @@ def _latest_occurrence(day: int, month: int, business_date: date) -> date | None
         if candidate <= business_date:
             return candidate
     return None
+
+
+MAX_DELIVERY_DISTANCE_DAYS = 365
+
+
+def resolve_delivery_date(
+    day: int, month: int, year: int | None, business_date: date | None
+) -> date | None:
+    """Expected delivery date: past or future, the occurrence closest to the business date.
+
+    Without a year, the closest occurrence to ``business_date`` wins, before or after it
+    (1 June with business date 2026-06-17 -> 2026-06-01; 20 June -> 2026-06-20). On an exact
+    tie the past occurrence is taken, so the result is deterministic. A date more than
+    MAX_DELIVERY_DISTANCE_DAYS away in either direction is discarded. Future dates are valid:
+    a delivery that is not due yet leads to INFORM, not to a discarded date.
+    """
+    if year is not None:
+        try:
+            resolved = date(year, month, day)
+        except ValueError:
+            return None
+    else:
+        if business_date is None:
+            return None
+        candidates = []
+        for candidate_year in (business_date.year - 1, business_date.year, business_date.year + 1):
+            try:
+                candidates.append(date(candidate_year, month, day))
+            except ValueError:
+                continue  # 29 February in a common year, or an impossible day
+        if not candidates:
+            return None
+        resolved = min(candidates, key=lambda d: (abs((d - business_date).days), d > business_date))
+    if (
+        business_date is not None
+        and abs((resolved - business_date).days) > MAX_DELIVERY_DISTANCE_DAYS
+    ):
+        return None
+    return resolved

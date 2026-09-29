@@ -12,7 +12,7 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode
 
-EXTRACT_PROMPT_VERSION = "extract@1.4.0"
+EXTRACT_PROMPT_VERSION = "extract@1.5.0"
 CONNECT_PROMPT_VERSION = "connect@1.0.0"
 
 EXTRACT_SYSTEM = """\
@@ -42,7 +42,8 @@ RC_NOT_RECEIVED (paid, goods or services not delivered), RC_FEE (a bank fee the 
 disputes).
   - card_in_possession, shared_credentials, merchant_contacted: true/false only when stated.
   - expected_amount: the amount the customer says was agreed (number).
-  - expected_delivery_date: the date the delivery was due (YYYY-MM-DD).
+  - expected_delivery_date: the date the delivery was due, as {day, month, year} with the \
+same rule as transaction_date (year only if the customer says it; relative days resolved).
   - fee_ref: the customer's description of the disputed bank fee.
   - confirmation: only when the context has a pending "confirmation" slot. "confirmed" for \
 an explicit yes to the summary ("sí, confirmo", "sim, confirmo"); "hedged" for an unclear \
@@ -60,8 +61,7 @@ serious hardship or distress caused by the charge.
 third person and in the conversation's language ("El cliente indica que...", "O cliente \
 informa que...").
 
-Today is context.business_date. expected_delivery_date uses YYYY-MM-DD; leave it null if \
-the customer gives no year and it cannot be resolved from a relative expression."""
+Today is context.business_date."""
 
 CONNECT_SYSTEM = """\
 You write at most one short, warm sentence to go BEFORE and at most one to go AFTER a fixed \
@@ -86,6 +86,20 @@ def _object(properties: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_PARTIAL_DATE: dict[str, Any] = {
+    "anyOf": [
+        _object(
+            {
+                "day": {"type": "integer"},
+                "month": {"type": "integer"},
+                "year": {"type": ["integer", "null"]},
+            }
+        ),
+        {"type": "null"},
+    ]
+}
+"""A date as the customer gave it; the code completes the year (app.llm_adapter.dates)."""
+
 EXTRACT_SCHEMA: dict[str, Any] = _object(
     {
         "detected_language": _NULLABLE_STRING,
@@ -97,18 +111,7 @@ EXTRACT_SCHEMA: dict[str, Any] = _object(
                         _object(
                             {
                                 "transaction_id": _NULLABLE_STRING,
-                                "transaction_date": {
-                                    "anyOf": [
-                                        _object(
-                                            {
-                                                "day": {"type": "integer"},
-                                                "month": {"type": "integer"},
-                                                "year": {"type": ["integer", "null"]},
-                                            }
-                                        ),
-                                        {"type": "null"},
-                                    ]
-                                },
+                                "transaction_date": _PARTIAL_DATE,
                                 "amount": _NULLABLE_NUMBER,
                                 "merchant": _NULLABLE_STRING,
                             }
@@ -123,7 +126,7 @@ EXTRACT_SCHEMA: dict[str, Any] = _object(
                 "card_in_possession": _NULLABLE_BOOLEAN,
                 "shared_credentials": _NULLABLE_BOOLEAN,
                 "expected_amount": _NULLABLE_NUMBER,
-                "expected_delivery_date": _NULLABLE_STRING,
+                "expected_delivery_date": _PARTIAL_DATE,
                 "merchant_contacted": _NULLABLE_BOOLEAN,
                 "fee_ref": _NULLABLE_STRING,
                 "confirmation": {

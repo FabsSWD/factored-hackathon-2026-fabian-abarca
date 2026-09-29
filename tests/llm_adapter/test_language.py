@@ -46,11 +46,12 @@ def test_short_sentences(text: str, language: Language | None) -> None:
 
 
 def test_extract_prompt_rules() -> None:
-    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.4.0"
+    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.5.0"
     text = " ".join(prompts.EXTRACT_SYSTEM.split())
     assert "Always fill transaction_date, amount" in text
     assert "transaction_date is {day, month, year}" in text
     assert "never guess the year; the code completes it" in text
+    assert "expected_delivery_date: the date the delivery was due, as {day, month, year}" in text
     assert "resolve it against context.business_date and give the full date" in text
     assert "whether or not the context lists candidates" in text
     assert "Fill transaction_id only with the alias of a transaction" in text

@@ -6,10 +6,12 @@ from typing import Any
 import pytest
 
 from app.llm_adapter.dates import (
+    MAX_DELIVERY_DISTANCE_DAYS,
     MAX_PAST_DAYS,
     DateOutOfSchemaError,
     parse_date_parts,
     resolve_date,
+    resolve_delivery_date,
     within_window,
 )
 
@@ -83,3 +85,44 @@ def test_parse_date_parts(value: Any, expected: tuple[int, int, int | None] | No
 def test_malformed_parts(value: Any) -> None:
     with pytest.raises(DateOutOfSchemaError):
         parse_date_parts(value)
+
+
+# --- Expected delivery dates: closest occurrence, past or future -------------------------------
+
+
+@pytest.mark.parametrize(
+    ("day", "month", "year", "expected"),
+    [
+        (1, 6, None, date(2026, 6, 1)),  # recent past
+        (20, 6, None, date(2026, 6, 20)),  # near future: valid for a delivery
+        (17, 6, None, date(2026, 6, 17)),  # the business date itself
+        (17, 12, None, date(2025, 12, 17)),  # 182 days back beats 183 days ahead
+        (18, 12, None, date(2025, 12, 18)),  # 181 days back beats 184 days ahead
+        (1, 1, None, date(2026, 1, 1)),  # 167 days back beats 2027-01-01 (198 ahead)
+        (1, 11, None, date(2026, 11, 1)),  # 137 days ahead beats 2025-11-01 (228 back)
+        (1, 6, 2026, date(2026, 6, 1)),  # full date
+        (17, 6, 2027, date(2027, 6, 17)),  # exactly 365 days ahead
+        (17, 6, 2025, date(2025, 6, 17)),  # exactly 365 days back
+        (18, 6, 2027, None),  # 366 days ahead
+        (16, 6, 2025, None),  # 366 days back
+        (31, 2, None, None),  # impossible
+        (31, 2, 2026, None),  # impossible, with a year
+    ],
+)
+def test_resolve_delivery_date(
+    day: int, month: int, year: int | None, expected: date | None
+) -> None:
+    assert resolve_delivery_date(day, month, year, BUSINESS_DATE) == expected
+
+
+def test_delivery_exact_tie_takes_the_past_occurrence() -> None:
+    business_date = date(2023, 8, 31)  # 2023-03-01 is 183 days back, 2024-03-01 183 ahead
+    assert resolve_delivery_date(1, 3, None, business_date) == date(2023, 3, 1)
+
+
+def test_delivery_29_february_and_missing_business_date() -> None:
+    assert resolve_delivery_date(29, 2, None, date(2028, 6, 17)) == date(2028, 2, 29)
+    assert resolve_delivery_date(29, 2, None, BUSINESS_DATE) is None  # no leap year within ±1
+    assert resolve_delivery_date(1, 6, None, None) is None
+    assert resolve_delivery_date(1, 6, 2019, None) == date(2019, 6, 1)
+    assert MAX_DELIVERY_DISTANCE_DAYS == 365
