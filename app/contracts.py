@@ -291,6 +291,10 @@ class TransactionRef(Contract):
 
     Either a ``transaction_id``, or any of date, amount and merchant for the Tool Layer
     to resolve against the session customer's own transactions.
+
+    For M8/M9: GATE-05 matches deterministically. A ``transaction_id`` proposed by the model is
+    accepted only if it is consistent with the date, amount and merchant the customer gave;
+    otherwise the reference counts as ambiguous and the outcome is CLARIFY.
     """
 
     transaction_id: NonEmptyStr | None = None
@@ -696,8 +700,12 @@ class HandoffPacket(Contract):
 
 class ModelCall(Contract):
     provider: NonEmptyStr  # "openai" | "kev"
-    model: NonEmptyStr
+    model: NonEmptyStr  # the model requested (configuration)
+    response_model: NonEmptyStr | None = None  # exact model version reported by the provider
+    system_fingerprint: NonEmptyStr | None = None  # provider backend fingerprint, if reported
     prompt_version: NonEmptyStr | None = None
+    # "sha256:" + 16 hex of the system prompt and schema, so an unversioned edit is visible.
+    prompt_hash: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{16}$")] | None = None
     purpose: NonEmptyStr  # e.g. "extract_slots", "decision_signals"
     input_tokens: NonNegativeInt | None = None
     output_tokens: NonNegativeInt | None = None

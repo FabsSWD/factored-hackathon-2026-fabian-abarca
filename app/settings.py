@@ -34,6 +34,18 @@ class Settings(BaseSettings):
     otp_max_failures: int = Field(default=3, gt=0)
     otp_failure_window_min: int = Field(default=15, gt=0)
 
+    # Language model (OpenAI). The architecture fixes GPT-6 Luna; the exact model name comes
+    # from LLM_MODEL.
+    openai_api_key: SecretStr | None = None
+    llm_model: str | None = None
+    openai_base_url: str = "https://api.openai.com/v1"
+    llm_timeout_seconds: float = Field(default=20.0, gt=0)
+    llm_max_retries: int = Field(default=2, ge=0)
+    # Total budget for the model calls of one turn; no retry starts if it does not fit.
+    llm_turn_deadline_seconds: float = Field(default=20.0, gt=0)
+    # Connecting sentences around templates; off to compare latency and cost (M18).
+    llm_connect_enabled: bool = True
+
     # Abuse limits: per session on authenticated routes, per client IP on /auth/login and
     # /auth/verify (which have no session yet).
     rate_limit_requests_per_minute: int = Field(default=20, gt=0)

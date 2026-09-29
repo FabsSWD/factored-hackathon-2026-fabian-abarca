@@ -34,6 +34,7 @@ from app.contracts import (
     TransactionRecord,
     TransactionRef,
 )
+from app.deadline import Deadline
 
 
 @runtime_checkable
@@ -72,11 +73,29 @@ class InputGuard(Protocol):
 
 @runtime_checkable
 class LLMAdapter(Protocol):
-    """M5. The only path to the language model. Accepts only DATA-01 data."""
+    """M5. The only path to the language model. Accepts only DATA-01 data.
 
-    async def extract(self, message: str, context: LLMContext) -> ExtractionResult: ...
+    Both calls share one turn deadline (``LLM_TURN_DEADLINE_SECONDS``): create it once per turn
+    and pass it to ``extract`` and then ``connect``; ``connect`` uses what is left.
 
-    async def connect(self, templated_text: str, message: str, context: LLMContext) -> str:
+    Contract for the Orchestrator (M12) when ``extract`` raises ``LLMError``: the turn goes on
+    with empty slots and only the rule-based signals (``human_requested``,
+    ``legal_or_vulnerability``), available as ``error.fallback`` on
+    ``ExtractionUnavailableError``. The customer always gets a reply; an error is never
+    left unanswered.
+    """
+
+    async def extract(
+        self, message: str, context: LLMContext, deadline: Deadline | None = None
+    ) -> ExtractionResult: ...
+
+    async def connect(
+        self,
+        templated_text: str,
+        message: str,
+        context: LLMContext,
+        deadline: Deadline | None = None,
+    ) -> str:
         """Write connecting sentences around committed template text (COM-02).
 
         The returned text must contain ``templated_text`` unchanged."""
