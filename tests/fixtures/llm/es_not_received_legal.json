@@ -1,0 +1,38 @@
+{
+  "prompt_version": "extract@1.1.0",
+  "response_model": "gpt-6-luna",
+  "language": "es",
+  "message": "Pagué unos audífonos que nunca llegaron, debían entregarlos el 2026-06-01 y ya le escribí a la tienda. Si no se resuelve voy a ir con un abogado.",
+  "raw": {
+    "detected_language": "es",
+    "language_ambiguous": false,
+    "slots": {
+      "transaction_ref": {
+        "transaction_id": null,
+        "transaction_date": null,
+        "amount": null,
+        "merchant": null
+      },
+      "reason_code": "RC_NOT_RECEIVED",
+      "card_in_possession": null,
+      "shared_credentials": null,
+      "expected_amount": null,
+      "expected_delivery_date": "2026-06-01",
+      "merchant_contacted": true,
+      "fee_ref": null,
+      "confirmation": null
+    },
+    "flags": {
+      "human_requested": false,
+      "account_takeover_reported": false,
+      "legal_or_vulnerability": true,
+      "authentication_declined": false
+    },
+    "customer_claims": [
+      "El cliente indica que pagó unos audífonos que nunca llegaron.",
+      "El cliente indica que debían entregar los audífonos el 2026-06-01.",
+      "El cliente informa que ya escribió a la tienda.",
+      "El cliente afirma que acudirá a un abogado si no se resuelve."
+    ]
+  }
+}

@@ -40,8 +40,10 @@ _HUMAN = [
     rf"|que me comuniquen|ser atendid[oa]|que me pasen|que me transfieran)\b"
     rf"(?: \w+){{0,4}} {_PERSON_ES}\b",
     rf"\b(?:pasame|paseme|pasenme|comunicame|comuniqueme|comuniquenme|transfiereme"
-    rf"|transfierame|transfieranme|conectame|conecteme|comunicarme)\b(?: \w+){{0,3}} {_PERSON_ES}\b",
-    rf"\bno quiero (?:hablar|seguir hablando|conversar) con (?:un |una |el |la |este |esta )?{_BOT}\b",
+    rf"|transfierame|transfieranme|conectame|conecteme|comunicarme)\b(?: \w+){{0,3}}"
+    rf" {_PERSON_ES}\b",
+    rf"\bno quiero (?:hablar|seguir hablando|conversar) con"
+    rf" (?:un |una |el |la |este |esta )?{_BOT}\b",
     rf"^(?:un |una |con un |con una )?{_PERSON_ES}(?: por favor| ya| ahora)?$",
     # Portuguese
     rf"\b(?:quero|queria|preciso|gostaria de|posso|poderia|pode|podem|me deixa)\b(?: \w+){{0,3}}"
@@ -49,7 +51,8 @@ _HUMAN = [
     rf"(?: \w+){{0,4}} {_PERSON_PT}\b",
     rf"\bme (?:passa|passe|transfere|transfira|conecta|conecte|coloca|coloque)\b(?: \w+){{0,3}}"
     rf" {_PERSON_PT}\b",
-    rf"\bnao quero (?:falar|continuar falando|conversar) com (?:um |uma |o |a |esse |essa )?{_BOT}\b",
+    rf"\bnao quero (?:falar|continuar falando|conversar) com"
+    rf" (?:um |uma |o |a |esse |essa )?{_BOT}\b",
     rf"^(?:um |uma |com um |com uma )?{_PERSON_PT}(?: por favor| ja| agora)?$",
 ]
 

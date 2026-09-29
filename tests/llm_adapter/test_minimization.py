@@ -43,6 +43,10 @@ def test_personal_data_is_scrubbed(message: str, removed: str, kept: str) -> Non
         "Fui cobrado duas vezes R$ 120,00 em 16/06/2026",
         "El monto fue USD 1,500.00 y la tarjeta termina en 4821",
         "No reconozco la transacción TRX-T1-PURCHASE",
+        "me cobraron COP 1.250.000,00 el 17/06/2026 en EXITO",
+        "foi cobrado USD 1.250,50 em 03/06/2026",
+        "ARS 45.999.999,99",
+        "Pagué ARS 45.999.999,99 con la tarjeta ****4821 el 01/06/2026",
     ],
 )
 def test_transaction_details_are_kept(message: str) -> None:

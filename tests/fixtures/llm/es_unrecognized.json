@@ -1,0 +1,37 @@
+{
+  "prompt_version": "extract@1.1.0",
+  "response_model": "gpt-6-luna",
+  "language": "es",
+  "message": "Hola, no reconozco un cargo de 50 dólares en Cafe Sintetico del 16 de junio. Tengo mi tarjeta conmigo y no le he dado mis claves a nadie.",
+  "raw": {
+    "detected_language": "es",
+    "language_ambiguous": false,
+    "slots": {
+      "transaction_ref": {
+        "transaction_id": "TRX-SMOKE-1",
+        "transaction_date": "2026-06-16",
+        "amount": 50,
+        "merchant": "Cafe Sintetico"
+      },
+      "reason_code": "RC_UNRECOGNIZED",
+      "card_in_possession": true,
+      "shared_credentials": false,
+      "expected_amount": null,
+      "expected_delivery_date": null,
+      "merchant_contacted": null,
+      "fee_ref": null,
+      "confirmation": null
+    },
+    "flags": {
+      "human_requested": false,
+      "account_takeover_reported": false,
+      "legal_or_vulnerability": false,
+      "authentication_declined": false
+    },
+    "customer_claims": [
+      "El cliente indica que no reconoce un cargo de 50 dólares en Cafe Sintetico del 16 de junio.",
+      "El cliente afirma que tiene su tarjeta consigo.",
+      "El cliente afirma que no ha compartido sus claves con nadie."
+    ]
+  }
+}

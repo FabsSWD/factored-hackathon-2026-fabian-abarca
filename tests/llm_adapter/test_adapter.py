@@ -20,11 +20,19 @@ from app.contracts import (
     ModelCall,
     ReasonCode,
     SlotName,
+    Slots,
     TransactionRef,
 )
+from app.deadline import Deadline
 from app.llm_adapter import prompts
-from app.llm_adapter.adapter import CONNECT_PURPOSE, EXTRACT_PURPOSE, OpenAILLMAdapter
-from app.llm_adapter.client import LLMError
+from app.llm_adapter.adapter import (
+    CONNECT_PURPOSE,
+    EXTRACT_PURPOSE,
+    ExtractionUnavailableError,
+    OpenAILLMAdapter,
+    TemplateLanguageError,
+)
+from app.llm_adapter.client import LLMClientConfig, LLMError, OpenAIJsonClient
 from tests.llm_adapter.conftest import (
     MODEL,
     FakeOpenAI,
@@ -493,11 +501,133 @@ def test_connect_falls_back_to_the_template_alone(
     assert connect(adapter) == TEMPLATE
 
 
+TEMPLATE_PT = (
+    "Vou transferir seu caso para um atendente, que já terá as informações que você me passou."
+)
+
+
 def test_connect_uses_the_context_language(adapter: OpenAILLMAdapter, fake: FakeOpenAI) -> None:
     fake.responses = [completion({"before": "", "after": ""})] * 2
-    connect(adapter, context(Language.PT))
+    run(adapter.connect(TEMPLATE_PT, "Quero falar com alguém", context(Language.PT)))
     connect(adapter, context(None))
     assert [sent_user(fake, i)["language"] for i in range(2)] == ["pt", "es"]
+
+
+def test_template_in_another_language_is_a_programming_error(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    # Smoke-test finding: a Portuguese conversation received the Spanish handoff template.
+    with pytest.raises(TemplateLanguageError, match="template in es for a pt conversation"):
+        run(adapter.connect(TEMPLATE, "Quero falar com alguém", context(Language.PT)))
+    with pytest.raises(TemplateLanguageError):
+        run(adapter.connect(TEMPLATE_PT, "Quiero hablar con alguien", context(Language.ES)))
+    assert fake.requests == []
+
+
+def test_bilingual_template_is_accepted_in_both_languages(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    bilingual = (
+        "¿Prefiere continuar en español o en portugués? / "
+        "Prefere continuar em espanhol ou em português?"
+    )
+    fake.responses = [completion({"before": "", "after": ""})] * 2
+    for language in (Language.ES, Language.PT):
+        assert run(adapter.connect(bilingual, "hola", context(language))) == bilingual
+
+
+@pytest.mark.parametrize(
+    ("language", "sentence"),
+    [
+        (Language.ES, "Ya registré su disputa."),
+        (Language.ES, "Bloqueamos su tarjeta de inmediato."),
+        (Language.ES, "Le transferí con un agente."),
+        (Language.ES, "Su caso ya quedó registrado."),
+        (Language.PT, "Registrei sua contestação."),
+        (Language.PT, "Bloqueei seu cartão."),
+        (Language.PT, "Sua contestação já foi registrada."),
+    ],
+)
+def test_claims_that_an_action_happened_are_dropped(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, language: Language, sentence: str
+) -> None:
+    template = TEMPLATE if language is Language.ES else TEMPLATE_PT
+    fake.responses = [completion({"before": sentence, "after": ""})]
+    assert run(adapter.connect(template, "hola", context(language))) == template
+
+
+def test_sentence_in_the_other_language_is_dropped(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [
+        completion({"before": "Entendo sua preocupação.", "after": "Gracias por su paciencia."})
+    ]
+    assert connect(adapter) == f"{TEMPLATE} Gracias por su paciencia."
+
+
+def test_connect_can_be_disabled(fake: FakeOpenAI, calls: list[ModelCall]) -> None:
+    adapter = OpenAILLMAdapter(make_client(fake, calls), connect_enabled=False)
+    assert connect(adapter) == TEMPLATE
+    assert fake.requests == []
+    with pytest.raises(TemplateLanguageError):
+        run(adapter.connect(TEMPLATE, "Oi", context(Language.PT)))
+
+
+def test_connect_with_a_spent_deadline_returns_the_template(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    ticks = [0.0]
+    deadline = Deadline(5.0, lambda: ticks[0])
+    ticks[0] = 4.9
+    assert run(adapter.connect(TEMPLATE, "hola", context(), deadline)) == TEMPLATE
+    assert fake.requests == []
+
+
+# --- Rule-based interrupt signals (ESC-05, ESC-06) ---------------------------------------------
+
+
+def test_signals_are_the_union_of_rules_and_model(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [
+        completion(extraction(flags={"human_requested": False, "legal_or_vulnerability": False})),
+        completion(
+            extraction(flags={"legal_or_vulnerability": True, "account_takeover_reported": True})
+        ),
+    ]
+    by_rule = extract(adapter, "Quiero hablar con una persona")
+    assert by_rule.flags.human_requested is True
+    by_model = extract(adapter, "Me robaron el teléfono")
+    assert by_model.flags.legal_or_vulnerability is True
+    assert by_model.flags.account_takeover_reported is True
+    assert by_model.flags.human_requested is False
+
+
+def test_rule_signals_survive_a_model_failure(adapter: OpenAILLMAdapter, fake: FakeOpenAI) -> None:
+    fake.responses = [httpx.Response(500)] * 3
+    with pytest.raises(ExtractionUnavailableError) as info:
+        extract(adapter, "Quiero hablar con un agente, si no voy a demandar al banco")
+    fallback = info.value.fallback
+    assert isinstance(info.value, LLMError)
+    assert fallback.flags.human_requested is True
+    assert fallback.flags.legal_or_vulnerability is True
+    assert fallback.slots == Slots()
+    assert fallback.detected_language is None
+
+
+def test_shared_turn_deadline_between_extract_and_connect(fake: FakeOpenAI) -> None:
+    ticks = [0.0]
+
+    def slow(request: httpx.Request) -> httpx.Response:
+        ticks[0] += 19.5  # extract uses almost the whole turn
+        return completion(extraction())
+
+    config = LLMClientConfig(api_key="sk-test", model="m", turn_deadline_seconds=20.0)
+    client = OpenAIJsonClient(config, httpx.MockTransport(slow), monotonic=lambda: ticks[0])
+    adapter = OpenAILLMAdapter(client)
+    deadline = adapter.new_deadline()
+    run(adapter.extract("hola", context(), deadline))
+    assert run(adapter.connect(TEMPLATE, "hola", context(), deadline)) == TEMPLATE
 
 
 def test_connect_scrubs_the_customer_message(adapter: OpenAILLMAdapter, fake: FakeOpenAI) -> None:

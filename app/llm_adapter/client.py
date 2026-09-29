@@ -168,23 +168,16 @@ class OpenAIJsonClient:
             "max_completion_tokens": max_output_tokens,
         }
         fingerprint = prompt_hash(system, schema)
-        planned_waits: dict[int, float] = {}
 
+        # tenacity computes the wait first (upcoming_sleep), then asks whether to stop.
         def stop(state: RetryCallState) -> bool:
             if state.attempt_number > self._config.max_retries:
                 return True
-            wait = self._next_wait(state)
-            if budget.remaining() - wait < MIN_ATTEMPT_SECONDS:
-                return True
-            planned_waits[state.attempt_number] = wait
-            return False
-
-        def wait(state: RetryCallState) -> float:
-            return planned_waits.get(state.attempt_number, 0.0)
+            return budget.remaining() - state.upcoming_sleep < MIN_ATTEMPT_SECONDS
 
         retrying = AsyncRetrying(
             stop=stop,
-            wait=wait,
+            wait=self._next_wait,
             retry=retry_if_exception_type(_RetryableError),
             sleep=self._sleep,
             reraise=False,

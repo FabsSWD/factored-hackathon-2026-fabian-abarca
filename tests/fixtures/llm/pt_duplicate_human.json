@@ -1,0 +1,36 @@
+{
+  "prompt_version": "extract@1.1.0",
+  "response_model": "gpt-6-luna",
+  "language": "pt",
+  "message": "Fui cobrado duas vezes pela Streaming Plus, 18,90 dólares. Quero falar com um atendente.",
+  "raw": {
+    "detected_language": "pt",
+    "language_ambiguous": false,
+    "slots": {
+      "transaction_ref": {
+        "transaction_id": "TRX-SMOKE-2",
+        "transaction_date": null,
+        "amount": 18.9,
+        "merchant": "Streaming Plus"
+      },
+      "reason_code": "RC_DUPLICATE",
+      "card_in_possession": null,
+      "shared_credentials": null,
+      "expected_amount": null,
+      "expected_delivery_date": null,
+      "merchant_contacted": null,
+      "fee_ref": null,
+      "confirmation": null
+    },
+    "flags": {
+      "human_requested": true,
+      "account_takeover_reported": false,
+      "legal_or_vulnerability": false,
+      "authentication_declined": false
+    },
+    "customer_claims": [
+      "O cliente informa que foi cobrado duas vezes pela Streaming Plus por 18,90 dólares.",
+      "O cliente solicita falar com um atendente."
+    ]
+  }
+}
