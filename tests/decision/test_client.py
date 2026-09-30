@@ -1,0 +1,316 @@
+from __future__ import annotations
+
+import asyncio
+import copy
+import json
+from collections.abc import Coroutine
+from typing import Any
+
+import httpx
+import pytest
+
+from app import interfaces
+from app.contracts import ModelCall, ModelSignals, ModelSource, ReasonCode
+from app.deadline import Deadline
+from app.decision.client import KevConfig, KevDecisionClient
+from app.decision.questions import load_kev_questions
+from tests.decision.conftest import BASE_URL, FakeKev, Ticker, context, fixture, make_client
+
+
+def run[T](coroutine: Coroutine[Any, Any, T]) -> T:
+    return asyncio.run(coroutine)
+
+
+def signals(client: KevDecisionClient, message: str = "No reconozco un cargo") -> ModelSignals:
+    return run(client.signals(message, context()))
+
+
+def response(payload: Any, status: int = 200) -> httpx.Response:
+    return httpx.Response(status, json=payload)
+
+
+REAL_ES = fixture("kev_es_response.json")
+REAL_PT = fixture("kev_pt_response.json")
+
+
+# --- Contract ------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", ["kev_es.json", "kev_pt.json"])
+def test_request_matches_the_recorded_real_requests(client: KevDecisionClient, name: str) -> None:
+    recorded = fixture(name)
+    assert client.request_body(recorded["state"]) == recorded
+
+
+def test_request_is_sent_to_systemone_with_the_scrubbed_message_and_no_context(
+    client: KevDecisionClient, fake: FakeKev
+) -> None:
+    fake.responses = [response(REAL_ES)]
+    signals(client, "Mi correo es ana@example.test y no reconozco 4111 1111 1111 4821")
+    (request,) = fake.requests
+    assert request.method == "POST"
+    assert str(request.url) == f"{BASE_URL}/v1/systemone"
+    body = json.loads(request.content)
+    assert set(body) == {"model", "state", "questions"}
+    assert body["model"] == "kev-latest"
+    assert "ana@example.test" not in body["state"]
+    assert "****4821" in body["state"]
+    assert "Authorization" not in request.headers
+    assert set(body["questions"]) == {"reason_code", "ambiguous", "escalation_risk"}
+
+
+# --- Real responses ----------------------------------------------------------------------------
+
+
+def test_real_spanish_response(client: KevDecisionClient, fake: FakeKev) -> None:
+    fake.responses = [response(REAL_ES)]
+    result = signals(client)
+    assert result.source is ModelSource.KEV
+    assert result.reason_code_probs == {
+        ReasonCode.UNRECOGNIZED: 0.5362,
+        ReasonCode.DUPLICATE: 0.0099,
+        ReasonCode.INCORRECT_AMOUNT: 0.176,
+        ReasonCode.NOT_RECEIVED: 0.0654,
+        ReasonCode.FEE: 0.0383,
+    }
+    assert result.reason_code_other == 0.1741
+    assert result.ambiguity == 0.6005
+    assert result.escalation_risk == 0.3479
+    assert result.manipulation is None
+    assert result.top_reason_code == (ReasonCode.UNRECOGNIZED, 0.5362)
+
+
+def test_real_portuguese_response(client: KevDecisionClient, fake: FakeKev) -> None:
+    fake.responses = [response(REAL_PT)]
+    result = signals(client, "Fui cobrado duas vezes")
+    assert result.top_reason_code == (ReasonCode.DUPLICATE, 0.8169)
+    assert result.reason_code_other == 0.1232
+    assert (result.ambiguity, result.escalation_risk) == (0.5122, 0.4315)
+    total = sum(result.reason_code_probs.values()) + (result.reason_code_other or 0)
+    assert 0.99 <= total <= 1.01
+
+
+def test_model_call_records_latencies_tokens_questions_and_serving_details(
+    fake: FakeKev, calls: list[ModelCall]
+) -> None:
+    ticker = Ticker()
+
+    def slow(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/models":
+            return response(fixture("kev_models.json"))
+        ticker.now += 0.3
+        return response(REAL_ES)
+
+    client = KevDecisionClient(
+        KevConfig(BASE_URL), load_kev_questions(), httpx.MockTransport(slow), calls.append, ticker
+    )
+    info = run(client.refresh_model_info())
+    result = signals(client)
+    assert info == {
+        "run": "jaredpalmer/kev-0.8b",
+        "release_date": "2026-09-24",
+        "temperature": "2.3510958125672174",
+        "dtype": "bfloat16",
+        "device": "cuda",
+    }
+    assert result.model_version == "jaredpalmer/kev-0.8b@2026-09-24"
+    (call,) = calls
+    questions = load_kev_questions()
+    assert call.provider == "kev"
+    assert call.model == "kev-latest"
+    assert call.response_model == "jaredpalmer/kev-0.8b"
+    assert call.prompt_version == "kev_questions@1.0.0"
+    assert call.prompt_hash == questions.prompt_hash
+    assert call.purpose == "decision_signals"
+    assert (call.input_tokens, call.output_tokens) == (167, 163)
+    assert call.latency_ms == pytest.approx(300.0)
+    assert call.server_latency_ms == 267.9
+    assert call.model_info == info
+    assert call.success is True
+
+
+def test_model_version_without_serving_details(client: KevDecisionClient, fake: FakeKev) -> None:
+    fake.responses = [response(REAL_ES)]
+    assert signals(client).model_version == "kev-latest"
+
+
+# --- Malformed responses -------------------------------------------------------------------------
+
+
+def mutate(change: Any) -> dict[str, Any]:
+    payload = copy.deepcopy(REAL_ES)
+    change(payload)
+    return payload  # type: ignore[no-any-return]
+
+
+def _probs(payload: dict[str, Any]) -> dict[str, Any]:
+    return payload["answers"]["reason_code"]["probabilities"]  # type: ignore[no-any-return]
+
+
+MALFORMED: list[tuple[str, Any]] = [
+    ("missing class", mutate(lambda p: _probs(p).pop("OTHER"))),
+    ("extra class", mutate(lambda p: _probs(p).update({"RC_OTHER": 0.0}))),
+    ("sum too low", mutate(lambda p: _probs(p).update({"OTHER": 0.1}))),
+    ("sum too high", mutate(lambda p: _probs(p).update({"OTHER": 0.2}))),
+    ("NaN", mutate(lambda p: _probs(p).update({"OTHER": float("nan")}))),
+    ("negative", mutate(lambda p: _probs(p).update({"RC_FEE": -0.0383}))),
+    ("above one", mutate(lambda p: _probs(p).update({"RC_UNRECOGNIZED": 1.5}))),
+    ("string", mutate(lambda p: _probs(p).update({"RC_FEE": "0.0383"}))),
+    ("boolean", mutate(lambda p: _probs(p).update({"RC_FEE": True}))),
+    ("extra top-level field", mutate(lambda p: p.update({"debug": 1}))),
+    (
+        "extra answer",
+        mutate(lambda p: p["answers"].update({"human_requested": {"type": "noul", "noul": 0.5}})),
+    ),
+    ("missing answer", mutate(lambda p: p["answers"].pop("escalation_risk"))),
+    ("extra noul field", mutate(lambda p: p["answers"]["ambiguous"].update({"extra": 1}))),
+    ("noul above one", mutate(lambda p: p["answers"]["ambiguous"].update({"noul": 1.2}))),
+    ("noul infinite", mutate(lambda p: p["answers"]["ambiguous"].update({"noul": float("inf")}))),
+    ("reason field missing", mutate(lambda p: p["answers"]["reason_code"].pop("confidence"))),
+    ("answers not an object", mutate(lambda p: p.update({"answers": []}))),
+    ("no answers", mutate(lambda p: p.pop("answers"))),
+    ("not an object", ["a", "list"]),
+]
+
+
+@pytest.mark.parametrize(("case", "payload"), MALFORMED, ids=[case for case, _ in MALFORMED])
+def test_malformed_responses_are_unavailable_and_never_repaired(
+    client: KevDecisionClient,
+    fake: FakeKev,
+    calls: list[ModelCall],
+    case: str,
+    payload: Any,
+) -> None:
+    fake.responses = [httpx.Response(200, text=json.dumps(payload))]
+    result = signals(client)
+    assert result == ModelSignals(source=ModelSource.UNAVAILABLE)
+    assert len(fake.requests) == 1  # no retries
+    assert calls[0].success is False
+    assert calls[0].error is not None and "malformed" in calls[0].error
+
+
+def test_body_that_is_not_json_is_malformed(
+    client: KevDecisionClient, fake: FakeKev, calls: list[ModelCall]
+) -> None:
+    fake.responses = [httpx.Response(200, text="<html>oops</html>")]
+    assert signals(client).source is ModelSource.UNAVAILABLE
+    assert calls[0].error == "malformed response"
+
+
+def test_optional_usage_and_latency_may_be_missing_or_invalid(
+    client: KevDecisionClient, fake: FakeKev, calls: list[ModelCall]
+) -> None:
+    payload = mutate(lambda p: p.update({"usage": {"input_tokens": -1}, "latency_ms": "fast"}))
+    fake.responses = [response(payload)]
+    assert signals(client).source is ModelSource.KEV
+    assert (calls[0].input_tokens, calls[0].output_tokens) == (None, None)
+    assert calls[0].server_latency_ms is None
+
+
+# --- Failures: timeout, 5xx, connection refused -----------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("failure", "error"),
+    [
+        (httpx.ReadTimeout("slow"), "timeout"),
+        (httpx.ConnectError("refused"), "network error"),
+        (httpx.Response(500), "HTTP 500"),
+        (httpx.Response(503), "HTTP 503"),
+        (httpx.Response(404), "HTTP 404"),
+    ],
+)
+def test_failures_return_unavailable_without_retrying(
+    client: KevDecisionClient,
+    fake: FakeKev,
+    calls: list[ModelCall],
+    failure: httpx.Response | Exception,
+    error: str,
+) -> None:
+    fake.responses = [failure]
+    assert signals(client) == ModelSignals(source=ModelSource.UNAVAILABLE)
+    assert len(fake.requests) == 1
+    assert calls[0].error == error
+    assert calls[0].success is False
+
+
+def test_unconfigured_client_is_unavailable_without_calls() -> None:
+    client = KevDecisionClient(None, load_kev_questions())
+    assert not client.configured
+    assert run(client.signals("hola", context())).source is ModelSource.UNAVAILABLE
+    assert run(client.refresh_model_info()) == {}
+
+
+# --- Deadline -------------------------------------------------------------------------------
+
+
+def test_timeout_is_capped_by_the_turn_deadline(fake: FakeKev, calls: list[ModelCall]) -> None:
+    ticker = Ticker()
+    client = make_client(fake, calls, timeout=2.0, monotonic=ticker)
+    deadline = Deadline(1.0, ticker)
+    ticker.now += 0.5
+    fake.responses = [response(REAL_ES)]
+    run(client.signals("hola", context(), deadline))
+    assert fake.requests[0].extensions["timeout"]["read"] == pytest.approx(0.5)
+
+
+def test_no_call_without_time_left(fake: FakeKev, calls: list[ModelCall]) -> None:
+    ticker = Ticker()
+    client = make_client(fake, calls, monotonic=ticker)
+    deadline = Deadline(1.0, ticker)
+    ticker.now += 0.95
+    assert run(client.signals("hola", context(), deadline)).source is ModelSource.UNAVAILABLE
+    assert fake.requests == []
+
+
+def test_timeout_uses_the_configured_value_without_deadline(
+    fake: FakeKev, calls: list[ModelCall]
+) -> None:
+    fake.responses = [response(REAL_ES)]
+    run(make_client(fake, calls, timeout=2.0).signals("hola", context()))
+    assert fake.requests[0].extensions["timeout"]["read"] == pytest.approx(2.0)
+
+
+# --- /v1/models ---------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        httpx.Response(500),
+        httpx.Response(200, json={"models": [{"name": "other-model"}]}),
+        httpx.Response(200, json={"no": "models"}),
+        httpx.ConnectError("down"),
+    ],
+)
+def test_model_info_failures_leave_it_empty(
+    client: KevDecisionClient, fake: FakeKev, failure: httpx.Response | Exception
+) -> None:
+    fake.responses = [failure]
+    assert run(client.refresh_model_info()) == {}
+    assert client.model_info == {}
+
+
+# --- Configuration and interface ------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("base_url", "timeout", "message"),
+    [("", 2.0, "KEV_BASE_URL"), (BASE_URL, 0.0, "KEV_TIMEOUT_SECONDS")],
+)
+def test_invalid_configuration(base_url: str, timeout: float, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        KevConfig(base_url, timeout)
+
+
+def test_implements_the_module_interface(client: KevDecisionClient) -> None:
+    assert isinstance(client, interfaces.DecisionClient)
+
+
+def test_works_without_a_recorder(fake: FakeKev) -> None:
+    fake.responses = [response(REAL_ES), httpx.Response(500)]
+    client = KevDecisionClient(
+        KevConfig(BASE_URL), load_kev_questions(), httpx.MockTransport(fake.handler)
+    )
+    assert signals(client).source is ModelSource.KEV
+    assert signals(client).source is ModelSource.UNAVAILABLE

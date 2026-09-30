@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.4 |
+| Version | 0.1.5 |
 | Last updated | 2026-09-28 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -70,7 +70,7 @@ The central design rule comes from the [dispute policy](dispute-policy.md#2-desi
 | **Identity Service** | Authenticates with a document number and a test OTP, and manages revocable sessions with expiry, using JWTs signed with HS256 only (PyJWT). The document is looked up by its HMAC. Its own lockout (`OTP_MAX_FAILURES` failed OTPs per document within a window) is separate from the policy's `AUTH_MAX_ATTEMPTS`, which counts conversation turns and is applied by the Orchestrator. A mock of a real identity provider. | The challenge requires a trusted test session; a customer ID alone does not prove identity ([GATE-02](dispute-policy.md#5-gates)). |
 | **Input Guard** | Detects prompt injection and impersonation attempts before the text reaches the LLM, combining rules with a Kev question. | Prompt injection must be evaluated and handled ([ESC-13](dispute-policy.md#7-mandatory-escalation-triggers)). |
 | **LLM Adapter** | Wraps the OpenAI API, requests JSON-schema structured outputs, and removes fields the model does not need. | Isolates the provider so a change is a configuration change. Enforces data minimization ([DATA-01](dispute-policy.md#12-data-handling-and-fairness)). |
-| **Decision Client** | Queries Kev through its TypeSafe-compatible API using `httpx`. Falls back to the LLM with structured output if Kev is unavailable. | Keeps the learned component behind one interface so it can be compared, replaced, and degraded safely. |
+| **Decision Client** | Queries Kev through its TypeSafe API (`POST /v1/systemone`) using `httpx`, with the closed questions of `config/kev_questions.yaml`: reason code (five codes plus `OTHER`), ambiguity, and escalation risk. Short timeout, no retries. If Kev is unavailable or answers outside the contract, the signals are derived from the LLM extraction of the current message (0/1, uncalibrated: the baseline Kev is evaluated against), with no extra model call. | Keeps the learned component behind one interface so it can be compared, replaced, and degraded safely. |
 | **Policy Engine** | Evaluates gates, escalation triggers, and precedence. Parameters are read from a versioned `policy.yaml`. The only component that decides outcomes. | Policy must be enforced outside model-generated prose. Deterministic and unit-testable. The same code produces the reference labels for evaluation. |
 | **Tool Layer** | Runs reads and actions (create case, block card) with its own permission checks, Pydantic contracts, idempotency keys, bounded retries (`tenacity`), and read-back verification. | Permissions must be enforced in the tool layer, and only verified actions may be reported. It refuses improper requests even if a model asks for them. |
 | **Handoff Builder** | Builds the handoff packet for the human agent: verified facts, actions taken, triggered rules, and open questions. | Handoffs must carry useful context without the raw transcript ([policy §13](dispute-policy.md#13-handoff-packet)). |
@@ -124,8 +124,10 @@ The deployable unit is one Docker Compose project with four containers:
 |---|---|---|
 | `frontend` | React build served as static files | Public |
 | `api` | FastAPI backend (all backend modules) | Public, behind rate limiting |
-| `kev` | Kev server with its weights | Internal network only |
+| `kev` | Kev server with its weights (`jaredpalmer/kev-0.8b`, TypeSafe API on port 8008) | Internal network only |
 | `postgres` | PostgreSQL 16 | Internal network only |
+
+**Kev container (M7).** Pinned to repository `jaredpalmer/kev@0fe8fc97c2bcc247fa3efb6e5c32af4e99770e91` and model snapshot `9a45d25eb2ab761841196625383fa1dff0e56c1e` (release 2026-09-24), served in bf16 at temperature 2.35. The image installs `flash-linear-attention==0.5.2` explicitly (it is missing from the repository's lock file) and starts the server with `--host 0.0.0.0`. The first call after start compiles the model (10.4 s on an RTX 3070; about 120 ms per new text afterwards), so the container makes one warm-up call at start and its healthcheck reports ready only after it. GPU is optional; latency is also measured on CPU for the deployment host.
 
 The OpenAI API is called from the `api` container over HTTPS. Configuration and secrets come from environment variables (see `.env.example`); nothing secret is baked into images.
 
@@ -145,7 +147,7 @@ Target hosts, in order of preference: the developer's own server, or a cloud VM 
 | Failure | Handling |
 |---|---|
 | OpenAI call fails or times out | Bounded retries. If it still fails, the turn escalates or asks the customer to retry; no action is taken on partial output. |
-| Kev unavailable | The Decision Client falls back to the LLM with structured output and records the fallback in the trace. |
+| Kev unavailable | The Decision Client returns unavailable signals, the Orchestrator derives the fallback from the extraction of the current message, and the trace records `source = llm_fallback`. If the extraction failed too, the signals stay `unavailable` and count as uncertainty. |
 | Tool write fails | Bounded retries with idempotency keys. After `TOOL_MAX_RETRIES`, the case escalates under [ESC-10](dispute-policy.md#7-mandatory-escalation-triggers). |
 | Read-back mismatch | The action is treated as failed and escalated; the customer is not told it succeeded ([COM-04](dispute-policy.md#11-customer-communication)). |
 | Session expired mid-conversation | The next evaluation stops at GATE-02 and asks the customer to authenticate again. A confirmation received with an expired session is not valid: after re-authentication, the COM-03 summary is presented again. |
@@ -172,6 +174,7 @@ The data and ML pipelines will be documented separately.
 - The identity service, core banking data, and case store are mocks with documented contracts; they are not production integrations.
 - A production deployment with strict data residency would replace the OpenAI API with a self-hosted model; that requires GPU hardware not available for this prototype.
 - Kev 0.8B has a limited knowledge base and its calibration is verified only on our evaluation data.
+- Kev is trained in English. In Spanish and Portuguese only two cases have been verified against the real server (`tests/fixtures/kev/`). As served (temperature 2.35), its `ambiguous` and `escalation_risk` answers sit near 0.5 and must not influence decisions until M7 recalibrates the temperature per question on the validation split.
 - The conversational model is identified only by its alias: the API reports `gpt-6-luna` as the model and no `system_fingerprint`, so the provider can change the underlying model without notice. Mitigation: parser regression tests on recorded answers (`tests/fixtures/llm/`), and repeated runs per case in the evaluation (M18), since no `temperature` is sent.
 - Capacity limits of the deployment have not been measured yet; they will be reported with the evaluation results.
 - Two clocks: transaction-age rules use a simulated business date (`BUSINESS_DATE`, because the supplied data ends on 2026-06-17), while session age uses real time ([policy §15](dispute-policy.md#15-parameters)).
@@ -185,3 +188,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.2 | 2026-09-28 | Core Banking minimization and the offline loading pipeline (policy 0.3.0). |
 | 0.1.3 | 2026-09-28 | Identity Service: document + OTP login, HS256 only, revocable sessions, OTP lockout. |
 | 0.1.4 | 2026-09-28 | Limitation: the conversational model is identified only by its alias. |
+| 0.1.5 | 2026-09-29 | Decision Client against the real Kev contract; fallback derived from the extraction; Kev limitations and container notes for M7. |

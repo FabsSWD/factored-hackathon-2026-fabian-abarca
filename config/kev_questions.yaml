@@ -1,0 +1,27 @@
+# Closed questions sent to Kev (TypeSafe API, POST /v1/systemone). Instructions are in English:
+# Kev is trained in English (architecture §11). Bump questions_version whenever a question or
+# criterion changes; it is recorded with every Kev call (ModelCall.prompt_version).
+#
+# Deliberately absent: human_requested (ESC-05 is covered by the rule detector and the LLM) and
+# manipulation (the Input Guard owns that signal).
+
+questions_version: "1.0.0"
+model: "kev-latest"
+
+questions:
+  reason_code:
+    type: choice
+    instructions: "What is the customer's dispute reason for this card transaction?"
+    criteria:
+      RC_UNRECOGNIZED: "The customer does not recognize the transaction"
+      RC_DUPLICATE: "The customer was charged twice for the same purchase"
+      RC_INCORRECT_AMOUNT: "The amount charged differs from the agreed amount"
+      RC_NOT_RECEIVED: "The customer paid but did not receive the product or service"
+      RC_FEE: "The customer disputes a fee charged by the bank"
+      OTHER: "None of the above"
+  ambiguous:
+    type: noul
+    instructions: "Is the customer's problem unclear or missing information needed to identify it?"
+  escalation_risk:
+    type: noul
+    instructions: "Does this need urgent human attention?"

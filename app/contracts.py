@@ -32,6 +32,8 @@ class Contract(BaseModel):
 
 
 Probability = Annotated[float, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
+PROBABILITY_SUM_TOLERANCE = 0.01
+"""A full distribution sums to 1 within this tolerance (Kev rounds to four decimals)."""
 NonEmptyStr = Annotated[str, Field(min_length=1)]
 PositiveAmount = Annotated[Decimal, Field(gt=0, allow_inf_nan=False)]
 NonNegativeAmount = Annotated[Decimal, Field(ge=0, allow_inf_nan=False)]
@@ -344,22 +346,44 @@ class ConversationFlags(Contract):
 
 
 class ModelSignals(Contract):
-    """Decision-layer output (architecture §3). Informative only; never a decision."""
+    """Decision-layer output (architecture §3). Informative only; never a decision.
+
+    How the Policy Engine may use these signals (M8):
+
+    - ``source`` says where they came from: ``kev`` (the decision model), ``llm_fallback``
+      (derived from the current message's extraction when Kev is unavailable: 0/1 values,
+      deliberately uncalibrated; it is the baseline Kev is evaluated against in M18), or
+      ``unavailable`` (all empty: treat as uncertainty, ESC-11).
+    - As served, Kev's ``ambiguity`` and ``escalation_risk`` sit near 0.5 (0.51-0.60 on the
+      verified cases). They must not influence any decision until M7 recalibrates the
+      temperature per question on the validation split; until then the ESC-11 thresholds stay
+      null.
+    - ``reason_code_probs`` is informative: it never replaces the reason code the customer
+      states and confirms. ``reason_code_other`` is the probability of a reason outside the
+      five codes; with it the distribution is complete (never renormalized).
+    """
 
     source: ModelSource
     model_version: NonEmptyStr | None = None
     reason_code_probs: dict[ReasonCode, Probability] = Field(default_factory=dict)
+    reason_code_other: Probability | None = None
     ambiguity: Probability | None = None
     escalation_risk: Probability | None = None
     manipulation: Probability | None = None
 
     @model_validator(mode="after")
     def _check(self) -> Self:
-        total = sum(self.reason_code_probs.values())
-        if total > 1.0 + 1e-6:
-            raise ValueError(f"reason_code_probs must sum to at most 1 (got {total})")
+        total = sum(self.reason_code_probs.values()) + (self.reason_code_other or 0.0)
+        if total > 1.0 + PROBABILITY_SUM_TOLERANCE:
+            raise ValueError(f"reason code probabilities must sum to at most 1 (got {total})")
         has_values = bool(self.reason_code_probs) or any(
-            value is not None for value in (self.ambiguity, self.escalation_risk, self.manipulation)
+            value is not None
+            for value in (
+                self.reason_code_other,
+                self.ambiguity,
+                self.escalation_risk,
+                self.manipulation,
+            )
         )
         if self.source is ModelSource.UNAVAILABLE and has_values:
             raise ValueError("signals from an unavailable source must be empty")
@@ -715,6 +739,12 @@ class ModelCall(Contract):
     prompt_version: NonEmptyStr | None = None
     # "sha256:" + 16 hex of the system prompt and schema, so an unversioned edit is visible.
     prompt_hash: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{16}$")] | None = None
+    # Latency reported by the model server itself; latency_ms minus this is network and
+    # serialization cost.
+    server_latency_ms: NonNegativeFloat | None = None
+    # Serving details reported by the provider (Kev: run, release_date, temperature, dtype,
+    # device), so a result can be traced to the exact model build.
+    model_info: dict[NonEmptyStr, str] = Field(default_factory=dict)
     purpose: NonEmptyStr  # e.g. "extract_slots", "decision_signals"
     input_tokens: NonNegativeInt | None = None
     output_tokens: NonNegativeInt | None = None

@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     # Connecting sentences around templates; off to compare latency and cost (M18).
     llm_connect_enabled: bool = True
 
+    # Decision model (Kev, TypeSafe API). Empty base URL: Kev is not configured.
+    kev_base_url: str | None = None
+    kev_timeout_seconds: float = Field(default=2.0, gt=0)
+
     # Abuse limits: per session on authenticated routes, per client IP on /auth/login and
     # /auth/verify (which have no session yet).
     rate_limit_requests_per_minute: int = Field(default=20, gt=0)

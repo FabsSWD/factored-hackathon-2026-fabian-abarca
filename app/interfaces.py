@@ -104,9 +104,19 @@ class LLMAdapter(Protocol):
 
 @runtime_checkable
 class DecisionClient(Protocol):
-    """M6. Returns decision-layer signals; never raises, returns UNAVAILABLE signals instead."""
+    """M6. Kev's signals for the current message; never raises.
 
-    async def signals(self, message: str, context: LLMContext) -> ModelSignals: ...
+    Returns ``source=kev`` signals, or ``source=unavailable`` when Kev is not configured, fails,
+    times out or answers outside the contract. Contract for the Orchestrator (M12): run it in
+    parallel with ``LLMAdapter.extract`` on the same turn deadline, then call
+    ``app.decision.resolve_signals(kev_signals, extraction)``, which falls back to signals
+    derived from the current message's extraction (``llm_fallback``) and otherwise keeps
+    ``unavailable``. When ``extract`` failed, pass ``ExtractionUnavailableError.fallback``.
+    """
+
+    async def signals(
+        self, message: str, context: LLMContext, deadline: Deadline | None = None
+    ) -> ModelSignals: ...
 
 
 @runtime_checkable
