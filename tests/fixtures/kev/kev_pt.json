@@ -1,0 +1,17 @@
+{
+  "model": "kev-latest",
+  "state": "Fui cobrado duas vezes pela Streaming Plus. Quero falar com um atendente.",
+  "questions": {
+    "reason_code": {"type": "choice",
+      "instructions": "What is the customer's dispute reason for this card transaction?",
+      "criteria": {
+        "RC_UNRECOGNIZED": "The customer does not recognize the transaction",
+        "RC_DUPLICATE": "The customer was charged twice for the same purchase",
+        "RC_INCORRECT_AMOUNT": "The amount charged differs from the agreed amount",
+        "RC_NOT_RECEIVED": "The customer paid but did not receive the product or service",
+        "RC_FEE": "The customer disputes a fee charged by the bank",
+        "OTHER": "None of the above"}},
+    "human_requested": {"type": "noul", "instructions": "Does the customer ask to talk to a human agent?"},
+    "ambiguous": {"type": "noul", "instructions": "Is the customer's problem unclear or missing information needed to identify it?"}
+  }
+}
