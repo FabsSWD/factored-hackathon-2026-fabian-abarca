@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.audit.cost import TokenRates, estimate_cost
+from app.audit.cost import TokenRates, estimate_cost, rates_from_settings
 from app.audit.masking import AuditMessageMode, mask_message, retain_message
 from app.audit.metrics import compute_metrics, percentile
 from app.contracts import Language, Outcome
@@ -19,15 +19,24 @@ from tests.policy.conftest import evaluate, request
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
+        # Removed: e-mails, cards in groups, phones, documents.
         ("mi correo es ana.prueba+1@example.test", "mi correo es [email]"),
-        ("documento 42388496", "documento [number]"),
-        ("pasaporte X1234567, cédula C9988776", "pasaporte [number], cédula [number]"),
-        ("alias C2 y C12", "alias C2 y C12"),
-        ("tarjeta 4111 1111 1111 4821", "tarjeta [number]"),
-        ("llámame al +57 300-000-0000", "llámame al +[number]"),
-        ("cobro de 1,250.00 dólares", "cobro de 1,250.00 dólares"),
-        ("me cobraron 400000 pesos", "me cobraron 400000 pesos"),
+        ("tarjeta 4111 1111 1111 1111", "tarjeta ****1111"),
+        ("tarjeta 4111-1111-1111-1111", "tarjeta ****1111"),
+        ("llama al 8888-1234", "llama al [number]"),
+        ("llama al +506 8888 1234", "llama al [telefono]"),
+        ("llama al (11) 98765-4321", "llama al [number]"),
+        ("pasaporte X1234567", "pasaporte [documento]"),
+        ("soy X1234567", "soy [number]"),
+        ("documento 42388496", "documento [documento]"),
+        ("mi número es 42388496", "mi número es [number]"),
+        # Kept: amounts, dates, aliases, references.
+        ("cobro de COP 1.250.000,00", "cobro de COP 1.250.000,00"),
+        ("cobro de USD 1,250.50", "cobro de USD 1,250.50"),
+        ("el 17/06/2026", "el 17/06/2026"),
         ("del 2026-06-01, ref C2", "del 2026-06-01, ref C2"),
+        ("alias C2 y C12", "alias C2 y C12"),
+        ("me cobraron 400000 pesos", "me cobraron 400000 pesos"),
         ("TRX-20260616 no lo reconozco", "TRX-20260616 no lo reconozco"),
     ],
 )
@@ -36,8 +45,8 @@ def test_masking(text: str, expected: str) -> None:
 
 
 def test_retention_modes() -> None:
-    text = "doc 42388496"
-    assert retain_message(text, AuditMessageMode.MASKED) == "doc [number]"
+    text = "mi número 42388496"
+    assert retain_message(text, AuditMessageMode.MASKED) == "mi número [number]"
     assert retain_message(text, AuditMessageMode.FULL) == text
     assert retain_message(text, AuditMessageMode.OMITTED) is None
     assert retain_message(None, AuditMessageMode.FULL) is None
@@ -50,6 +59,43 @@ def test_cost_counts_only_priced_calls() -> None:
     rates = TokenRates(input_usd_per_mtok=Decimal("2"), output_usd_per_mtok=Decimal("8"))
     # 1340 * 2 / 1e6 + 120 * 8 / 1e6 = 0.00268 + 0.00096; Kev adds nothing.
     assert estimate_cost(model_calls(), rates) == Decimal("0.003640")
+
+
+def test_cached_input_has_its_own_rate_when_reported() -> None:
+    # gpt-6-luna rates: 0.10 input, 0.01 cached input, 0.50 output (USD per million tokens).
+    rates = TokenRates(Decimal("0.10"), Decimal("0.50"), Decimal("0.01"))
+    call = model_calls()[0].model_copy(
+        update={"input_tokens": 1_000_000, "cached_input_tokens": 400_000, "output_tokens": 0}
+    )
+    assert estimate_cost([call], rates) == Decimal("0.064000")  # 0.6 * 0.10 + 0.4 * 0.01
+
+
+def test_cached_input_without_its_rate_or_report_is_charged_as_input() -> None:
+    call = model_calls()[0].model_copy(
+        update={"input_tokens": 1_000_000, "cached_input_tokens": 400_000, "output_tokens": 0}
+    )
+    assert estimate_cost([call], TokenRates(Decimal("0.10"), Decimal("0.50"))) == Decimal("0.1")
+    unreported = call.model_copy(update={"cached_input_tokens": None})
+    rates = TokenRates(Decimal("0.10"), Decimal("0.50"), Decimal("0.01"))
+    assert estimate_cost([unreported], rates) == Decimal("0.1")
+
+
+def test_rates_from_settings() -> None:
+    from datetime import date
+
+    from app.settings import Settings
+
+    base = {"_env_file": None, "business_date": date(2026, 6, 17)}
+    assert rates_from_settings(Settings(**base)) is None  # type: ignore[arg-type]
+    configured = Settings(
+        **base,  # type: ignore[arg-type]
+        llm_input_usd_per_mtok=Decimal("0.10"),
+        llm_output_usd_per_mtok=Decimal("0.50"),
+        llm_cached_input_usd_per_mtok=Decimal("0.01"),
+    )
+    assert rates_from_settings(configured) == TokenRates(
+        Decimal("0.10"), Decimal("0.50"), Decimal("0.01")
+    )
 
 
 def test_cost_is_unknown_without_rates() -> None:
@@ -159,3 +205,11 @@ def test_metrics_without_traces_or_costs() -> None:
     unresolved = compute_metrics([trace(outcome=None, tool_calls=[])])
     assert unresolved.outcomes == {"unknown": 1}
     assert unresolved.cost_per_automated_resolution_usd is None
+
+
+def test_audit_masking_reuses_the_llm_minimization() -> None:
+    from app.llm_adapter.minimization import scrub_message
+
+    # Everything the LLM Adapter removes is removed from the log too (one implementation).
+    for text in ("fecha de nacimiento 01/02/1990", "CPF 123.456.789-09", "cel 300 000 0000"):
+        assert mask_message(text) == scrub_message(text)

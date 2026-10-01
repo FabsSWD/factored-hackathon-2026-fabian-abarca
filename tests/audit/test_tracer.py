@@ -150,7 +150,7 @@ def test_unknown_trace(tracer: DatabaseAuditTracer) -> None:
 @pytest.mark.parametrize(
     ("mode", "expected"),
     [
-        (AuditMessageMode.MASKED, "Sí, confirmo. Mi documento es [number] y mi correo [email]"),
+        (AuditMessageMode.MASKED, "Sí, confirmo. Mi documento es [documento] y mi correo [email]"),
         (
             AuditMessageMode.FULL,
             "Sí, confirmo. Mi documento es X1234567 y mi correo ana@example.test",
