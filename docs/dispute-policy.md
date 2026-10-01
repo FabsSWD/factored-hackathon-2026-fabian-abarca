@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.4.1 |
+| Version | 0.4.2 |
 | Last updated | 2026-10-01 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -316,57 +316,87 @@ Every `ESCALATE` outcome produces one handoff packet. It gives the human agent w
 
 ```json
 {
-  "handoff_id": "HO-20260925-000123",
-  "created_at": "2026-09-25T22:45:00Z",
+  "handoff_id": "HO-20261001-000123",
+  "created_at": "2026-10-01T15:04:00Z",
+  "business_date": "2026-06-17",
   "language": "pt",
   "queue": "fraud",
   "priority": "high",
-  "customer_ref": "CUS-pseudonym-7f3a",
+  "customer_ref": "CUS-78b3d06b5a3fdeb3",
   "auth": { "status": "authenticated", "method": "test_otp", "session_age_min": 6 },
-  "request_summary": "Customer disputes an unrecognized purchase and reports a lost phone.",
+  "request_summary": "Unrecognized charge of USD 50.00 at Cafe Sintetico (2026-06-10); account takeover indicators (ESC-03); card ****4821 blocked.",
   "reason_code": "RC_UNRECOGNIZED",
   "triggered_rules": ["ESC-03"],
+  "escalation_reasons": [
+    {
+      "rule_id": "ESC-03",
+      "description": "Possible account takeover: the customer reported a takeover indicator or several unrecognized charges.",
+      "evidence": [
+        {
+          "kind": "flag",
+          "name": "account_takeover_reported",
+          "value": "true",
+          "origin": "customer statement (LLM extraction)",
+          "source": null,
+          "record_id": null
+        }
+      ]
+    }
+  ],
   "verified_facts": [
     {
-      "fact": "Purchase of 1,250.00 MXN at MERCHANT_X on 2026-06-10, status Approved",
+      "fact": "Purchase of USD 50.00 at Cafe Sintetico on 2026-06-10, status Approved, 7 days before the business date",
       "source": "transactions",
-      "record_id": "TXN-..."
+      "record_id": "TRX-..."
     },
     {
-      "fact": "Card ending 4821 is Active",
+      "fact": "Card ending 4821 is Blocked (blocked by ACT-03 at 2026-10-01 15:03 UTC)",
       "source": "products",
       "record_id": "PRD-..."
     }
   ],
   "customer_claims": [
-    "Did not make the purchase",
-    "Phone was stolen on 2026-06-09"
+    "Não fez a compra",
+    "O celular foi roubado no dia 9 de junho"
   ],
   "actions_taken": [
-    { "action": "ACT-03", "result": "success", "verified": true, "detail": "Card ending 4821 blocked" }
+    {
+      "action": "ACT-03",
+      "result": "success",
+      "verified": true,
+      "detail": "Card ending 4821 blocked",
+      "at": "2026-10-01T15:03:20Z"
+    }
   ],
   "draft_case": {
-    "transaction_ref": "TXN-...",
-    "amount_usd": 68.40,
+    "transaction_ref": "TRX-...",
+    "amount_usd": 50.00,
     "tier": "T1",
     "provisional_credit_flag": "eligible"
   },
   "model_signals": {
+    "source": "kev",
     "reason_code_probs": { "RC_UNRECOGNIZED": 0.94, "RC_DUPLICATE": 0.03 },
-    "escalation_risk": 0.81,
-    "model_version": "decision-layer@0.1.0"
+    "escalation_risk": 0.58,
+    "model_version": "jaredpalmer/kev-0.8b@2026-09-24",
+    "model_info": { "run": "jaredpalmer/kev-0.8b", "release_date": "2026-09-24" },
+    "calibrated": false
   },
   "open_questions": [
-    "Were other transactions made after 2026-06-09?"
+    "Were other charges made after the phone was stolen?"
   ],
   "transcript_ref": "CONV-...",
-  "policy_version": "0.1.0"
+  "policy_version": "0.4.2"
 }
 ```
 
 Field rules:
 
-- `verified_facts` MUST each have `source` and `record_id` ([DATA-04](#12-data-handling-and-fairness)).
+- `request_summary` and `escalation_reasons` are built from templates and verified data. Each triggered rule has one reason with its evidence: the slot, flag, counter, record, signal, or tool result that made it fire, with its origin. Evidence is copied from the inputs, never generated.
+- `verified_facts` MUST each have `source` and `record_id` ([DATA-04](#12-data-handling-and-fairness)). Facts describe the records after the actions of the turn: a card blocked by `ACT-03` is reported as blocked. The customer record is identified by `customer_ref`, never by the customer ID.
+- `business_date` is the business clock ([§15](#15-parameters)). Transaction ages in the facts are counted against it, with the same function as `GATE-08`, never against `created_at`.
+- `customer_claims` stay in the conversation language and include the statements behind a trigger (for example, shared credentials or a stolen phone). Everything the system writes (summary, reasons, facts, questions) is in English, the language of the agent console.
+- `actions_taken` records when each action finished. `model_signals` names its `source` (`kev` or `llm_fallback`), the serving details of Kev, and `calibrated`, which stays false until the `ESC-11` thresholds are calibrated.
 - `actions_taken` lists only actions that were attempted, with their verification result. Failed actions are included.
 - `open_questions` lists what the agent still needs to establish. It is empty only if nothing is pending.
 - `model_signals` are informative. The agent must not treat them as decisions.
@@ -455,6 +485,8 @@ The full evaluation design, including case mix and metrics, will be documented s
 - For purchases, withdrawals and adjustments the real data has almost no `T3` amounts, so `ESC-01` almost never fires on real data. Evaluation (M17) and the demo seed synthetic `T3` scenarios, and scenarios with `fraud_score` above 35 for `ESC-04`.
 - Fees cannot be told apart from other adjustments. All 132,118 `Adjustment` rows have a positive amount, no merchant, no category, and no field that gives their direction, and they appear only on loans, investments, and insurance (`Préstamo Personal`, `Préstamo Hipotecario`, `Inversión`, `Seguro`), never on accounts or cards. If some adjustments were credits in the customer's favor, `RC_FEE` would wrongly treat them as disputable charges.
 - Timestamps carry no time zone, so transaction ages across Mexico, Colombia, and Argentina are compared on one naive clock.
+- The handoff queue is simulated: the acknowledgement of `ACT-05` is the packet written to the handoff store and read back unchanged. There is no external queue.
+- Card blocks (`ACT-03`) are recorded in a separate store because Core Banking is read-only for the application; reads report the card as `Blocked` while the block exists. Unblocking a card, including by an agent, is out of scope (`ACT-06`).
 - The reported-speech exception of `ESC-13` can be evaded on purpose: a first-person staff claim preceded by a reporting verb ("me dijo…", "dizendo…") or placed in quotes is not counted. Not flagging fraud victims who report what a scammer said has priority, and claiming to be staff grants nothing, because `GATE-04` is enforced in the Tool Layer with the session's customer.
 - `ESC-13` attempts are counted per conversation: a customer who starts a new conversation starts again at zero. Attempts per customer across conversations are monitored in the audit record, not used as a rule.
 - The data dictionary lists `MXN`, but no transaction or product uses it: transactions are in `USD`, `COP`, and `ARS`, and every transaction of a customer in Mexico is in `USD` (2,216,431 rows). `daily_exchange_rates` includes `MXN` rates, which the system does not use.
@@ -484,3 +516,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.3.6 | 2026-09-28 | `GATE-11`: `Draft` cases do not count as open and their status is never shown to the customer. |
 | 0.4.0 | 2026-10-01 | Rules for the Policy Engine: transaction matching (`GATE-05`), age computation (`GATE-08`), any non-draft case blocks (`GATE-11`), `RC_UNRECOGNIZED` with a lost card, `RC_FEE` identification, `ESC-02` counting, `ESC-11` only with Kev signals or unavailable signals, queue precedence for several triggers, `ACT-03` with exactly one active card, declined and withdrawn confirmations. Provisional parameters fixed with data; `FRAUD_SCORE_ESCALATE` = 35. Calibration objective for `ESC-11`. |
 | 0.4.1 | 2026-10-01 | Policy Engine review: `ESC-11` only on `CLARIFY` or `RESOLVE` candidates (§5, §7). `RC_DUPLICATE` asks for another reason exactly once, with its own indicator; the later charge is disputed even if the customer names the earlier one. A delivery due on `BUSINESS_DATE` is not reached. One inclusive window convention (§15). `GATE-04` is per record and independent of `GATE-03`. Values outside the data contract stop evaluation and get a safe answer. |
+| 0.4.2 | 2026-10-01 | Handoff packet (§13): `business_date`, `escalation_reasons` with evidence, templated `request_summary`, facts after actions, action times, model signal source, serving details and calibration state, and the language rule for system text and claims. Limitations: simulated handoff queue and card blocks without unblocking (§17). |
