@@ -7,9 +7,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
 from app.api.dependencies import RateLimits
 from app.api.health import router as health_router
+from app.audit.tracer import DatabaseAuditTracer
 from app.config import PolicyConfig, load_policy_config
 from app.identity.service import IdentityConfig, IdentityNotConfiguredError, IdentityService
 from app.settings import Settings, get_settings
@@ -22,6 +24,7 @@ def create_app(
     identity: IdentityService | None = None,
     rate_limits: RateLimits | None = None,
     settings: Settings | None = None,
+    audit_tracer: DatabaseAuditTracer | None = None,
 ) -> FastAPI:
     """Build the application. The policy is loaded and validated before serving requests.
 
@@ -36,7 +39,13 @@ def create_app(
         app.state.policy_config = policy
         resolved = settings or get_settings()
         app.state.pseudonym_key = resolved.require_pseudonym_key()
+        app.state.agent_token = resolved.agent_token()
         engine = None
+        tracer = audit_tracer
+        if tracer is None and resolved.database_url:
+            engine = make_engine(resolved.database_url)
+            tracer = DatabaseAuditTracer(make_session_factory(engine), resolved.audit_message_mode)
+        app.state.audit_tracer = tracer
         service = identity
         if service is None or rate_limits is None:
             app.state.rate_limits = rate_limits or RateLimits.from_settings(resolved)
@@ -46,7 +55,7 @@ def create_app(
                 except IdentityNotConfiguredError:
                     config = None
                 if config is not None:
-                    engine = make_engine(resolved.database_url)
+                    engine = engine or make_engine(resolved.database_url)
                     service = IdentityService(config, make_session_factory(engine))
         else:
             app.state.rate_limits = rate_limits
@@ -60,6 +69,7 @@ def create_app(
     app = FastAPI(title="Dispute Intake API", version="0.1.0", lifespan=lifespan)
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(audit_router)
     return app
 
 

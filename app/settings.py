@@ -7,10 +7,15 @@ deployment settings only.
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from functools import lru_cache
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.audit.masking import AuditMessageMode
+
+AGENT_TOKEN_MIN_LENGTH = 32
 
 
 class PseudonymKeyMissingError(RuntimeError):
@@ -61,6 +66,18 @@ class Settings(BaseSettings):
     kev_base_url: str | None = None
     kev_timeout_seconds: float = Field(default=2.0, gt=0)
 
+    # Audit (M11): the agent role's bearer token, what the trace keeps of the customer's
+    # message, and the token rates for the estimated cost (unknown without them).
+    agent_api_token: SecretStr | None = None
+    audit_message_mode: AuditMessageMode = AuditMessageMode.MASKED
+    llm_input_usd_per_mtok: Decimal | None = Field(default=None, ge=0)
+    llm_output_usd_per_mtok: Decimal | None = Field(default=None, ge=0)
+
+    @field_validator("llm_input_usd_per_mtok", "llm_output_usd_per_mtok", mode="before")
+    @classmethod
+    def _empty_rate_is_unknown(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
     # Abuse limits: per session on authenticated routes, per client IP on /auth/login and
     # /auth/verify (which have no session yet).
     rate_limit_requests_per_minute: int = Field(default=20, gt=0)
@@ -75,6 +92,18 @@ class Settings(BaseSettings):
                 "PSEUDONYM_KEY is not set: it keys the pseudonymous customer references"
             )
         return key
+
+    def agent_token(self) -> str | None:
+        """The agent role's token, or None (audit API unavailable). Too short a token is an
+        error at startup."""
+        token = self.agent_api_token.get_secret_value() if self.agent_api_token else ""
+        if not token:
+            return None
+        if len(token) < AGENT_TOKEN_MIN_LENGTH:
+            raise ValueError(
+                f"AGENT_API_TOKEN must have at least {AGENT_TOKEN_MIN_LENGTH} characters"
+            )
+        return token
 
     @property
     def owner_database_url(self) -> str | None:
