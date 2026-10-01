@@ -50,11 +50,11 @@
       "input_tokens_approx": 1340,
       "latency_seconds": {
         "extract": [
-          4.6,
-          6.4
+          2.8,
+          9.8
         ]
       },
-      "notes": "Adds the 'withdrawn' confirmation and the duplicate_ref yes/no question. The three first-message cases are unchanged from 1.5.0. Extract latency rose from 3.3-3.8 s to 4.6-6.4 s with ~230 more input tokens. Confirmation cases (six replies to a pending question) are added to scripts/llm_smoke.py; their results are recorded with the next --record run."
+      "notes": "Adds the 'withdrawn' confirmation and the duplicate_ref yes/no question. The three first-message cases are unchanged from 1.5.0. Extract latency rose from 3.3-3.8 s to 4.6-6.4 s with ~230 more input tokens. Confirmation cases (six replies to a pending question) are added to scripts/llm_smoke.py; their results are recorded with the next --record run. Over the later runs with the confirmation cases, extract latency ranged from 2.8 to 9.8 s."
     }
   ],
   "latency_seconds": {
@@ -83,9 +83,10 @@
     "extract@1.6.0": {
       "input_tokens_approx": 1340,
       "extract_latency_seconds": [
-        4.6,
-        6.4
+        2.8,
+        9.8
       ]
     }
-  }
+  },
+  "pending_for_m18": "Measure p50 and p95 of the whole turn with and without LLM_CONNECT_ENABLED; single smoke runs are not enough to describe a latency this variable."
 }

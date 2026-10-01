@@ -211,6 +211,8 @@ class Case(Base):
 
 CASE_NUMBER_SEQ = Sequence("case_number_seq", metadata=Base.metadata)
 """Numbers case references DSP-YYYYMMDD-NNNNNN (ACT-02)."""
+HANDOFF_NUMBER_SEQ = Sequence("handoff_number_seq", metadata=Base.metadata)
+"""Numbers handoff IDs HO-YYYYMMDD-NNNNNN (policy §13)."""
 
 
 class CardBlock(Base):
@@ -231,10 +233,10 @@ class HandoffPacketRow(Base):
         CheckConstraint(_in("queue", list(Queue)), name="queue"),
         CheckConstraint(_in("priority", list(Priority)), name="priority"),
         CheckConstraint(_in("status", ("acknowledged", "pending")), name="status"),
-        CheckConstraint("handoff_id ~ '^HO-[0-9]{8}-[0-9]{6}$'", name="handoff_id"),
+        CheckConstraint("handoff_id ~ '^HO-[0-9]{8}-[0-9]{6,}$'", name="handoff_id"),
     )
 
-    handoff_id: Mapped[str] = mapped_column(String(18), primary_key=True)
+    handoff_id: Mapped[str] = mapped_column(String(32), primary_key=True)
     # None for an escalation before authentication (ACT-05 is always allowed).
     customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.customer_id"), index=True)
     transaction_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.transaction_id"))

@@ -33,6 +33,13 @@ def within_window(start: date | datetime, end: date | datetime, length: timedelt
     return end - start <= length  # type: ignore[operator]
 
 
+def transaction_age_days(moment: datetime, as_of: datetime) -> int:
+    """Calendar days between the business day of ``moment`` and ``BUSINESS_DATE``, for display
+    (the handoff's "N days before the business date"). Consistent with ``transaction_within``:
+    ``transaction_within(m, a, d) == (transaction_age_days(m, a) <= d)``."""
+    return (business_date(as_of) - business_day(moment, as_of)).days
+
+
 def transaction_within(moment: datetime, as_of: datetime, days: int) -> bool:
     """GATE-08 age: the transaction's business day is at most ``days`` calendar days before
     ``BUSINESS_DATE``. The same function serves ``DISPUTE_WINDOW_DAYS`` and

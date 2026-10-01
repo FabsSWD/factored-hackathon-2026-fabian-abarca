@@ -53,6 +53,8 @@ from app.contracts import (
     CaseStatus,
     ClarifyTarget,
     Confirmation,
+    Evidence,
+    EvidenceKind,
     GateResult,
     InformReason,
     Language,
@@ -65,11 +67,18 @@ from app.contracts import (
     ProvisionalCreditFlag,
     Queue,
     ReasonCode,
+    RuleEvidence,
     Tier,
     ToolStatus,
     TransactionRecord,
 )
-from app.policy.clock import business_date, transaction_within, within_window
+from app.policy import evidence as ev
+from app.policy.clock import (
+    business_date,
+    transaction_age_days,
+    transaction_within,
+    within_window,
+)
 from app.policy.matching import disputed_of, duplicate_twins, match_transaction, nearest_twin
 from app.policy.rules import (
     ACCOUNT_INITIATED_TYPES,
@@ -109,6 +118,7 @@ class _Verdict:
     candidates: tuple[str, ...] = ()
     existing_case: CaseRecord | None = None
     reask: bool = False  # the RC_DUPLICATE re-ask of the reason code
+    evidence: tuple[Evidence, ...] = ()  # why the gate's escalation rule fired
 
 
 def _clarify(
@@ -121,8 +131,8 @@ def _inform(reason: InformReason, existing_case: CaseRecord | None = None) -> _V
     return _Verdict(Outcome.INFORM, inform_reason=reason, existing_case=existing_case)
 
 
-def _escalate(rule: str) -> _Verdict:
-    return _Verdict(Outcome.ESCALATE, rule=rule)
+def _escalate(rule: str, *evidence: Evidence) -> _Verdict:
+    return _Verdict(Outcome.ESCALATE, rule=rule, evidence=evidence)
 
 
 @dataclass
@@ -131,6 +141,7 @@ class _State:
 
     gates: list[GateResult] = field(default_factory=list)
     fired: dict[str, tuple[Queue, Priority]] = field(default_factory=dict)
+    evidence: dict[str, list[Evidence]] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
     authenticated: bool = False
     transaction: TransactionRecord | None = None  # identified by GATE-05
@@ -142,9 +153,13 @@ class _State:
         self.gates.append(GateResult(gate_id=gate_id, passed=passed))
         return passed
 
-    def fire(self, rule: str, queue: Queue | None = None) -> None:
+    def fire(self, rule: str, evidence: list[Evidence], queue: Queue | None = None) -> None:
+        if not evidence:
+            raise ValueError(f"{rule} fired without evidence")
         default_queue, priority = ROUTES[rule]
         self.fired.setdefault(rule, (queue or default_queue, priority))
+        known = self.evidence.setdefault(rule, [])
+        known.extend(item for item in evidence if item not in known)
 
     def note(self, code: str) -> None:
         self.notes.append(code)
@@ -184,23 +199,21 @@ class DeterministicPolicyEngine:
                 verdict = self._confirmation(request)
         if verdict is not None and verdict.rule is not None:
             queue = self._esc14_queue(request, state) if verdict.rule == "ESC-14" else None
-            state.fire(verdict.rule, queue)
+            state.fire(verdict.rule, list(verdict.evidence), queue)
 
-        if (
-            verdict is not None
-            and verdict.outcome is Outcome.CLARIFY
-            and verdict.counts
-            and self._clarifications_exhausted(request, verdict)
-        ):
-            state.fire("ESC-09")
+        if verdict is not None and verdict.outcome is Outcome.CLARIFY and verdict.counts:
+            exhausted = self._clarifications_exhausted(request, verdict)
+            if exhausted:
+                state.fire("ESC-09", exhausted)
         if (
             state.authenticated
             and not state.fired
             and verdict is not None
             and verdict.outcome in (Outcome.CLARIFY, Outcome.RESOLVE)
-            and self._model_uncertain(request)
         ):
-            state.fire("ESC-11")
+            uncertainty = self._model_uncertain(request)
+            if uncertainty:
+                state.fire("ESC-11", uncertainty)
 
         assert verdict is not None or state.fired
         return self._decision(request, state, verdict, tier, amount_usd)
@@ -209,29 +222,52 @@ class DeterministicPolicyEngine:
 
     def _interrupts(self, request: PolicyRequest, state: _State) -> None:
         p, counters, flags = self._p, request.counters, request.flags
-        if (
-            flags.account_takeover_reported
-            or counters.unrecognized_transactions >= p.UNRECOGNIZED_BATCH_MAX
-        ):
-            state.fire("ESC-03")
+        takeover: list[Evidence] = []
+        if flags.account_takeover_reported:
+            takeover.append(ev.flag("account_takeover_reported"))
+        if counters.unrecognized_transactions >= p.UNRECOGNIZED_BATCH_MAX:
+            takeover.append(
+                ev.counter(
+                    "unrecognized_transactions",
+                    f"{counters.unrecognized_transactions} (limit {p.UNRECOGNIZED_BATCH_MAX})",
+                )
+            )
+        if takeover:
+            state.fire("ESC-03", takeover)
         if flags.human_requested:
-            state.fire("ESC-05")
+            state.fire("ESC-05", [ev.flag("human_requested")])
         if flags.legal_or_vulnerability:
-            state.fire("ESC-06")
+            state.fire("ESC-06", [ev.flag("legal_or_vulnerability")])
         guard = request.input_guard
         strikes = max(counters.injection_strikes, guard.strikes if guard is not None else 0)
         if strikes >= p.INJECTION_STRIKES_MAX or (guard is not None and guard.escalate_security):
-            state.fire("ESC-13")
+            manipulation = [
+                ev.counter("injection_strikes", f"{strikes} (limit {p.INJECTION_STRIKES_MAX})")
+            ]
+            if guard is not None and guard.pattern_id is not None:
+                manipulation.append(
+                    ev.other(
+                        EvidenceKind.INPUT_GUARD, "pattern_id", guard.pattern_id, "Input Guard"
+                    )
+                )
+            state.fire("ESC-13", manipulation)
 
     def _authenticated_interrupts(self, request: PolicyRequest, state: _State) -> None:
-        if any(
-            result.action in WRITE_ACTIONS
-            and (result.status is not ToolStatus.SUCCESS or not result.verified)
+        failures = [
+            ev.other(
+                EvidenceKind.TOOL_RESULT,
+                result.action.value,
+                f"{result.status}" + (f": {result.error}" if result.error else ""),
+                "Tool Layer",
+            )
             for result in request.tool_results
-        ):
-            state.fire("ESC-10")
+            if result.action in WRITE_ACTIONS
+            and (result.status is not ToolStatus.SUCCESS or not result.verified)
+        ]
+        if failures:
+            state.fire("ESC-10", failures)
         if request.counters.unresolved_contradiction:
-            state.fire("ESC-09")
+            state.fire("ESC-09", [ev.counter("unresolved_contradiction", "true")])
 
     # ------------------------------------------------------------------ channel 2
 
@@ -243,7 +279,16 @@ class DeterministicPolicyEngine:
         )
         if not state.gate("GATE-01", language_ok):
             if request.counters.language_clarifications >= LANGUAGE_CLARIFICATIONS_MAX:
-                return _escalate("ESC-12")
+                detected = request.detected_language or "unknown"
+                if request.language_ambiguous:
+                    detected += " (ambiguous)"
+                return _escalate(
+                    "ESC-12",
+                    ev.other(
+                        EvidenceKind.LANGUAGE, "detected_language", detected, "language detection"
+                    ),
+                    ev.counter("language_clarifications", request.counters.language_clarifications),
+                )
             return _clarify(ClarifyTarget.LANGUAGE, counts=False)
 
         # GATE-02: the system must not read or disclose account data before it passes.
@@ -269,7 +314,15 @@ class DeterministicPolicyEngine:
         if not state.gate("GATE-04", not request.ownership_violation):
             return _Verdict(Outcome.REFUSE)
         if not customer_active:
-            return _escalate("ESC-08")
+            return _escalate(
+                "ESC-08",
+                ev.record(
+                    "customer_status",
+                    customer.customer_status if customer else "missing",
+                    "customers",
+                    customer.customer_id if customer else None,
+                ),
+            )
 
         # GATE-05
         reason = request.slots.reason_code
@@ -316,7 +369,11 @@ class DeterministicPolicyEngine:
         mark = DISPUTABILITY[txn.transaction_type][reason]
         if not state.gate("GATE-07", mark is Mark.AUTOMATED):
             if mark is Mark.HUMAN:
-                return _escalate("ESC-14")
+                return _escalate(
+                    "ESC-14",
+                    ev.transaction(txn, "transaction_type", txn.transaction_type),
+                    ev.slot("reason_code", reason.value),
+                )
             return _inform(InformReason.NOT_DISPUTABLE)
 
         # GATE-08
@@ -325,7 +382,16 @@ class DeterministicPolicyEngine:
             "GATE-08", transaction_within(when, request.as_of, p.DISPUTE_WINDOW_DAYS)
         ):
             if transaction_within(when, request.as_of, p.LATE_WINDOW_DAYS):
-                return _escalate("ESC-07")
+                age = transaction_age_days(when, request.as_of)
+                return _escalate(
+                    "ESC-07",
+                    ev.transaction(
+                        txn,
+                        "transaction_date",
+                        f"{when:%Y-%m-%d}, {age} days before the business date "
+                        f"(window {p.DISPUTE_WINDOW_DAYS}, late window {p.LATE_WINDOW_DAYS})",
+                    ),
+                )
             return _inform(InformReason.OUTSIDE_WINDOW)
 
         # GATE-09
@@ -336,7 +402,15 @@ class DeterministicPolicyEngine:
             "GATE-09",
             product is not None and product.product_status in ELIGIBLE_PRODUCT_STATUSES,
         ):
-            return _escalate("ESC-08")
+            return _escalate(
+                "ESC-08",
+                ev.record(
+                    "product_status",
+                    product.product_status if product else "missing",
+                    "products",
+                    txn.product_id,
+                ),
+            )
 
         # GATE-10
         precondition = self._reason_preconditions(request, state, reason, txn)
@@ -368,7 +442,7 @@ class DeterministicPolicyEngine:
         if reason is ReasonCode.UNRECOGNIZED:
             # A lost or stolen card (card_in_possession = no) passes; ACT-03 is offered.
             if slots.shared_credentials:
-                return _escalate("ESC-03")
+                return _escalate("ESC-03", ev.slot("shared_credentials", True))
             if slots.card_in_possession is None:
                 return _clarify(ClarifyTarget.CARD_IN_POSSESSION)
             if slots.shared_credentials is None:
@@ -435,7 +509,11 @@ class DeterministicPolicyEngine:
         reason (``duplicate_reason_reasked``); if it remains unresolved, ESC-09. The re-ask is
         an ordinary clarification, so the §10 limits still apply to it."""
         if request.counters.duplicate_reason_reasked:
-            return _escalate("ESC-09")
+            return _escalate(
+                "ESC-09",
+                ev.counter("duplicate_reason_reasked", "true"),
+                ev.slot("reason_code", ReasonCode.DUPLICATE.value),
+            )
         return _Verdict(Outcome.CLARIFY, clarify_target=ClarifyTarget.REASON_CODE, reask=True)
 
     # ------------------------------------------------------------------ channel 3
@@ -445,7 +523,12 @@ class DeterministicPolicyEngine:
     ) -> None:
         p = self._p
         if tier is Tier.T3:
-            state.fire("ESC-01")
+            amount = (
+                f"{disputed.amount_usd} (above {p.AUTO_INTAKE_MAX_USD})"
+                if disputed.amount_usd is not None
+                else "unknown (treated as T3)"
+            )
+            state.fire("ESC-01", [ev.transaction(disputed, "amount_usd", amount)])
 
         counted = [case for case in request.cases if case.status is not CaseStatus.DRAFT]
 
@@ -457,13 +540,43 @@ class DeterministicPolicyEngine:
             disputed.amount_usd or Decimal(0),
         )
         cases_90d = sum(1 for case in counted if recent(case, VELOCITY_COUNT_DAYS))
-        if disputed_30d > p.AGG_DISPUTED_30D_MAX_USD or cases_90d >= p.REPEAT_DISPUTES_90D:
-            state.fire("ESC-02")
+        velocity: list[Evidence] = []
+        if disputed_30d > p.AGG_DISPUTED_30D_MAX_USD:
+            velocity.append(
+                ev.record(
+                    "disputed_usd_30d",
+                    f"{disputed_30d} including this dispute (limit {p.AGG_DISPUTED_30D_MAX_USD})",
+                    "cases",
+                    None,
+                    ev.CASES,
+                )
+            )
+        if cases_90d >= p.REPEAT_DISPUTES_90D:
+            velocity.append(
+                ev.record(
+                    "cases_90d",
+                    f"{cases_90d} previous cases (limit {p.REPEAT_DISPUTES_90D})",
+                    "cases",
+                    None,
+                    ev.CASES,
+                )
+            )
+        if velocity:
+            state.fire("ESC-02", velocity)
 
         if disputed.fraud_score is None:
             state.note("fraud_score_missing")
         elif disputed.fraud_score >= p.FRAUD_SCORE_ESCALATE:
-            state.fire("ESC-04")
+            state.fire(
+                "ESC-04",
+                [
+                    ev.transaction(
+                        disputed,
+                        "fraud_score",
+                        f"{disputed.fraud_score} (threshold {p.FRAUD_SCORE_ESCALATE})",
+                    )
+                ],
+            )
 
     # ------------------------------------------------------------------ confirmation
 
@@ -500,35 +613,69 @@ class DeterministicPolicyEngine:
             return Tier.T2
         return Tier.T1
 
-    def _clarifications_exhausted(self, request: PolicyRequest, verdict: _Verdict) -> bool:
+    def _clarifications_exhausted(
+        self, request: PolicyRequest, verdict: _Verdict
+    ) -> list[Evidence]:
         # Only verdicts that count reach here: language and authentication have their own limits.
         target = verdict.clarify_target
         assert target is not None
-        counters = request.counters
-        return (
-            counters.clarifications_by_slot.get(target, 0) >= self._p.MAX_CLARIFICATION_TURNS
-            or counters.total_clarifications >= self._p.MAX_TOTAL_CLARIFICATIONS
-        )
+        counters, p = request.counters, self._p
+        found: list[Evidence] = []
+        asked = counters.clarifications_by_slot.get(target, 0)
+        if asked >= p.MAX_CLARIFICATION_TURNS:
+            found.append(
+                ev.counter(
+                    f"clarifications_by_slot.{target}",
+                    f"{asked} (limit {p.MAX_CLARIFICATION_TURNS})",
+                )
+            )
+        if counters.total_clarifications >= p.MAX_TOTAL_CLARIFICATIONS:
+            found.append(
+                ev.counter(
+                    "total_clarifications",
+                    f"{counters.total_clarifications} (limit {p.MAX_TOTAL_CLARIFICATIONS})",
+                )
+            )
+        return found
 
-    def _model_uncertain(self, request: PolicyRequest) -> bool:
+    def _model_uncertain(self, request: PolicyRequest) -> list[Evidence]:
         """ESC-11. Unavailable signals are unknown uncertainty and always fire. The thresholds
         apply only to Kev's signals; the extraction fallback (0/1, uncalibrated) never fires."""
         signals = request.signals
+        origin = f"decision layer ({signals.source})"
         if signals.source is ModelSource.UNAVAILABLE:
-            return True
+            return [ev.other(EvidenceKind.SIGNAL, "source", "unavailable", origin)]
         if signals.source is not ModelSource.KEV:
-            return False
+            return []
+        found: list[Evidence] = []
         confidence_min = self._p.DECISION_CONFIDENCE_MIN
         if confidence_min is not None:
             top = signals.top_reason_code
             if top is None or top[1] < confidence_min:
-                return True
+                value = f"{top[0]} {top[1]}" if top else "none"
+                found.append(
+                    ev.other(
+                        EvidenceKind.SIGNAL,
+                        "top_reason_code",
+                        f"{value} (minimum {confidence_min})",
+                        origin,
+                    )
+                )
         risk_threshold = self._p.ESCALATION_RISK_THRESHOLD
-        return (
+        if (
             risk_threshold is not None
             and signals.escalation_risk is not None
             and signals.escalation_risk >= risk_threshold
-        )
+        ):
+            found.append(
+                ev.other(
+                    EvidenceKind.SIGNAL,
+                    "escalation_risk",
+                    f"{signals.escalation_risk} (threshold {risk_threshold})",
+                    origin,
+                )
+            )
+        return found
 
     @staticmethod
     def _esc14_queue(request: PolicyRequest, state: _State) -> Queue:
@@ -643,6 +790,10 @@ class DeterministicPolicyEngine:
             card_already_blocked=already_blocked,
             duplicate_reason_reask=bool(clarify and verdict and verdict.reask),
             notes=state.notes,
+            evidence=[
+                RuleEvidence(rule_id=rule, evidence=state.evidence[rule])
+                for rule in sorted(state.fired)
+            ],
         )
 
     # ------------------------------------------------------------------ explain

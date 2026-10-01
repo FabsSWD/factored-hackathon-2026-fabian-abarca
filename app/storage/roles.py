@@ -43,7 +43,9 @@ APP_WRITABLE = frozenset(
 )
 APP_DELETABLE = frozenset({"otp_challenges", "otp_failures"})
 APP_NO_ACCESS = frozenset({"alembic_version"})
-APP_SEQUENCES = frozenset({"case_number_seq", "audit_logs_id_seq", "otp_failures_id_seq"})
+APP_SEQUENCES = frozenset(
+    {"case_number_seq", "handoff_number_seq", "audit_logs_id_seq", "otp_failures_id_seq"}
+)
 TABLE_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE")
 
 
@@ -89,28 +91,31 @@ def check_distinct_roles(admin_role: str, owner_role: str, app_role: str) -> Non
 
 
 def apply_roles(conn: psycopg.Connection, values: dict[str, str], text: str | None = None) -> int:
-    """Apply the roles file on ``conn`` (an admin connection to the target database), then
-    verify the result. Returns the number of statements executed. Values are bound as
-    parameters, never pasted into SQL."""
+    """Apply the roles file on ``conn`` (an admin connection to the target database) and verify
+    the result, all in one transaction. Returns the number of statements executed. Values are
+    bound as parameters, never pasted into SQL."""
     missing = set(VARIABLES) - set(values)
     if missing:
         raise ValueError(f"missing variables: {', '.join(sorted(missing))}")
     admin_role = str(_scalar(conn, "SELECT current_user"))
     check_distinct_roles(admin_role, values["owner_role"], values["app_role"])
     executed = 0
-    for statement, gexec in statements(text if text is not None else ROLES_SQL.read_text()):
-        names = _VARIABLE.findall(statement)
-        # format() is variadic: the server cannot infer a parameter type, so bind them as text.
-        query = sql.SQL(_VARIABLE.sub("%s::text", statement.replace("%", "%%")))
-        params = [values[name] for name in names]
-        if not gexec:
-            conn.execute(query, params)
-            executed += 1
-            continue
-        for (generated,) in conn.execute(query, params).fetchall():
-            conn.execute(sql.SQL(generated))  # built by format() with %I and %L
-            executed += 1
-    verify_roles(conn, values["owner_role"], values["app_role"])
+    # One transaction (PostgreSQL DDL is transactional): a failure anywhere, verification
+    # included, leaves no role, ownership or grant half applied.
+    with conn.transaction():
+        for statement, gexec in statements(text if text is not None else ROLES_SQL.read_text()):
+            names = _VARIABLE.findall(statement)
+            # format() is variadic: the server cannot infer a parameter type; bind them as text.
+            query = sql.SQL(_VARIABLE.sub("%s::text", statement.replace("%", "%%")))
+            params = [values[name] for name in names]
+            if not gexec:
+                conn.execute(query, params)
+                executed += 1
+                continue
+            for (generated,) in conn.execute(query, params).fetchall():
+                conn.execute(sql.SQL(generated))  # built by format() with %I and %L
+                executed += 1
+        verify_roles(conn, values["owner_role"], values["app_role"])
     return executed
 
 

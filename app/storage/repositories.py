@@ -138,6 +138,12 @@ class CoreBankingRepository:
 
     # --- cases ----------------------------------------------------------------
 
+    def get_case(self, customer_id: str, case_id: str) -> CaseRecord | None:
+        row = self._session.scalar(
+            select(Case).where(Case.customer_id == customer_id, Case.case_id == case_id)
+        )
+        return _case(row) if row is not None else None
+
     def list_cases(self, customer_id: str, transaction_id: str | None = None) -> list[CaseRecord]:
         query = select(Case).where(Case.customer_id == customer_id)
         if transaction_id is not None:

@@ -144,6 +144,11 @@ class DatabaseToolLayer:
             pool.append(self.get_transaction(transaction_id))
         return pool
 
+    def get_case(self, case_id: str) -> CaseRecord:
+        """A case by its reference. Case numbers are sequential, so the lookup is always
+        filtered by the session customer: another customer's case is ``access_denied``."""
+        return self._read("case", case_id, lambda repo, cid: repo.get_case(cid, case_id))
+
     def list_cases(self, transaction_id: str | None = None) -> list[CaseRecord]:
         if transaction_id is not None:
             self.get_transaction(transaction_id)  # ownership: AccessDeniedError otherwise
@@ -219,6 +224,7 @@ class DatabaseToolLayer:
                 return self._failed(ActionId.CREATE_CASE, number, "read_back_mismatch", key)
             detail = "created" if inserted is not None else "already existed"
             return ToolResult(
+                completed_at=self._clock(),
                 action=ActionId.CREATE_CASE,
                 status=ToolStatus.SUCCESS,
                 verified=True,
@@ -282,6 +288,7 @@ class DatabaseToolLayer:
             if stored is None or stored.product_status != "Blocked":
                 return self._failed(ActionId.BLOCK_CARD, number, "read_back_mismatch")
             return ToolResult(
+                completed_at=self._clock(),
                 action=ActionId.BLOCK_CARD,
                 status=ToolStatus.SUCCESS,
                 verified=True,
@@ -332,6 +339,7 @@ class DatabaseToolLayer:
             if not self._acknowledge(packet.handoff_id, customer_id, payload):
                 return self._failed(ActionId.TRANSFER_TO_HUMAN, number, "read_back_mismatch")
             return ToolResult(
+                completed_at=self._clock(),
                 action=ActionId.TRANSFER_TO_HUMAN,
                 status=ToolStatus.SUCCESS,
                 verified=True,
@@ -380,9 +388,11 @@ class DatabaseToolLayer:
             )
         raise AssertionError("unreachable: tenacity either returns or raises")  # pragma: no cover
 
-    @staticmethod
-    def _failed(action: ActionId, attempts: int, error: str, key: str | None = None) -> ToolResult:
+    def _failed(
+        self, action: ActionId, attempts: int, error: str, key: str | None = None
+    ) -> ToolResult:
         return ToolResult(
+            completed_at=self._clock(),
             action=action,
             status=ToolStatus.FAILED,
             verified=False,
@@ -402,6 +412,7 @@ class DatabaseToolLayer:
         reason = "unauthenticated" if self._customer_id is None else None
         self._security_event(record_type, record_id, action=action, reason=reason)
         return ToolResult(
+            completed_at=self._clock(),
             action=action,
             status=ToolStatus.ACCESS_DENIED,
             verified=False,
