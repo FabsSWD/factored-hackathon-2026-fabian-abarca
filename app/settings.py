@@ -16,7 +16,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", frozen=True)
 
+    # The application role: SELECT on Core Banking, no DDL (scripts/sql/roles.sql).
     database_url: str | None = None
+    # The owner role: migrations and the Core Banking load. Falls back to DATABASE_URL for a
+    # single-role local setup.
+    migration_database_url: str | None = None
     test_database_url: str | None = None
 
     # Business clock (dispute policy §15, "Business date"). Dataset timestamps are naive local
@@ -54,6 +58,10 @@ class Settings(BaseSettings):
     # /auth/verify (which have no session yet).
     rate_limit_requests_per_minute: int = Field(default=20, gt=0)
     auth_rate_limit_per_minute: int = Field(default=10, gt=0)
+
+    @property
+    def owner_database_url(self) -> str | None:
+        return self.migration_database_url or self.database_url
 
     @property
     def as_of(self) -> datetime:

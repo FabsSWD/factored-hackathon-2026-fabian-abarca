@@ -486,6 +486,8 @@ class ConversationCounters(Contract):
     injection_strikes: NonNegativeInt = 0  # ESC-13
     unrecognized_transactions: NonNegativeInt = 0  # ESC-03 batch count
     unresolved_contradiction: bool = False  # ESC-09 (claim contradicts verified facts)
+    # GATE-10 RC_DUPLICATE: the "another reason?" question was already asked (exactly once).
+    duplicate_reason_reasked: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -580,10 +582,7 @@ class PolicyRequest(Contract):
     @model_validator(mode="after")
     def _check(self) -> Self:
         records_present = (
-            self.customer is not None
-            or self.transaction_candidates
-            or self.products
-            or self.cases
+            self.customer is not None or self.transaction_candidates or self.products or self.cases
         )
         if self.session is None and records_present:
             raise ValueError("account records cannot be present without a session (GATE-02)")
@@ -630,6 +629,9 @@ class PolicyDecision(Contract):
     existing_case_status: CaseStatus | None = None
     card_product_id: NonEmptyStr | None = None  # the card ACT-03 would block
     card_already_blocked: bool = False  # card_already_blocked template
+    # This CLARIFY is the single RC_DUPLICATE re-ask of the reason code: the Orchestrator sets
+    # counters.duplicate_reason_reasked.
+    duplicate_reason_reask: bool = False
     # Codes for the audit record and the handoff's open_questions, e.g. "fraud_score_missing".
     notes: list[NonEmptyStr] = Field(default_factory=list)
 

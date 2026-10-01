@@ -28,8 +28,15 @@ Contract for the Orchestrator (M12):
   summary, or the duplicate question of RC_DUPLICATE. On a yes to the duplicate question, fill
   ``duplicate_ref`` with ``duplicate_transaction_id`` and clear ``confirmation``; clear it as
   well whenever a slot changes after the summary, so a stale yes never confirms a new summary.
+- When a decision has ``duplicate_reason_reask``, set ``counters.duplicate_reason_reasked``:
+  RC_DUPLICATE re-asks the reason exactly once.
 - ACT-03 is authorized whenever its §8 conditions hold; the Orchestrator asks its own
   confirmation first and does not offer it again once the customer declined or it ran.
+- GATE-04 is per record: when the customer references several records, evaluate each one in
+  its own request, so a record of another customer is refused while their own is handled.
+- Any unexpected exception from the engine (for example ``ValueError`` on a value outside the
+  data contract) or from the Tool Layer becomes a safe reply: a handoff with the
+  ``tool_failure`` template and an audit event, never an HTTP error with a stack trace.
 """
 
 from __future__ import annotations
@@ -62,7 +69,7 @@ from app.contracts import (
     ToolStatus,
     TransactionRecord,
 )
-from app.policy.clock import age_days, business_date
+from app.policy.clock import business_date, transaction_within, within_window
 from app.policy.matching import disputed_of, duplicate_twins, match_transaction, nearest_twin
 from app.policy.rules import (
     ACCOUNT_INITIATED_TYPES,
@@ -78,7 +85,6 @@ from app.storage.data_contract import CARD_PRODUCT_TYPES
 
 SUPPORTED_LANGUAGES = frozenset(language.value for language in Language)
 LANGUAGE_CLARIFICATIONS_MAX = 1  # GATE-01: one clarification, then ESC-12
-DUPLICATE_REASON_CLARIFICATIONS_MAX = 1  # GATE-10 RC_DUPLICATE: "CLARIFY once"
 VELOCITY_AMOUNT_DAYS = 30  # ESC-02 window of the disputed total
 VELOCITY_COUNT_DAYS = 90  # ESC-02 window of the case count
 ELIGIBLE_PRODUCT_STATUSES = frozenset({"Active", "Blocked"})  # GATE-09
@@ -102,6 +108,7 @@ class _Verdict:
     counts: bool = True
     candidates: tuple[str, ...] = ()
     existing_case: CaseRecord | None = None
+    reask: bool = False  # the RC_DUPLICATE re-ask of the reason code
 
 
 def _clarify(
@@ -252,12 +259,17 @@ class DeterministicPolicyEngine:
         customer = request.customer
         if customer is None:
             state.note("customer_record_missing")
-        if not state.gate("GATE-03", customer is not None and customer.customer_status == "Active"):
-            return _escalate("ESC-08")
+        customer_active = state.gate(
+            "GATE-03", customer is not None and customer.customer_status == "Active"
+        )
 
-        # GATE-04: REFUSE without confirming or denying that the record exists.
+        # GATE-04 is evaluated per record and does not depend on GATE-03: a record of another
+        # customer (or one that does not exist) is refused even when the customer is not
+        # active. REFUSE never confirms or denies that the record exists.
         if not state.gate("GATE-04", not request.ownership_violation):
             return _Verdict(Outcome.REFUSE)
+        if not customer_active:
+            return _escalate("ESC-08")
 
         # GATE-05
         reason = request.slots.reason_code
@@ -308,9 +320,11 @@ class DeterministicPolicyEngine:
             return _inform(InformReason.NOT_DISPUTABLE)
 
         # GATE-08
-        age = age_days(txn.transaction_date, request.as_of)
-        if not state.gate("GATE-08", age <= p.DISPUTE_WINDOW_DAYS):
-            if age <= p.LATE_WINDOW_DAYS:
+        when = txn.transaction_date
+        if not state.gate(
+            "GATE-08", transaction_within(when, request.as_of, p.DISPUTE_WINDOW_DAYS)
+        ):
+            if transaction_within(when, request.as_of, p.LATE_WINDOW_DAYS):
                 return _escalate("ESC-07")
             return _inform(InformReason.OUTSIDE_WINDOW)
 
@@ -415,12 +429,14 @@ class DeterministicPolicyEngine:
             return self._ask_other_reason(request)
         return _clarify(ClarifyTarget.DUPLICATE_REF)
 
-    def _ask_other_reason(self, request: PolicyRequest) -> _Verdict:
-        """RC_DUPLICATE not established: ask once whether the customer means another reason."""
-        asked = request.counters.clarifications_by_slot.get(ClarifyTarget.REASON_CODE, 0)
-        if asked >= DUPLICATE_REASON_CLARIFICATIONS_MAX:
+    @staticmethod
+    def _ask_other_reason(request: PolicyRequest) -> _Verdict:
+        """RC_DUPLICATE not established: ask exactly once whether the customer means another
+        reason (``duplicate_reason_reasked``); if it remains unresolved, ESC-09. The re-ask is
+        an ordinary clarification, so the §10 limits still apply to it."""
+        if request.counters.duplicate_reason_reasked:
             return _escalate("ESC-09")
-        return _clarify(ClarifyTarget.REASON_CODE)
+        return _Verdict(Outcome.CLARIFY, clarify_target=ClarifyTarget.REASON_CODE, reask=True)
 
     # ------------------------------------------------------------------ channel 3
 
@@ -432,13 +448,15 @@ class DeterministicPolicyEngine:
             state.fire("ESC-01")
 
         counted = [case for case in request.cases if case.status is not CaseStatus.DRAFT]
-        since_30 = request.as_of - timedelta(days=VELOCITY_AMOUNT_DAYS)
-        since_90 = request.as_of - timedelta(days=VELOCITY_COUNT_DAYS)
+
+        def recent(case: CaseRecord, days: int) -> bool:
+            return within_window(case.business_created_at, request.as_of, timedelta(days=days))
+
         disputed_30d = sum(
-            (case.amount_usd for case in counted if case.business_created_at >= since_30),
+            (case.amount_usd for case in counted if recent(case, VELOCITY_AMOUNT_DAYS)),
             disputed.amount_usd or Decimal(0),
         )
-        cases_90d = sum(1 for case in counted if case.business_created_at >= since_90)
+        cases_90d = sum(1 for case in counted if recent(case, VELOCITY_COUNT_DAYS))
         if disputed_30d > p.AGG_DISPUTED_30D_MAX_USD or cases_90d >= p.REPEAT_DISPUTES_90D:
             state.fire("ESC-02")
 
@@ -623,6 +641,7 @@ class DeterministicPolicyEngine:
             ),
             card_product_id=card.product_id if card else None,
             card_already_blocked=already_blocked,
+            duplicate_reason_reask=bool(clarify and verdict and verdict.reask),
             notes=state.notes,
         )
 

@@ -12,6 +12,7 @@ from tests.conftest import alembic_config
 TABLES = {
     "alembic_version",
     "audit_logs",
+    "card_blocks",
     "cases",
     "customers",
     "handoff_packets",
@@ -41,3 +42,7 @@ def test_downgrade_to_base_and_upgrade_again(database_url: URL, engine: Engine) 
     command.upgrade(config, "head")
     engine.dispose()
     assert set(inspect(engine).get_table_names()) == TABLES
+
+
+def test_case_number_sequence_exists(engine: Engine) -> None:
+    assert "case_number_seq" in inspect(engine).get_sequence_names()

@@ -461,12 +461,36 @@ def test_duplicate_hedged_reply_asks_again() -> None:
 def test_duplicate_declined_asks_once_for_another_reason() -> None:
     decision = evaluate(duplicate(confirmation=Confirmation.DECLINED))
     assert decision.clarify_target is ClarifyTarget.REASON_CODE
+    assert decision.duplicate_reason_reask is True
     assert "duplicate_declined" in decision.notes
     req = duplicate(confirmation=Confirmation.DECLINED).model_copy(
-        update={"counters": counters(clarifications_by_slot={ClarifyTarget.REASON_CODE: 1})}
+        update={"counters": counters(duplicate_reason_reasked=True)}
     )
     escalated = evaluate(req)
     assert escalated.triggered_rules == ["ESC-09"]
+
+
+def test_duplicate_reask_does_not_use_the_reason_code_counter() -> None:
+    # The reason was already asked earlier in the conversation; the re-ask still happens.
+    req = duplicate(confirmation=Confirmation.DECLINED).model_copy(
+        update={"counters": counters(clarifications_by_slot={ClarifyTarget.REASON_CODE: 1})}
+    )
+    decision = evaluate(req)
+    assert decision.outcome is Outcome.CLARIFY
+    assert decision.clarify_target is ClarifyTarget.REASON_CODE
+    assert decision.triggered_rules == []
+
+
+def test_duplicate_reask_is_subject_to_the_general_limits() -> None:
+    req = duplicate(confirmation=Confirmation.DECLINED).model_copy(
+        update={"counters": counters(clarifications_by_slot={ClarifyTarget.REASON_CODE: 2})}
+    )
+    assert evaluate(req).triggered_rules == ["ESC-09"]
+
+
+def test_other_clarifications_are_not_a_reask() -> None:
+    assert evaluate(duplicate()).duplicate_reason_reask is False
+    assert evaluate(request(slots=slots(reason_code=None))).duplicate_reason_reask is False
 
 
 def test_duplicate_withdrawn_ends_without_case() -> None:
@@ -480,9 +504,8 @@ def test_duplicate_not_found_asks_for_another_reason_then_escalates() -> None:
     decision = evaluate(req)
     assert decision.clarify_target is ClarifyTarget.REASON_CODE
     assert "duplicate_not_found" in decision.notes
-    again = req.model_copy(
-        update={"counters": counters(clarifications_by_slot={ClarifyTarget.REASON_CODE: 1})}
-    )
+    assert decision.duplicate_reason_reask is True
+    again = req.model_copy(update={"counters": counters(duplicate_reason_reasked=True)})
     assert evaluate(again).triggered_rules == ["ESC-09"]
 
 

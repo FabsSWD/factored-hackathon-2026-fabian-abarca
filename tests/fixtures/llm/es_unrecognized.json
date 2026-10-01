@@ -2,6 +2,7 @@
   "prompt_version": "extract@1.6.0",
   "response_model": "gpt-6-luna",
   "language": "es",
+  "pending_slot": null,
   "message": "Hola, no reconozco un cargo de 50 dólares en Cafe Sintetico del 16 de junio. Tengo mi tarjeta conmigo y no le he dado mis claves a nadie.",
   "raw": {
     "detected_language": "es",

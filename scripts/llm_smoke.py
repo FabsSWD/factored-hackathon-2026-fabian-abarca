@@ -3,7 +3,8 @@
     python scripts/llm_smoke.py            # print extractions, replies and model calls
     python scripts/llm_smoke.py --record   # also save the raw answers as parser fixtures
 
-Sends three synthetic messages (es, pt) through the LLM Adapter with the settings in .env
+Sends synthetic messages (es, pt) through the LLM Adapter: three first messages and six
+replies to a pending question (the COM-03 summary or the RC_DUPLICATE question), with the settings in .env
 (OPENAI_API_KEY, LLM_MODEL). The reply template is rendered in the detected language. With
 ``--record``, the raw JSON answers of ``extract`` go to tests/fixtures/llm/ (synthetic data
 only). Uses a few cents of API credit.
@@ -24,7 +25,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.config import load_policy_config  # noqa: E402
-from app.contracts import Language, LLMContext, LLMTransaction, ModelCall  # noqa: E402
+from app.contracts import (  # noqa: E402
+    Language,
+    LLMContext,
+    LLMTransaction,
+    ModelCall,
+    SlotName,
+)
 from app.llm_adapter import prompts  # noqa: E402
 from app.llm_adapter.adapter import OpenAILLMAdapter  # noqa: E402
 from app.llm_adapter.client import LLMClientConfig, OpenAIJsonClient  # noqa: E402
@@ -56,15 +63,26 @@ CONTEXT = LLMContext(
     ],
 )
 
-MESSAGES = [
+# (fixture name, language, message, slot pending from the previous turn)
+MESSAGES: list[tuple[str, Language, str, SlotName | None]] = [
     ("es_unrecognized", Language.ES,
      "Hola, no reconozco un cargo de 50 dólares en Cafe Sintetico del 16 de junio. Tengo mi "
-     "tarjeta conmigo y no le he dado mis claves a nadie."),
+     "tarjeta conmigo y no le he dado mis claves a nadie.", None),
     ("pt_duplicate_human", Language.PT,
-     "Fui cobrado duas vezes pela Streaming Plus, 18,90 dólares. Quero falar com um atendente."),
+     "Fui cobrado duas vezes pela Streaming Plus, 18,90 dólares. Quero falar com um atendente.",
+     None),
     ("es_not_received_legal", Language.ES,
      "Pagué unos audífonos que nunca llegaron, debían entregarlos el 2026-06-01 y ya le "
-     "escribí a la tienda. Si no se resuelve voy a ir con un abogado."),
+     "escribí a la tienda. Si no se resuelve voy a ir con un abogado.", None),
+    # Replies to the COM-03 summary and to the RC_DUPLICATE question (extract@1.6.0).
+    ("es_confirm_confirmed", Language.ES, "sí, confirmo", SlotName.CONFIRMATION),
+    ("es_confirm_declined_amount", Language.ES, "no, el monto está mal, eran 40",
+     SlotName.CONFIRMATION),
+    ("es_confirm_withdrawn", Language.ES, "mejor ya no, déjelo así", SlotName.CONFIRMATION),
+    ("pt_confirm_withdrawn", Language.PT, "deixa pra lá, não quero mais", SlotName.CONFIRMATION),
+    ("es_confirm_hedged", Language.ES, "creo que sí, aunque no estoy seguro",
+     SlotName.CONFIRMATION),
+    ("es_duplicate_ref_confirmed", Language.ES, "sí, ese es", SlotName.DUPLICATE_REF),
 ]  # fmt: skip
 
 
@@ -88,10 +106,14 @@ async def main(record: bool) -> None:
     adapter = OpenAILLMAdapter(client, connect_enabled=settings.llm_connect_enabled)
     templates = TemplateService.from_policy(load_policy_config().parameters)
 
-    for name, language, message in MESSAGES:
+    for name, language, message, pending_slot in MESSAGES:
         deadline = adapter.new_deadline()
         context = CONTEXT.model_copy(
-            update={"language": language, "business_date": settings.business_date}
+            update={
+                "language": language,
+                "business_date": settings.business_date,
+                "pending_slot": pending_slot,
+            }
         )
         print(f"\n=== {name} [{language.value}] {message}")
         result = await adapter.extract(message, context, deadline)
@@ -111,12 +133,23 @@ async def main(record: bool) -> None:
                     None,
                 ),
                 "language": language.value,
+                "pending_slot": pending_slot.value if pending_slot else None,
                 "message": message,
                 "raw": raw.get("extract_slots"),
             }
             path = FIXTURES / f"{name}.json"
             path.write_text(json.dumps(fixture, indent=2, ensure_ascii=False), encoding="utf-8")
             print(f"recorded {path.relative_to(ROOT)}")
+
+    print("\n=== extract by prompt version (for reports/m5_llm_extraction_evidence.json)")
+    extracts = [c for c in calls if c.purpose == "extract_slots" and c.success]
+    if extracts:
+        tokens = [c.input_tokens or 0 for c in extracts]
+        seconds = [c.latency_ms / 1000 for c in extracts]
+        print(
+            f"{prompts.EXTRACT_PROMPT_VERSION}: input_tokens {min(tokens)}-{max(tokens)}, "
+            f"latency {min(seconds):.1f}-{max(seconds):.1f} s over {len(extracts)} calls"
+        )
 
     print("\n=== model calls")
     for call in calls:

@@ -4,6 +4,11 @@ The model only interprets language (architecture §3): it proposes slot values a
 the Policy Engine validates, and writes connecting sentences around committed templates. It
 never decides an outcome. Bump a prompt version whenever its text or schema changes; the
 version is recorded with every model call.
+
+Prompt length costs latency: extract@1.6.0 grew from ~1,110 to ~1,340 input tokens and its
+latency from 3.3-3.8 s to 4.6-6.4 s (reports/m5_llm_extraction_evidence.json). Before adding an
+instruction in a new version, check whether an existing one can be removed or shortened, and
+record tokens and latency per version in that report.
 """
 
 from __future__ import annotations

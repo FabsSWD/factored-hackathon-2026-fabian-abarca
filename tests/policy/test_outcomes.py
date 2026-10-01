@@ -111,12 +111,50 @@ def test_cross_precedence(overrides: dict[str, object], outcome: Outcome) -> Non
 
 
 def test_gates_stop_at_the_first_failure() -> None:
-    # GATE-03 fails: the ownership violation (GATE-04) is never evaluated.
+    decision = evaluate(request(transaction_candidates=[txn(status="Pending")]))
+    assert [g.gate_id for g in decision.gates_evaluated][-1] == "GATE-06"
+
+
+# --- GATE-04 is per record and does not depend on GATE-03 ------------------------------------
+
+
+def test_inactive_customer_and_another_customers_record_is_refuse() -> None:
     from tests.policy.conftest import customer
 
     decision = evaluate(request(customer=customer("Inactive"), ownership_violation=True))
+    assert decision.outcome is Outcome.REFUSE
+    assert [(g.gate_id, g.passed) for g in decision.gates_evaluated][-2:] == [
+        ("GATE-03", False),
+        ("GATE-04", False),
+    ]
+
+
+def test_inactive_customer_and_own_record_is_esc08() -> None:
+    from tests.policy.conftest import customer
+
+    decision = evaluate(request(customer=customer("Inactive")))
     assert decision.outcome is Outcome.ESCALATE
-    assert [g.gate_id for g in decision.gates_evaluated][-1] == "GATE-03"
+    assert decision.triggered_rules == ["ESC-08"]
+    assert [(g.gate_id, g.passed) for g in decision.gates_evaluated][-2:] == [
+        ("GATE-03", False),
+        ("GATE-04", True),
+    ]
+
+
+def test_inactive_customer_with_foreign_and_own_records_one_outcome_each() -> None:
+    # Each referenced record is evaluated in its own request (§3: one outcome per transaction).
+    from tests.policy.conftest import customer
+
+    foreign = request(
+        customer=customer("Inactive"),
+        ownership_violation=True,
+        slots=slots(transaction_ref=TransactionRef(transaction_id="TXN-X")),
+    )
+    own = request(customer=customer("Inactive"))
+    assert evaluate(foreign).outcome is Outcome.REFUSE
+    own_decision = evaluate(own)
+    assert own_decision.outcome is Outcome.ESCALATE
+    assert own_decision.triggered_rules == ["ESC-08"]
 
 
 # --- COM-03 confirmation ---------------------------------------------------------------------

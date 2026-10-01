@@ -5,6 +5,9 @@ another customer's record. A record that belongs to someone else and a record th
 exist look the same to the caller (``None`` or an empty list), as GATE-04 requires. Results are
 contract models: prohibited fields cannot leave this layer because the contracts have no place
 for them.
+
+A card blocked through ACT-03 is recorded in ``card_blocks`` (Core Banking is read-only for the
+application), so product reads report ``product_status = 'Blocked'`` while a block exists.
 """
 
 from __future__ import annotations
@@ -12,7 +15,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.contracts import (
@@ -25,7 +28,7 @@ from app.contracts import (
     Tier,
     TransactionRecord,
 )
-from app.storage.models import Case, Customer, Product, Transaction
+from app.storage.models import CardBlock, Case, Customer, Product, Transaction
 
 
 class CoreBankingRepository:
@@ -48,18 +51,15 @@ class CoreBankingRepository:
         )
 
     def list_products(self, customer_id: str) -> list[ProductRecord]:
-        rows = self._session.scalars(
-            select(Product).where(Product.customer_id == customer_id).order_by(Product.product_id)
-        )
-        return [_product(row) for row in rows]
+        query = _products().where(Product.customer_id == customer_id).order_by(Product.product_id)
+        return [_product(row, blocked) for row, blocked in self._session.execute(query)]
 
     def get_product(self, customer_id: str, product_id: str) -> ProductRecord | None:
-        row = self._session.scalar(
-            select(Product).where(
-                Product.customer_id == customer_id, Product.product_id == product_id
-            )
+        query = _products().where(
+            Product.customer_id == customer_id, Product.product_id == product_id
         )
-        return _product(row) if row is not None else None
+        found = self._session.execute(query).first()
+        return _product(*found) if found is not None else None
 
     # --- transactions ---------------------------------------------------------
 
@@ -146,14 +146,19 @@ class CoreBankingRepository:
         return [_case(row) for row in self._session.scalars(query)]
 
 
-def _product(row: Product) -> ProductRecord:
+def _products() -> Select[Product, bool]:
+    blocked = CardBlock.product_id.is_not(None).label("blocked")
+    return select(Product, blocked).outerjoin(CardBlock, CardBlock.product_id == Product.product_id)
+
+
+def _product(row: Product, blocked: bool) -> ProductRecord:
     return ProductRecord(
         product_id=row.product_id,
         customer_id=row.customer_id,
         product_type=row.product_type,
         product_number_masked=f"****{row.product_number_last4}",
         currency=row.currency,
-        product_status=row.product_status,
+        product_status="Blocked" if blocked else row.product_status,
     )
 
 

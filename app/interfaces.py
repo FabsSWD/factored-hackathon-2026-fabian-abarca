@@ -31,7 +31,6 @@ from app.contracts import (
     ToolResult,
     TraceRecord,
     TransactionRecord,
-    TransactionRef,
 )
 from app.deadline import Deadline
 
@@ -131,11 +130,14 @@ class PolicyEngine(Protocol):
 
 @runtime_checkable
 class ToolLayer(Protocol):
-    """M9. Reads and actions, bound to one session's customer at construction.
+    """M9. Reads and actions, bound at construction to one session's customer, or to none
+    before authentication (then only ACT-05 works: GATE-02 forbids reading account data).
 
     No method takes a customer ID: permissions always use the session's (GATE-04).
     Reads raise ``AccessDeniedError`` for records the customer cannot access, whether they
-    exist or not. Prohibited actions (ACT-06) have no method.
+    exist or not; actions return ``access_denied``. Either way a security event is recorded.
+    The Tool Layer only reads and writes: matching and counting rules live in the Policy
+    Engine. Prohibited actions (ACT-06) have no method.
     """
 
     # ACT-01 reads
@@ -145,7 +147,10 @@ class ToolLayer(Protocol):
 
     def get_product(self, product_id: str) -> ProductRecord: ...
 
-    def find_transactions(self, ref: TransactionRef) -> list[TransactionRecord]: ...
+    def transaction_candidates(self, transaction_id: str | None = None) -> list[TransactionRecord]:
+        """``PolicyRequest.transaction_candidates``: the customer's transactions within
+        ``LATE_WINDOW_DAYS`` of ``as_of``, plus ``transaction_id`` if the customer gave one."""
+        ...
 
     def get_transaction(self, transaction_id: str) -> TransactionRecord: ...
 

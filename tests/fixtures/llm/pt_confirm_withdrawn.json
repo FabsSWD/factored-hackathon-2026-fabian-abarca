@@ -2,36 +2,30 @@
   "prompt_version": "extract@1.6.0",
   "response_model": "gpt-6-luna",
   "language": "pt",
-  "pending_slot": null,
-  "message": "Fui cobrado duas vezes pela Streaming Plus, 18,90 dólares. Quero falar com um atendente.",
+  "pending_slot": "confirmation",
+  "message": "deixa pra lá, não quero mais",
   "raw": {
     "detected_language": "pt",
     "language_ambiguous": false,
     "slots": {
-      "transaction_ref": {
-        "transaction_id": null,
-        "transaction_date": null,
-        "amount": 18.9,
-        "merchant": "Streaming Plus"
-      },
-      "reason_code": "RC_DUPLICATE",
+      "transaction_ref": null,
+      "reason_code": null,
       "card_in_possession": null,
       "shared_credentials": null,
       "expected_amount": null,
       "expected_delivery_date": null,
       "merchant_contacted": null,
       "fee_ref": null,
-      "confirmation": null
+      "confirmation": "withdrawn"
     },
     "flags": {
-      "human_requested": true,
+      "human_requested": false,
       "account_takeover_reported": false,
       "legal_or_vulnerability": false,
       "authentication_declined": false
     },
     "customer_claims": [
-      "O cliente informa que foi cobrado duas vezes pela Streaming Plus, no valor de 18,90 dólares.",
-      "O cliente solicita falar com um atendente."
+      "O cliente informa que não quer mais prosseguir."
     ]
   }
 }

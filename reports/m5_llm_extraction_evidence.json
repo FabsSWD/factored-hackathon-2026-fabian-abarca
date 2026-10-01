@@ -39,7 +39,22 @@
           3.8
         ]
       },
-      "notes": "Both dates as {day, month, year|null}. es_unrecognized: model returned {16, 6, null}, completed in code to 2026-06-16. es_not_received_legal: delivery {1, 6, 2026} -> 2026-06-01. No transaction_id proposed, no adjustments. Fixtures in tests/fixtures/llm/ were recorded in this run."
+      "notes": "Both dates as {day, month, year|null}. es_unrecognized: model returned {16, 6, null}, completed in code to 2026-06-16. es_not_received_legal: delivery {1, 6, 2026} -> 2026-06-01. No transaction_id proposed, no adjustments. Fixtures in tests/fixtures/llm/ were recorded in this run.",
+      "input_tokens_approx": 1110
+    },
+    {
+      "prompt_version": "extract@1.6.0",
+      "date": "2026-10-01",
+      "transaction_id_invented": 0,
+      "cases": 3,
+      "input_tokens_approx": 1340,
+      "latency_seconds": {
+        "extract": [
+          4.6,
+          6.4
+        ]
+      },
+      "notes": "Adds the 'withdrawn' confirmation and the duplicate_ref yes/no question. The three first-message cases are unchanged from 1.5.0. Extract latency rose from 3.3-3.8 s to 4.6-6.4 s with ~230 more input tokens. Confirmation cases (six replies to a pending question) are added to scripts/llm_smoke.py; their results are recorded with the next --record run."
     }
   ],
   "latency_seconds": {
@@ -55,5 +70,22 @@
       4.9,
       7.0
     ]
+  },
+  "by_prompt_version": {
+    "description": "Input tokens and extract latency per extraction prompt version (smoke runs). Before adding instructions in a new version, check whether an existing one can be removed (see app/llm_adapter/prompts.py).",
+    "extract@1.5.0": {
+      "input_tokens_approx": 1110,
+      "extract_latency_seconds": [
+        3.3,
+        3.8
+      ]
+    },
+    "extract@1.6.0": {
+      "input_tokens_approx": 1340,
+      "extract_latency_seconds": [
+        4.6,
+        6.4
+      ]
+    }
   }
 }

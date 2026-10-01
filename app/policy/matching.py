@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from app.contracts import TransactionRecord, TransactionRef
-from app.policy.clock import age_days, business_day
+from app.policy.clock import business_day, transaction_within, within_window
 
 DATE_TOLERANCE_DAYS = 1  # GATE-05: date ±1 business day
 
@@ -71,7 +71,7 @@ def match_transaction(
         (
             txn
             for txn in pool
-            if age_days(txn.transaction_date, as_of) <= late_window_days
+            if transaction_within(txn.transaction_date, as_of, late_window_days)
             and consistent(txn, ref, as_of)
         ),
         key=_order,
@@ -100,7 +100,11 @@ def duplicate_twins(
             and other.amount == txn.amount
             and other.currency == txn.currency
             and other.transaction_status == "Approved"
-            and abs(other.transaction_date - txn.transaction_date) <= window
+            and within_window(
+                min(other.transaction_date, txn.transaction_date),
+                max(other.transaction_date, txn.transaction_date),
+                window,
+            )
         ),
         key=_order,
     )

@@ -6,7 +6,8 @@ Pipeline (run from the repository root):
     python scripts/load_core_banking.py                         # silver -> data/core -> PostgreSQL
     python scripts/load_core_banking.py --build-only            # stop after data/core
 
-Reads BUSINESS_DATE, BUSINESS_DAY_CUTOFF, DOCUMENT_HASH_KEY and DATABASE_URL from .env, and
+Reads BUSINESS_DATE, BUSINESS_DAY_CUTOFF, DOCUMENT_HASH_KEY and MIGRATION_DATABASE_URL (the
+owner role; DATABASE_URL if unset) from .env, and
 FX_MAX_STALENESS_DAYS from config/policy.yaml. Writes reports/core_build.json.
 """
 
@@ -60,12 +61,12 @@ def main() -> None:
 
     if args.build_only:
         return
-    if not settings.database_url:
-        sys.exit("DATABASE_URL is not set")
+    if not settings.owner_database_url:
+        sys.exit("MIGRATION_DATABASE_URL (or DATABASE_URL) is not set")
 
     import psycopg
 
-    url = make_url(settings.database_url).set(drivername="postgresql")
+    url = make_url(settings.owner_database_url).set(drivername="postgresql")
     with psycopg.connect(url.render_as_string(hide_password=False)) as connection:
         for load in load_core_banking(connection, core_dir):
             print(

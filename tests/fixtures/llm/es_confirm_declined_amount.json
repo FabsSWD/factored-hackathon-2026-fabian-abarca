@@ -1,0 +1,31 @@
+{
+  "prompt_version": "extract@1.6.0",
+  "response_model": "gpt-6-luna",
+  "language": "es",
+  "pending_slot": "confirmation",
+  "message": "no, el monto está mal, eran 40",
+  "raw": {
+    "detected_language": "es",
+    "language_ambiguous": false,
+    "slots": {
+      "transaction_ref": null,
+      "reason_code": "RC_INCORRECT_AMOUNT",
+      "card_in_possession": null,
+      "shared_credentials": null,
+      "expected_amount": 40,
+      "expected_delivery_date": null,
+      "merchant_contacted": null,
+      "fee_ref": null,
+      "confirmation": "declined"
+    },
+    "flags": {
+      "human_requested": false,
+      "account_takeover_reported": false,
+      "legal_or_vulnerability": false,
+      "authentication_declined": false
+    },
+    "customer_claims": [
+      "El cliente indica que el monto está mal y que eran 40."
+    ]
+  }
+}

@@ -136,6 +136,7 @@ Target hosts, in order of preference: the developer's own server, or a cloud VM 
 ## 7. Security and data boundaries
 
 - **Permissions in the Tool Layer.** Every tool call uses the customer ID from the authenticated session, never from model output. Requests for other customers' records return `access_denied` ([GATE-04](dispute-policy.md#5-gates)).
+- **Two database roles.** The application connects with a role that can only read Core Banking and can read and write Cases and Audit (no deletes, except expired OTP data). A separate owner role runs migrations and the Core Banking load (`scripts/sql/roles.sql`, `DATABASE_URL` and `MIGRATION_DATABASE_URL`). Because Core Banking is read-only, the mock card-block tool records blocks in `card_blocks`, and reads report a blocked card's `product_status` as `Blocked`. The handoff queue acknowledgement (ACT-05) is the packet written to `handoff_packets` and read back unchanged.
 - **Policy outside prompts.** Outcomes and action authorizations come from the Policy Engine. Prompts cannot widen permissions.
 - **Data minimization.** The LLM Adapter sends only the fields allowed by [DATA-01](dispute-policy.md#12-data-handling-and-fairness). Kev runs inside the deployment, so its inputs never leave it.
 - **Internal services.** Kev and PostgreSQL are reachable only on the Compose internal network.

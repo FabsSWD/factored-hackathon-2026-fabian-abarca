@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 
 from app.contracts import TransactionRef
-from app.policy.clock import age_days, business_date, business_day
+from app.policy.clock import business_date, business_day, transaction_within, within_window
 from app.policy.matching import (
     disputed_of,
     duplicate_twins,
@@ -36,10 +36,27 @@ def test_business_day_uses_the_cutoff(moment: datetime, expected: date) -> None:
     assert business_day(moment, AS_OF) == expected
 
 
-def test_age_counts_calendar_days_to_the_business_date() -> None:
-    assert age_days(datetime(2026, 6, 18, 5, 0), AS_OF) == 0
-    assert age_days(datetime(2026, 4, 18, 12, 0), AS_OF) == 60
-    assert age_days(datetime(2026, 4, 19, 5, 59), AS_OF) == 60  # business day 04-18
+def test_transaction_age_counts_calendar_days_to_the_business_date() -> None:
+    assert transaction_within(datetime(2026, 6, 18, 5, 0), AS_OF, 0)
+    assert transaction_within(datetime(2026, 4, 18, 12, 0), AS_OF, 60)
+    assert not transaction_within(datetime(2026, 4, 18, 12, 0), AS_OF, 59)
+    assert transaction_within(datetime(2026, 4, 19, 5, 59), AS_OF, 60)  # business day 04-18
+    assert not transaction_within(datetime(2026, 4, 18, 5, 59), AS_OF, 60)  # business day 04-17
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "length", "inside"),
+    [
+        (date(2026, 4, 18), date(2026, 6, 17), timedelta(days=60), True),
+        (date(2026, 4, 17), date(2026, 6, 17), timedelta(days=60), False),
+        (datetime(2026, 6, 1, 8), datetime(2026, 6, 3, 8), timedelta(hours=48), True),
+        (datetime(2026, 6, 1, 8), datetime(2026, 6, 3, 8, 0, 1), timedelta(hours=48), False),
+    ],
+)
+def test_one_inclusive_window_convention(
+    start: date, end: date, length: timedelta, inside: bool
+) -> None:
+    assert within_window(start, end, length) is inside
 
 
 # --- Merchant names --------------------------------------------------------------------------

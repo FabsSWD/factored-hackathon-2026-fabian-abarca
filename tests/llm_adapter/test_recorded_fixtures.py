@@ -17,7 +17,15 @@ from typing import Any
 
 import pytest
 
-from app.contracts import Language, LLMContext, LLMTransaction, ModelCall, ReasonCode
+from app.contracts import (
+    Confirmation,
+    Language,
+    LLMContext,
+    LLMTransaction,
+    ModelCall,
+    ReasonCode,
+    SlotName,
+)
 from app.llm_adapter import prompts
 from app.llm_adapter.adapter import (
     TRANSACTION_ID_DISCARDED,
@@ -180,3 +188,31 @@ def test_reference_with_only_a_transaction_id_becomes_none_when_dropped() -> Non
     parsed, _ = parse_extraction(only_id, BUSINESS_DATE)
     enforced, _ = enforce_transaction_id(parsed, "esa", {})
     assert enforced.slots.transaction_ref is None
+
+
+# --- Replies to a pending question (extract@1.6.0) -------------------------------------------
+
+CONFIRMATION_CASES = {
+    "es_confirm_confirmed": Confirmation.CONFIRMED,
+    "es_confirm_declined_amount": Confirmation.DECLINED,
+    "es_confirm_withdrawn": Confirmation.WITHDRAWN,
+    "pt_confirm_withdrawn": Confirmation.WITHDRAWN,
+    "es_confirm_hedged": Confirmation.HEDGED,
+    "es_duplicate_ref_confirmed": Confirmation.CONFIRMED,  # pending slot: duplicate_ref
+}
+
+
+@pytest.mark.parametrize(("name", "expected"), CONFIRMATION_CASES.items())
+def test_confirmation_replies(name: str, expected: Confirmation) -> None:
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    pending = SlotName(recorded["pending_slot"])
+    result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
+    assert result.slots.confirmation is expected
+    if name == "es_confirm_declined_amount":
+        ref = result.slots.transaction_ref
+        corrected = {result.slots.expected_amount, ref.amount if ref else None}
+        assert Decimal("40") in corrected

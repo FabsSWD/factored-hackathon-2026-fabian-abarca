@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -58,3 +59,13 @@ def test_get_settings_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
         assert get_settings() is get_settings()
     finally:
         get_settings.cache_clear()
+
+
+def test_owner_url_prefers_the_migration_url() -> None:
+    base: dict[str, Any] = {"_env_file": None, "business_date": date(2026, 6, 17)}
+    both = Settings(
+        **base, database_url="postgresql://app", migration_database_url="postgresql://owner"
+    )
+    assert both.owner_database_url == "postgresql://owner"
+    single = Settings(**base, database_url="postgresql://app")
+    assert single.owner_database_url == "postgresql://app"

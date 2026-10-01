@@ -22,6 +22,7 @@ from sqlalchemy import (
     Index,
     MetaData,
     Numeric,
+    Sequence,
     String,
     Table,
     func,
@@ -208,6 +209,22 @@ class Case(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+CASE_NUMBER_SEQ = Sequence("case_number_seq", metadata=Base.metadata)
+"""Numbers case references DSP-YYYYMMDD-NNNNNN (ACT-02)."""
+
+
+class CardBlock(Base):
+    """The mock card system of ACT-03. Core Banking stays read-only for the application, so a
+    block is recorded here and reads report the card as ``Blocked`` while it exists. Unblocking
+    is prohibited (ACT-06): nothing in the application deletes these rows."""
+
+    __tablename__ = "card_blocks"
+
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.product_id"), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(ForeignKey("customers.customer_id"), index=True)
+    blocked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class HandoffPacketRow(Base):
     __tablename__ = "handoff_packets"
     __table_args__ = (
@@ -218,7 +235,8 @@ class HandoffPacketRow(Base):
     )
 
     handoff_id: Mapped[str] = mapped_column(String(18), primary_key=True)
-    customer_id: Mapped[str] = mapped_column(ForeignKey("customers.customer_id"), index=True)
+    # None for an escalation before authentication (ACT-05 is always allowed).
+    customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.customer_id"), index=True)
     transaction_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.transaction_id"))
     queue: Mapped[str] = mapped_column(String(16))
     priority: Mapped[str] = mapped_column(String(8))

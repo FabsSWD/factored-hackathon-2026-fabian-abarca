@@ -2,6 +2,7 @@
   "prompt_version": "extract@1.6.0",
   "response_model": "gpt-6-luna",
   "language": "es",
+  "pending_slot": null,
   "message": "Pagué unos audífonos que nunca llegaron, debían entregarlos el 2026-06-01 y ya le escribí a la tienda. Si no se resuelve voy a ir con un abogado.",
   "raw": {
     "detected_language": "es",

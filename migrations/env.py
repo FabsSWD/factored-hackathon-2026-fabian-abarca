@@ -1,5 +1,6 @@
 """Alembic environment. The database URL comes from ``sqlalchemy.url`` when a caller sets it
-(tests do), otherwise from ``DATABASE_URL``."""
+(tests do), otherwise from ``MIGRATION_DATABASE_URL`` (the owner role), falling back to
+``DATABASE_URL``."""
 
 from __future__ import annotations
 
@@ -19,9 +20,9 @@ target_metadata = Base.metadata
 
 
 def _database_url() -> str:
-    url = config.get_main_option("sqlalchemy.url") or get_settings().database_url
+    url = config.get_main_option("sqlalchemy.url") or get_settings().owner_database_url
     if not url:
-        raise RuntimeError("DATABASE_URL is not set")
+        raise RuntimeError("MIGRATION_DATABASE_URL (or DATABASE_URL) is not set")
     return url
 
 
