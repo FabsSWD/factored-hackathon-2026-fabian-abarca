@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
 from app.audit.cost import TokenRates, estimate_cost, rates_from_settings
 from app.audit.masking import AuditMessageMode, mask_message, retain_message
 from app.audit.metrics import compute_metrics, percentile
-from app.contracts import Language, Outcome
+from app.contracts import Language, Outcome, PolicyRequest, TraceRecord
 from tests.audit.helpers import model_calls, trace
 from tests.policy.conftest import evaluate, request
 
@@ -213,3 +214,48 @@ def test_audit_masking_reuses_the_llm_minimization() -> None:
     # Everything the LLM Adapter removes is removed from the log too (one implementation).
     for text in ("fecha de nacimiento 01/02/1990", "CPF 123.456.789-09", "cel 300 000 0000"):
         assert mask_message(text) == scrub_message(text)
+
+
+def test_attempts_containment_and_escalation_definitions() -> None:
+    from tests.policy.conftest import counters, txn, unauthenticated
+
+    def conv(
+        name: str, decision_req: PolicyRequest, outcome: Outcome, **values: Any
+    ) -> TraceRecord:
+        decision = evaluate(decision_req)
+        values.setdefault("tool_calls", [])
+        return trace(name, conversation_id=name, decisions=[decision], outcome=outcome, **values)
+
+    from app.contracts import Confirmation
+    from tests.audit.helpers import case_created
+    from tests.policy.conftest import slots
+
+    traces = [
+        # Stops at the language gate, then abandons.
+        conv("LANG", unauthenticated(detected_language="en"), Outcome.CLARIFY),
+        # Stops at authentication.
+        conv("AUTH", unauthenticated(), Outcome.CLARIFY),
+        # Refused at ownership (account stage).
+        conv("REFUSE", request(ownership_violation=True), Outcome.REFUSE),
+        # Pending transaction: INFORM, contained.
+        conv("INFORM", request(transaction_candidates=[txn(status="Pending")]), Outcome.INFORM),
+        # Case created and verified, no handoff: automated resolution and contained.
+        conv("RESOLVE", request(slots=slots(confirmation=Confirmation.CONFIRMED)), Outcome.RESOLVE,
+             tool_calls=[case_created()]),
+        # Case created but the conversation also escalated: not automated, not contained.
+        conv("RESOLVE+HANDOFF", request(flags={"human_requested": True}), Outcome.ESCALATE,
+             tool_calls=[case_created()], handoff_id="HO-20261001-000001"),
+        # Escalated to security review.
+        conv("ESC13", request(counters=counters(injection_strikes=2)), Outcome.ESCALATE),
+    ]  # fmt: skip
+    metrics = compute_metrics(traces)
+    assert metrics.conversations == 7
+    # ESC13 counts: the interrupt does not stop the gates, so GATE-05 was evaluated.
+    assert metrics.attempted_cases == 4
+    assert metrics.ended_before_transaction == {"account": 1, "authentication": 1, "language": 1}
+    assert metrics.abandoned == 2
+    assert metrics.automated_resolutions == 1
+    assert metrics.contained == 2 and metrics.containment_rate == round(2 / 7, 4)
+    assert metrics.escalated == 2 and metrics.escalation_rate == round(2 / 7, 4)
+    assert metrics.escalations_by_queue == {"disputes": 1, "security_review": 1}
+    assert metrics.escalations_by_rule == {"ESC-05": 1, "ESC-13": 1}

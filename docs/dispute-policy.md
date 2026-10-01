@@ -376,7 +376,14 @@ Every `ESCALATE` outcome produces one handoff packet. It gives the human agent w
   },
   "model_signals": {
     "source": "kev",
-    "reason_code_probs": { "RC_UNRECOGNIZED": 0.94, "RC_DUPLICATE": 0.03 },
+    "reason_code_probs": {
+      "RC_UNRECOGNIZED": 0.94,
+      "RC_DUPLICATE": 0.03,
+      "RC_INCORRECT_AMOUNT": 0.01,
+      "RC_NOT_RECEIVED": 0.01,
+      "RC_FEE": 0.0
+    },
+    "reason_code_other": 0.01,
     "escalation_risk": 0.58,
     "model_version": "jaredpalmer/kev-0.8b@2026-09-24",
     "model_info": { "run": "jaredpalmer/kev-0.8b", "release_date": "2026-09-24" },

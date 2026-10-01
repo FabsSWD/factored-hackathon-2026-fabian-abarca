@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.5 |
-| Last updated | 2026-09-28 |
+| Version | 0.1.6 |
+| Last updated | 2026-10-01 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
 ## Contents
@@ -137,7 +137,7 @@ Target hosts, in order of preference: the developer's own server, or a cloud VM 
 
 - **Permissions in the Tool Layer.** Every tool call uses the customer ID from the authenticated session, never from model output. Requests for other customers' records return `access_denied` ([GATE-04](dispute-policy.md#5-gates)).
 - **Two database roles.** The application connects with a role that can only read Core Banking and can read and write Cases and Audit (no deletes, except expired OTP data). A separate owner role runs migrations and the Core Banking load (`scripts/sql/roles.sql`, `DATABASE_URL` and `MIGRATION_DATABASE_URL`). Because Core Banking is read-only, the mock card-block tool records blocks in `card_blocks`, and reads report a blocked card's `product_status` as `Blocked`. The handoff queue acknowledgement (ACT-05) is the packet written to `handoff_packets` and read back unchanged.
-- **Audit access.** Turn traces are readable only with the agent role (`AGENT_API_TOKEN`, a bearer token separate from customer sessions); a customer's session gets 403, so no customer reads any trace. The customer's message is kept masked by default (`AUDIT_MESSAGE_MODE`).
+- **Audit access.** Turn traces are readable only with the agent role (`AGENT_API_TOKEN`, a bearer token separate from customer sessions, compared in constant time); a customer's session gets 403, so no customer reads any trace. Every read, granted or refused, is recorded as an `audit_access` event with the trace or filters asked for and the time. The customer's message is kept masked by default (`AUDIT_MESSAGE_MODE`), with the same minimization the LLM Adapter applies plus rules for numbers nobody announces. The agent console (M15) never ships the token in its JavaScript bundle or the repository: it asks for it on a sign-in screen and keeps it only in memory.
 - **Policy outside prompts.** Outcomes and action authorizations come from the Policy Engine. Prompts cannot widen permissions.
 - **Data minimization.** The LLM Adapter sends only the fields allowed by [DATA-01](dispute-policy.md#12-data-handling-and-fairness). Kev runs inside the deployment, so its inputs never leave it.
 - **Internal services.** Kev and PostgreSQL are reachable only on the Compose internal network.
@@ -156,7 +156,7 @@ Target hosts, in order of preference: the developer's own server, or a cloud VM 
 
 ## 9. Observability
 
-Every turn has a `trace_id` that links the customer message, rule evaluations, model calls (with model and prompt versions), tool calls, outcome, latency, and token usage. Traces are stored in the Audit database and displayed in the Audit Viewer. The same records produce the operating metrics required by the challenge: p50/p95 latency and cost per attempted case and per successful automated resolution.
+Every turn has a `trace_id` that links the customer message, rule evaluations, model calls (with model and prompt versions), tool calls, outcome, latency, and token usage. Traces are stored in the Audit database and displayed in the Audit Viewer. The same records produce the operating metrics required by the challenge: p50/p95 latency, cost per attempted case and per successful automated resolution, containment, and the escalation rate by queue and rule (definitions in `app/audit/metrics.py`). Cost uses configured token rates, with cached input priced apart when the API reports it; otherwise it may be overestimated. Unsafe outcomes and escalation quality need reference labels, so they are computed in the evaluation (M18), not from traces.
 
 ## 10. Artifacts built offline
 
@@ -179,6 +179,7 @@ The data and ML pipelines will be documented separately.
 - Kev is trained in English. In Spanish and Portuguese only two cases have been verified against the real server (`tests/fixtures/kev/`). As served (temperature 2.35), its `ambiguous` and `escalation_risk` answers sit near 0.5 and must not influence decisions until M7 recalibrates the temperature per question on the validation split.
 - The conversational model is identified only by its alias: the API reports `gpt-6-luna` as the model and no `system_fingerprint`, so the provider can change the underlying model without notice. Mitigation: parser regression tests on recorded answers (`tests/fixtures/llm/`), and repeated runs per case in the evaluation (M18), since no `temperature` is sent.
 - Capacity limits of the deployment have not been measured yet; they will be reported with the evaluation results.
+- The audit API has no identity per agent: a single service token grants the agent role, so audit reads are recorded but not attributed to a person.
 - Two clocks: transaction-age rules use a simulated business date (`BUSINESS_DATE`, because the supplied data ends on 2026-06-17), while session age uses real time ([policy §15](dispute-policy.md#15-parameters)).
 
 ## 12. Change log
@@ -191,3 +192,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.3 | 2026-09-28 | Identity Service: document + OTP login, HS256 only, revocable sessions, OTP lockout. |
 | 0.1.4 | 2026-09-28 | Limitation: the conversational model is identified only by its alias. |
 | 0.1.5 | 2026-09-29 | Decision Client against the real Kev contract; fallback derived from the extraction; Kev limitations and container notes for M7. |
+| 0.1.6 | 2026-10-01 | Database roles, card blocks and the simulated handoff queue (M9); audit access, message masking, cost and metrics; limitation: no identity per agent (M11). |
