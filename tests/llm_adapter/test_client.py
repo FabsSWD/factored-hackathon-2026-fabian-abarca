@@ -410,3 +410,21 @@ def test_adapter_from_settings() -> None:
         adapter_from_settings(
             Settings(_env_file=None, business_date="2026-06-17", llm_model=MODEL)  # type: ignore[arg-type]
         )
+
+
+def test_cached_input_tokens_are_recorded_when_reported(
+    fake: FakeOpenAI, calls: list[ModelCall]
+) -> None:
+    payload = completion({"ok": True}, prompt_tokens=1340, completion_tokens=90).json()
+    payload["usage"]["prompt_tokens_details"] = {"cached_tokens": 1024}
+    fake.responses = [httpx.Response(200, json=payload)]
+    ask(make_client(fake, calls))
+    assert (calls[0].input_tokens, calls[0].cached_input_tokens) == (1340, 1024)
+
+
+def test_cached_input_tokens_unknown_when_not_reported(
+    fake: FakeOpenAI, calls: list[ModelCall]
+) -> None:
+    fake.responses = [completion({"ok": True})]
+    ask(make_client(fake, calls))
+    assert calls[0].cached_input_tokens is None

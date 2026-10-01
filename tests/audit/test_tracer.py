@@ -384,3 +384,33 @@ def test_other_integrity_errors_are_not_duplicates(tracer: DatabaseAuditTracer) 
 
     with pytest.raises(IntegrityError):
         tracer.record(trace(session_id="SES-DOES-NOT-EXIST"))
+
+
+def access_events(db: Session) -> list[dict[str, object]]:
+    query = (
+        select(AuditLog.payload).where(AuditLog.event_type == "audit_access").order_by(AuditLog.id)
+    )
+    return list(db.scalars(query).all())
+
+
+def test_every_audit_read_is_recorded(
+    client: TestClient, tracer: DatabaseAuditTracer, db_session: Session
+) -> None:
+    tracer.record(trace())
+    client.get("/api/audit/TRC-1", headers=AGENT)
+    client.get("/api/audit", params={"outcome": "RESOLVE", "limit": 5}, headers=AGENT)
+    client.get("/api/audit/metrics", params={"language": "es"}, headers=AGENT)
+    client.get("/api/audit/TRC-1")  # refused: recorded too
+    events = access_events(db_session)
+    assert events == [
+        {"endpoint": "/api/audit/TRC-1", "granted": True, "query": {}, "trace_id": "TRC-1"},
+        {"endpoint": "/api/audit", "granted": True, "query": {"outcome": "RESOLVE", "limit": "5"}},
+        {"endpoint": "/api/audit/metrics", "granted": True, "query": {"language": "es"}},
+        {"endpoint": "/api/audit/TRC-1", "granted": False, "query": {}, "trace_id": "TRC-1"},
+    ]
+    times = db_session.scalars(
+        select(AuditLog.created_at).where(AuditLog.event_type == "audit_access")
+    ).all()
+    assert all(t is not None for t in times)
+    # The token itself is never recorded.
+    assert AGENT_TOKEN not in json.dumps(events)

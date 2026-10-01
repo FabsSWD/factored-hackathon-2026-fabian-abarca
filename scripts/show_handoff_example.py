@@ -25,8 +25,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("routes", nargs="*", choices=[[], *ROUTES], default=list(ROUTES))
+    # No default list with choices: argparse would validate the whole default as one choice.
+    parser.add_argument("routes", nargs="*", metavar="route", help=f"one of {', '.join(ROUTES)}")
     args = parser.parse_args()
+    unknown = [route for route in args.routes if route not in ROUTES]
+    if unknown:
+        parser.error(f"unknown route(s): {', '.join(unknown)}; choose from {', '.join(ROUTES)}")
     packets = example_packets()
     for route in args.routes or ROUTES:
         print(f"===== {route} =====")
