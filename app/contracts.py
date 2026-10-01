@@ -625,6 +625,9 @@ class Evidence(Contract):
     origin: NonEmptyStr  # e.g. "customer statement (LLM extraction)", "Core Banking"
     source: NonEmptyStr | None = None  # table, for records
     record_id: NonEmptyStr | None = None
+    # The customer's own words behind a slot or flag (in the handoff, verbatim from
+    # customer_claims); empty when the Orchestrator could not link them.
+    claims: list[NonEmptyStr] = Field(default_factory=list)
 
 
 class RuleEvidence(Contract):

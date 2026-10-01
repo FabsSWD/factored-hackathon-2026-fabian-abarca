@@ -10,7 +10,7 @@ database work in a thread pool.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Protocol, runtime_checkable
 
 from app.contracts import (
@@ -190,6 +190,7 @@ class HandoffBuilder(Protocol):
         actions_taken: Sequence[ToolResult],
         open_questions: Sequence[str],
         transcript_ref: str,
+        evidence_claims: Mapping[str, Sequence[str]] | None = None,
     ) -> HandoffPacket: ...
 
 

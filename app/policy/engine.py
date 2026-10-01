@@ -89,6 +89,7 @@ from app.policy.rules import (
     ROUTES,
     RULE_NAMES,
     Mark,
+    missing_required_slots,
 )
 from app.storage.data_contract import CARD_PRODUCT_TYPES
 
@@ -439,14 +440,15 @@ class DeterministicPolicyEngine:
     ) -> _Verdict | None:
         """GATE-10. None when the preconditions of the reason code hold."""
         slots = request.slots
+        # The reason-specific slots come from one table (rules.REQUIRED_SLOTS), shared with the
+        # Handoff Builder's open questions.
+        missing = missing_required_slots(reason, slots)
         if reason is ReasonCode.UNRECOGNIZED:
             # A lost or stolen card (card_in_possession = no) passes; ACT-03 is offered.
             if slots.shared_credentials:
                 return _escalate("ESC-03", ev.slot("shared_credentials", True))
-            if slots.card_in_possession is None:
-                return _clarify(ClarifyTarget.CARD_IN_POSSESSION)
-            if slots.shared_credentials is None:
-                return _clarify(ClarifyTarget.SHARED_CREDENTIALS)
+            if missing:
+                return _clarify(ClarifyTarget(missing[0]))
             return None
 
         if reason is ReasonCode.DUPLICATE:
@@ -454,7 +456,7 @@ class DeterministicPolicyEngine:
 
         if reason is ReasonCode.INCORRECT_AMOUNT:
             if slots.expected_amount is None:
-                return _clarify(ClarifyTarget.EXPECTED_AMOUNT)
+                return _clarify(ClarifyTarget(missing[0]))
             if slots.expected_amount >= txn.amount:
                 return _inform(InformReason.AMOUNT_NOT_EXCEEDED)
             return None
@@ -462,7 +464,7 @@ class DeterministicPolicyEngine:
         if reason is ReasonCode.NOT_RECEIVED:
             delivery = slots.expected_delivery_date
             if delivery is None:
-                return _clarify(ClarifyTarget.EXPECTED_DELIVERY_DATE)
+                return _clarify(ClarifyTarget(missing[0]))
             if delivery < txn.transaction_date.date():
                 # §10 validation: on or after the transaction date.
                 state.note("expected_delivery_date_before_transaction")
@@ -470,7 +472,7 @@ class DeterministicPolicyEngine:
             if delivery >= business_date(request.as_of):
                 return _inform(InformReason.DELIVERY_DATE_NOT_REACHED)
             if slots.merchant_contacted is None:
-                return _clarify(ClarifyTarget.MERCHANT_CONTACTED)
+                return _clarify(ClarifyTarget(missing[0]))
             if not slots.merchant_contacted:
                 return _inform(InformReason.MERCHANT_NOT_CONTACTED)
             return None

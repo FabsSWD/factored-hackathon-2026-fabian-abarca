@@ -45,6 +45,9 @@ AS_OF = datetime(2026, 6, 18, 6, 0)  # BUSINESS_DATE 2026-06-17 at the 06:00 cut
 CUSTOMER_ID = "CLI-EXAMPLE00001"
 ROUTES = ("disputes", "fraud", "security_review", "unauthenticated")
 
+# request, conversation language, customer claims, actions run, claims behind each slot/flag
+Scenario = tuple[PolicyRequest, Language, list[str], list[ToolResult], dict[str, list[str]]]
+
 _SESSION = SessionContext(
     session_id="SES-EXAMPLE",
     customer_id=CUSTOMER_ID,
@@ -163,22 +166,26 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
         detail="Card ending 4821 blocked",
         completed_at=NOW - timedelta(seconds=40),
     )
-    scenarios: dict[str, tuple[PolicyRequest, Language, list[str], list[ToolResult]]] = {
+    scenarios: dict[str, Scenario] = {
         # T3 amount and a request for a person: disputes queue.
         "disputes": (
             _request(
                 slots=Slots(
                     transaction_ref=TransactionRef(transaction_id=_LAPTOP.transaction_id),
                     reason_code=ReasonCode.NOT_RECEIVED,
-                    expected_delivery_date=datetime(2026, 6, 15).date(),
+                    # The customer asked for a person before giving the delivery date.
                     merchant_contacted=True,
                 ),
                 flags=ConversationFlags(human_requested=True),
                 signals=_KEV_NOT_RECEIVED,
             ),
             Language.ES,
-            ["La laptop nunca llegó", "Ya escribió a la tienda"],
+            ["La laptop nunca llegó", "Ya le escribí a la tienda", "Quiero hablar con una persona"],
             [],
+            {
+                "merchant_contacted": ["Ya le escribí a la tienda"],
+                "human_requested": ["Quiero hablar con una persona"],
+            },
         ),
         # Unrecognized purchase, stolen phone, card blocked first: fraud queue, high priority.
         "fraud": (
@@ -193,8 +200,9 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
                 signals=_KEV_UNRECOGNIZED,
             ),
             Language.PT,
-            ["Não fez a compra", "O celular foi roubado no dia 9 de junho"],
+            ["Não fiz essa compra", "O celular foi roubado no dia 9 de junho"],
             [blocked],
+            {"account_takeover_reported": ["O celular foi roubado no dia 9 de junho"]},
         ),
         # Second manipulation attempt: security review.
         "security_review": (
@@ -202,7 +210,10 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
                 slots=Slots(),
                 counters=ConversationCounters(injection_strikes=2),
                 input_guard=InputGuardResult(
-                    flagged=True, strikes=2, pattern_id="override", escalate_security=True
+                    flagged=True,
+                    strikes=2,
+                    pattern_id="override.ignore_rules.es",  # a real pattern of the catalogue
+                    escalate_security=True,
                 ),
                 # The flagged message reached neither the LLM nor Kev.
                 signals=ModelSignals(source=ModelSource.UNAVAILABLE),
@@ -210,6 +221,7 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
             Language.ES,
             [],
             [],
+            {},
         ),
         # A person is requested before authenticating: no account data in the packet.
         "unauthenticated": (
@@ -225,12 +237,13 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
                 flags=ConversationFlags(human_requested=True),
             ),
             Language.ES,
+            ["Quiero hablar con una persona"],
             [],
-            [],
+            {"human_requested": ["Quiero hablar con una persona"]},
         ),
     }
     packets: dict[str, HandoffPacket] = {}
-    for route, (request, language, claims, actions) in scenarios.items():
+    for route, (request, language, claims, actions, links) in scenarios.items():
         packets[route] = builder.build(
             request=request,
             decision=engine.evaluate(request),
@@ -239,5 +252,6 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
             actions_taken=actions,
             open_questions=[],
             transcript_ref=request.conversation_id,
+            evidence_claims=links,
         )
     return packets

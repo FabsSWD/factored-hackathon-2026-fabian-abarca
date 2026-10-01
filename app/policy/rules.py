@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from app.contracts import ActionId, Priority, Queue, ReasonCode
+from app.contracts import ActionId, Priority, Queue, ReasonCode, SlotName, Slots
 
 
 class Mark(StrEnum):
@@ -39,6 +39,23 @@ DISPUTABILITY: dict[str, dict[ReasonCode, Mark]] = {
 """Policy §4: ``DISPUTABILITY[transaction_type][reason_code]``."""
 
 ACCOUNT_INITIATED_TYPES = frozenset({"Transfer", "Payment"})  # ESC-14 fraud route
+
+REQUIRED_SLOTS: dict[ReasonCode, tuple[SlotName, ...]] = {
+    ReasonCode.UNRECOGNIZED: (SlotName.CARD_IN_POSSESSION, SlotName.SHARED_CREDENTIALS),
+    ReasonCode.DUPLICATE: (SlotName.DUPLICATE_REF,),
+    ReasonCode.INCORRECT_AMOUNT: (SlotName.EXPECTED_AMOUNT,),
+    ReasonCode.NOT_RECEIVED: (SlotName.EXPECTED_DELIVERY_DATE, SlotName.MERCHANT_CONTACTED),
+    # RC_FEE: the fee is identified by the transaction itself (transaction_ref, GATE-05).
+    ReasonCode.FEE: (),
+}
+"""GATE-10 and policy §10: the reason-specific slots, in the order they are asked. The Policy
+Engine asks for them from this table and the Handoff Builder lists the missing ones."""
+
+
+def missing_required_slots(reason: ReasonCode, slots: Slots) -> list[SlotName]:
+    """The reason-specific slots still empty, in the order they are asked."""
+    return [slot for slot in REQUIRED_SLOTS[reason] if getattr(slots, slot.value) is None]
+
 
 QUEUE_RANK: dict[Queue, int] = {Queue.DISPUTES: 0, Queue.FRAUD: 1, Queue.SECURITY_REVIEW: 2}
 """§7, several triggers at once: security review > fraud > disputes."""

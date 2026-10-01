@@ -8,8 +8,9 @@ The packet lets a human agent continue without rereading the conversation:
 - ``verified_facts`` are records read through the Tool Layer, each with its source table and
   record ID (DATA-04), as they stand after the actions of the turn: a card blocked by ACT-03 is
   reported as blocked. Transaction ages are counted against ``business_date`` (policy §15).
-- ``customer_claims`` are kept apart from facts (DATA-03), in the conversation language,
-  including the statements that explain a trigger.
+- ``customer_claims`` are only what the customer said, verbatim, in the conversation
+  language, kept apart from facts (DATA-03). The evidence of a slot or flag points to the
+  claims behind it (``evidence_claims``); the system never writes a claim for the customer.
 - ``actions_taken`` lists every attempted action with its verification and time, failed ones
   included; ``open_questions`` says what the agent still needs to establish.
 
@@ -21,7 +22,7 @@ which already applied the §7 routes. ACT-05 (``ToolLayer.transfer_to_human``) p
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -33,6 +34,8 @@ from app.contracts import (
     CaseStatus,
     DraftCase,
     EscalationReason,
+    Evidence,
+    EvidenceKind,
     HandoffAuth,
     HandoffModelSignals,
     HandoffPacket,
@@ -43,13 +46,14 @@ from app.contracts import (
     PolicyRequest,
     ProductRecord,
     ReasonCode,
+    SlotName,
     ToolResult,
     ToolStatus,
     TransactionRecord,
     VerifiedFact,
 )
 from app.policy.clock import business_date, transaction_age_days
-from app.policy.rules import RULE_NAMES
+from app.policy.rules import RULE_NAMES, missing_required_slots
 from app.pseudonym import UNAUTHENTICATED_REF, customer_ref
 from app.storage.data_contract import CARD_PRODUCT_TYPES
 from app.tools.provenance import Record, verified_fact
@@ -85,33 +89,16 @@ RULE_DESCRIPTIONS: dict[str, str] = {
     "ESC-14": "A plausible dispute that is not automated for this transaction type.",
 }
 
-# Customer statements behind a trigger, in the conversation language (claims, DATA-03).
-DERIVED_CLAIMS: dict[str, dict[Language, str]] = {
-    "shared_credentials": {
-        Language.ES: "Dice que compartió sus claves o un código con otra persona.",
-        Language.PT: "Diz que compartilhou suas senhas ou um código com outra pessoa.",
-    },
-    "card_not_in_possession": {
-        Language.ES: "Dice que no tiene la tarjeta en su poder.",
-        Language.PT: "Diz que não está com o cartão.",
-    },
-    "account_takeover_reported": {
-        Language.ES: "Reporta un indicio de toma de cuenta: acceso o dispositivo desconocido, "
-        "teléfono perdido o robado, cambio de claves que no hizo, o un código compartido.",
-        Language.PT: "Relata um indício de invasão da conta: acesso ou dispositivo "
-        "desconhecido, celular perdido ou roubado, troca de senha que não fez, ou um código "
-        "compartilhado.",
-    },
-    "human_requested": {
-        Language.ES: "Pide hablar con un agente humano.",
-        Language.PT: "Pede para falar com um atendente humano.",
-    },
-    "legal_or_vulnerability": {
-        Language.ES: "Menciona acciones legales, un regulador, los medios o una situación de "
-        "vulnerabilidad.",
-        Language.PT: "Menciona ações legais, um órgão regulador, a imprensa ou uma situação "
-        "de vulnerabilidade.",
-    },
+# The question for each reason-specific slot still missing (rules.REQUIRED_SLOTS).
+SLOT_QUESTIONS: dict[SlotName, str] = {
+    SlotName.CARD_IN_POSSESSION: "Does the customer still have the card?",
+    SlotName.SHARED_CREDENTIALS: (
+        "Did the customer share credentials or one-time codes with anyone?"
+    ),
+    SlotName.DUPLICATE_REF: "Which earlier charge does the customer say this one duplicates?",
+    SlotName.EXPECTED_AMOUNT: "What amount did the customer agree to pay?",
+    SlotName.EXPECTED_DELIVERY_DATE: "When were the goods or services due to be delivered?",
+    SlotName.MERCHANT_CONTACTED: "Has the customer contacted the merchant?",
 }
 
 # What the agent must establish for each engine note.
@@ -180,9 +167,17 @@ class PolicyHandoffBuilder:
         actions_taken: Sequence[ToolResult],
         open_questions: Sequence[str],
         transcript_ref: str,
+        evidence_claims: Mapping[str, Sequence[str]] | None = None,
     ) -> HandoffPacket:
+        """``evidence_claims`` maps a slot or flag name (``shared_credentials``,
+        ``account_takeover_reported``) to the customer claims of the turn that set it. Every
+        linked claim must be one of ``customer_claims``."""
         if decision.outcome is not Outcome.ESCALATE:
             raise ValueError("a handoff packet is built only for ESCALATE outcomes")
+        links = {name: list(claims) for name, claims in (evidence_claims or {}).items()}
+        unknown = {c for claims in links.values() for c in claims} - set(customer_claims)
+        if unknown:
+            raise ValueError(f"evidence claims not among customer_claims: {sorted(unknown)}")
         assert decision.queue is not None and decision.priority is not None
         created_at = self._clock()
         auth = self._auth(request)
@@ -222,18 +217,14 @@ class PolicyHandoffBuilder:
             EscalationReason(
                 rule_id=item.rule_id,
                 description=RULE_DESCRIPTIONS[item.rule_id],
-                evidence=[
-                    # The customer is named only by the pseudonymous reference.
-                    e.model_copy(update={"record_id": reference}) if e.source == "customers" else e
-                    for e in item.evidence
-                ],
+                evidence=[_linked(e, reference, links) for e in item.evidence],
             )
             for item in decision.evidence
         ]
         questions = _dedupe(
             [
                 *open_questions,
-                *self._derived_questions(decision, auth, actions_taken, authenticated),
+                *self._derived_questions(request, decision, auth, actions_taken, authenticated),
             ]
         )
         return HandoffPacket(
@@ -250,7 +241,7 @@ class PolicyHandoffBuilder:
             triggered_rules=decision.triggered_rules,
             escalation_reasons=reasons,
             verified_facts=facts,
-            customer_claims=_dedupe([*customer_claims, *_derived_claims(request, language)]),
+            customer_claims=_dedupe(list(customer_claims)),
             actions_taken=actions,
             draft_case=draft,
             model_signals=self._signals(request),
@@ -354,6 +345,7 @@ class PolicyHandoffBuilder:
 
     @staticmethod
     def _derived_questions(
+        request: PolicyRequest,
         decision: PolicyDecision,
         auth: HandoffAuth,
         actions_taken: Sequence[ToolResult],
@@ -368,6 +360,11 @@ class PolicyHandoffBuilder:
                 questions.append("Which transaction does the customer want to dispute?")
             if decision.reason_code is None:
                 questions.append("What is the reason for the dispute?")
+            else:
+                questions += [
+                    SLOT_QUESTIONS[slot]
+                    for slot in missing_required_slots(decision.reason_code, request.slots)
+                ]
         for result in actions_taken:
             if result.status is not ToolStatus.SUCCESS or not result.verified:
                 questions.append(
@@ -462,16 +459,14 @@ def _summary(
     return "; ".join(parts) + "."
 
 
-def _derived_claims(request: PolicyRequest, language: Language) -> list[str]:
-    slots, flags = request.slots, request.flags
-    present = {
-        "shared_credentials": slots.shared_credentials is True,
-        "card_not_in_possession": slots.card_in_possession is False,
-        "account_takeover_reported": flags.account_takeover_reported,
-        "human_requested": flags.human_requested,
-        "legal_or_vulnerability": flags.legal_or_vulnerability,
-    }
-    return [DERIVED_CLAIMS[key][language] for key, found in present.items() if found]
+def _linked(evidence: Evidence, reference: str, links: dict[str, list[str]]) -> Evidence:
+    """Evidence as shown to the agent: the customer by reference, and the claims behind it."""
+    update: dict[str, object] = {}
+    if evidence.source == "customers":
+        update["record_id"] = reference  # the customer is named only by the pseudonym
+    if evidence.kind in (EvidenceKind.SLOT, EvidenceKind.FLAG) and evidence.name in links:
+        update["claims"] = links[evidence.name]
+    return evidence.model_copy(update=update) if update else evidence
 
 
 def _dedupe(items: list[str]) -> list[str]:
