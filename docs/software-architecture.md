@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.6 |
+| Version | 0.1.7 |
 | Last updated | 2026-10-01 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -180,6 +180,8 @@ The data and ML pipelines will be documented separately.
 - The conversational model is identified only by its alias: the API reports `gpt-6-luna` as the model and no `system_fingerprint`, so the provider can change the underlying model without notice. Mitigation: parser regression tests on recorded answers (`tests/fixtures/llm/`), and repeated runs per case in the evaluation (M18), since no `temperature` is sent.
 - Capacity limits of the deployment have not been measured yet; they will be reported with the evaluation results.
 - The audit API has no identity per agent: a single service token grants the agent role, so audit reads are recorded but not attributed to a person.
+- Conversation state (accumulated slots, counters, the question pending) is kept in memory by the Orchestrator, in one process: a restart loses open conversations, and several API processes would need a shared store behind the same `ConversationStore` interface.
+- Once a conversation reaches `LLM_MAX_TOKENS_PER_CONVERSATION`, the LLM is not called again: the turns continue with the rule-based signals only, which fill no slots, so the conversation ends in a request for a human or `ESC-09`. No policy rule is added for the cap.
 - Two clocks: transaction-age rules use a simulated business date (`BUSINESS_DATE`, because the supplied data ends on 2026-06-17), while session age uses real time ([policy §15](dispute-policy.md#15-parameters)).
 
 ## 12. Change log
@@ -193,3 +195,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.4 | 2026-09-28 | Limitation: the conversational model is identified only by its alias. |
 | 0.1.5 | 2026-09-29 | Decision Client against the real Kev contract; fallback derived from the extraction; Kev limitations and container notes for M7. |
 | 0.1.6 | 2026-10-01 | Database roles, card blocks and the simulated handoff queue (M9); audit access, message masking, cost and metrics; limitation: no identity per agent (M11). |
+| 0.1.7 | 2026-10-01 | Orchestrator and chat API (M12): in-memory conversation state, token cap behavior, agent console endpoints for the handoff queue. |

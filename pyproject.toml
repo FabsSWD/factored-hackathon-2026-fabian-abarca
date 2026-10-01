@@ -30,6 +30,8 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "types-PyYAML",
+    # Starlette 1.7 TestClient: httpx support is deprecated in favour of httpx2 (tests only).
+    "httpx2>=2.13",
 ]
 
 [tool.setuptools.packages.find]
