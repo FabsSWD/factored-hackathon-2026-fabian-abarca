@@ -75,4 +75,4 @@ SELECT format('GRANT SELECT, INSERT, UPDATE ON public.cases, public.handoff_pack
 SELECT format('GRANT DELETE ON public.otp_challenges, public.otp_failures TO %I', :'app_role') \gexec
 
 -- Sequences used by the application's inserts
-SELECT format('GRANT USAGE, SELECT ON SEQUENCE public.case_number_seq, public.audit_logs_id_seq, public.otp_failures_id_seq TO %I', :'app_role') \gexec
+SELECT format('GRANT USAGE, SELECT ON SEQUENCE public.case_number_seq, public.handoff_number_seq, public.audit_logs_id_seq, public.otp_failures_id_seq TO %I', :'app_role') \gexec

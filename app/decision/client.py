@@ -195,6 +195,11 @@ class KevDecisionClient:
             signals=ModelSignals(
                 source=ModelSource.KEV,
                 model_version=self._model_version(),
+                model_info={
+                    key: value
+                    for key, value in self._model_info.items()
+                    if key in ("run", "release_date") and value
+                },
                 reason_code_probs={ReasonCode(code): values[code.value] for code in ReasonCode},
                 reason_code_other=values[OTHER],
                 ambiguity=nouls["ambiguous"],
