@@ -110,7 +110,10 @@ def _admin_dsn(url: URL) -> str:
 def alembic_config(url: URL) -> Config:
     config = Config(str(ROOT / "alembic.ini"))
     config.set_main_option("script_location", str(ROOT / "migrations"))
-    config.set_main_option("sqlalchemy.url", url.render_as_string(hide_password=False))
+    # configparser interpolates "%": escape it so URL-encoded passwords survive.
+    config.set_main_option(
+        "sqlalchemy.url", url.render_as_string(hide_password=False).replace("%", "%%")
+    )
     config.attributes["configure_logger"] = False
     return config
 

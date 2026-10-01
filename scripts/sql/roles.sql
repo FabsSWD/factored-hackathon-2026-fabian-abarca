@@ -1,6 +1,12 @@
 -- Database roles for the dispute-intake system (milestone M9).
 --
--- Run as a superuser, connected to the application database, AFTER `alembic upgrade head`:
+-- Three roles:
+-- * admin: the bootstrap superuser (the container's POSTGRES_USER). It runs this script and is
+--   never modified by it; Postgres does not allow removing SUPERUSER from it.
+-- * owner: owns the database, every table and every sequence (MIGRATION_DATABASE_URL).
+-- * app: the running application (DATABASE_URL).
+--
+-- Run as the admin, connected to the application database, AFTER `alembic upgrade head`:
 --
 --   psql -v owner_role=disputes_owner -v owner_password=... \
 --        -v app_role=disputes_app -v app_password=... \
@@ -9,9 +15,7 @@
 -- or `python scripts/db_roles.py --admin-url ...`, which takes the role names and passwords
 -- from MIGRATION_DATABASE_URL and DATABASE_URL and applies this same file.
 --
--- * owner role: owns every table and sequence; used only for migrations
---   (MIGRATION_DATABASE_URL).
--- * app role: what the running application uses (DATABASE_URL).
+-- Grants of the app role:
 --   - Core Banking (customers, products, transactions): SELECT only. The application never
 --     writes Core Banking; card blocks (ACT-03) go to card_blocks.
 --   - Cases (cases, handoff_packets, card_blocks) and Audit (audit_logs, sessions,
@@ -19,10 +23,18 @@
 --   - DELETE only on otp_challenges and otp_failures: the identity service clears them after
 --     a successful OTP. No DELETE anywhere else, so cases and audit records cannot be removed.
 --
+-- Ownership is transferred object by object (ALTER ... OWNER TO), never with REASSIGN OWNED BY
+-- on the bootstrap user, which fails on system objects.
+--
 -- The script is idempotent: it creates missing roles, resets their passwords, and re-applies
--- ownership and grants. Re-run it after every migration that adds a table or sequence.
+-- ownership and grants. Re-run it after every migration that adds a table or sequence;
+-- `python scripts/db_roles.py --verify` checks the result.
 
 \set ON_ERROR_STOP on
+
+-- Guard: the admin running this script is never the owner or the app role.
+SELECT format('DO $$ BEGIN RAISE EXCEPTION %L; END $$', 'owner_role and app_role must differ from the user running this script')
+WHERE :'owner_role' = current_user OR :'app_role' = current_user OR :'owner_role' = :'app_role' \gexec
 
 -- Roles ----------------------------------------------------------------------------------
 SELECT format('CREATE ROLE %I LOGIN', :'owner_role')
@@ -40,7 +52,9 @@ REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'owner_role') \gexec
 SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'app_role') \gexec
 
--- Ownership: the owner role owns every table (and the sequences tied to them) -------------
+-- Ownership: the owner role owns the database, every table (alembic_version included) and
+-- every sequence. Sequences tied to a table change owner with it.
+SELECT format('ALTER DATABASE %I OWNER TO %I', current_database(), :'owner_role') \gexec
 SELECT format('ALTER TABLE public.%I OWNER TO %I', tablename, :'owner_role')
 FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename \gexec
 SELECT format('ALTER SEQUENCE public.%I OWNER TO %I', c.relname, :'owner_role')
