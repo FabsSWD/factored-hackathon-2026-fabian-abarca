@@ -517,6 +517,7 @@ def _linked(evidence: Evidence, reference: str, links: dict[str, list[str]]) -> 
 
 
 NOT_RECORDED = "given by the customer; details not recorded"
+DUPLICATE_CONFIRMED = "confirmed the duplicate charge the system found (see verified facts)"
 
 
 def _said_reference(stored: TransactionRef, said: TransactionRef | None, picked: int | None) -> str:
@@ -546,11 +547,13 @@ def _collected(
         value = getattr(slots, slot.value)
         if slot is SlotName.CONFIRMATION or value is None:
             continue
-        text = (
-            _said_reference(value, said, picked)
-            if isinstance(value, TransactionRef)
-            else _slot_value(value)
-        )
+        if isinstance(value, TransactionRef):
+            text = _said_reference(value, said, picked)
+        elif slot is SlotName.DUPLICATE_REF:
+            # The system found the twin and the customer confirmed it; its ID is in the facts.
+            text = DUPLICATE_CONFIRMED
+        else:
+            text = _slot_value(value)
         collected.append(
             CollectedSlot(name=slot, value=mask_message(text), turn_index=turns.get(slot))
         )

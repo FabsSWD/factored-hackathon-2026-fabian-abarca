@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     llm_turn_deadline_seconds: float = Field(default=20.0, gt=0)
     # Connecting sentences around templates; off to compare latency and cost (M18).
     llm_connect_enabled: bool = True
+    # LLM tokens per conversation (architecture §7); past it the LLM is not called again.
+    llm_max_tokens_per_conversation: int | None = Field(default=None, gt=0)
 
     # Decision model (Kev, TypeSafe API). Empty base URL: Kev is not configured.
     kev_base_url: str | None = None
@@ -78,6 +80,7 @@ class Settings(BaseSettings):
         "llm_input_usd_per_mtok",
         "llm_output_usd_per_mtok",
         "llm_cached_input_usd_per_mtok",
+        "llm_max_tokens_per_conversation",
         mode="before",
     )
     @classmethod

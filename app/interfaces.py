@@ -147,6 +147,10 @@ class ToolLayer(Protocol):
 
     def list_products(self) -> list[ProductRecord]: ...
 
+    def customer_country(self) -> str | None:
+        """Presentation only (amount format, COM-08): never part of a PolicyRequest (DATA-02)."""
+        ...
+
     def get_product(self, product_id: str) -> ProductRecord: ...
 
     def transaction_candidates(self, transaction_id: str | None = None) -> list[TransactionRecord]:

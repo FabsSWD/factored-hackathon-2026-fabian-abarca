@@ -7,13 +7,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.agent import router as agent_router
 from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
 from app.api.dependencies import RateLimits
 from app.api.health import router as health_router
+from app.api.turn import router as turn_router
 from app.audit.tracer import DatabaseAuditTracer
 from app.config import PolicyConfig, load_policy_config
+from app.handoff.queue import DatabaseHandoffQueue
 from app.identity.service import IdentityConfig, IdentityNotConfiguredError, IdentityService
+from app.orchestrator.factory import orchestrator_from_settings
+from app.orchestrator.service import Orchestrator
 from app.settings import Settings, get_settings
 from app.storage.database import make_engine, make_session_factory
 
@@ -25,12 +30,15 @@ def create_app(
     rate_limits: RateLimits | None = None,
     settings: Settings | None = None,
     audit_tracer: DatabaseAuditTracer | None = None,
+    orchestrator: Orchestrator | None = None,
+    handoff_queue: DatabaseHandoffQueue | None = None,
 ) -> FastAPI:
     """Build the application. The policy is loaded and validated before serving requests.
 
-    Tests inject ``identity`` and ``rate_limits``; otherwise they are built from settings. If
-    the Identity Service is not configured, authentication endpoints answer 503. Startup fails
-    without PSEUDONYM_KEY.
+    Tests inject ``identity``, ``rate_limits``, ``audit_tracer``, ``orchestrator`` and
+    ``handoff_queue``; otherwise they are built from settings. Without a database the chat, the
+    agent console and the audit API answer 503; without the Identity Service configured, the
+    authentication endpoints do. Startup fails without PSEUDONYM_KEY.
     """
 
     @asynccontextmanager
@@ -60,6 +68,21 @@ def create_app(
         else:
             app.state.rate_limits = rate_limits
         app.state.identity = service
+        chat = orchestrator
+        queue = handoff_queue
+        if resolved.database_url and (chat is None or queue is None):
+            engine = engine or make_engine(resolved.database_url)
+            session_factory = make_session_factory(engine)
+            queue = queue or DatabaseHandoffQueue(session_factory)
+            if chat is None and tracer is not None:
+                try:
+                    chat = orchestrator_from_settings(
+                        resolved, policy, session_factory, service, tracer
+                    )
+                except ValueError:
+                    chat = None  # e.g. no OPENAI_API_KEY: the chat answers 503
+        app.state.orchestrator = chat
+        app.state.handoff_queue = queue
         try:
             yield
         finally:
@@ -70,6 +93,8 @@ def create_app(
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(audit_router)
+    app.include_router(turn_router)
+    app.include_router(agent_router)
     return app
 
 
