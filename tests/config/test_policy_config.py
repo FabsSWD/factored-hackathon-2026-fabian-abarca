@@ -31,7 +31,7 @@ POLICY_TABLE: dict[str, int | Decimal | None] = {
     "AGG_DISPUTED_30D_MAX_USD": Decimal("2000"),
     "REPEAT_DISPUTES_90D": 3,
     "UNRECOGNIZED_BATCH_MAX": 3,
-    "FRAUD_SCORE_ESCALATE": 80,
+    "FRAUD_SCORE_ESCALATE": 35,
     "MAX_CLARIFICATION_TURNS": 2,
     "MAX_TOTAL_CLARIFICATIONS": 4,
     "MAX_CANDIDATES_SHOWN": 3,
@@ -67,7 +67,7 @@ def _with_parameter(tmp_path: Path, name: str, value: object) -> Path:
 def test_repository_policy_file_loads() -> None:
     config = load_policy_config(DEFAULT_POLICY_PATH)
     assert isinstance(config, PolicyConfig)
-    assert config.policy_version == "0.3.6"
+    assert config.policy_version == "0.4.0"
 
 
 def test_policy_version_matches_the_policy_document() -> None:
@@ -124,7 +124,7 @@ def test_env_variable_selects_the_file(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_default_path_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(POLICY_PATH_ENV, raising=False)
-    assert load_policy_config().policy_version == "0.3.6"
+    assert load_policy_config().policy_version == "0.4.0"
 
 
 def test_get_policy_config_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:

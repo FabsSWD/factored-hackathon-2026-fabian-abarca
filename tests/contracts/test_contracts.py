@@ -181,7 +181,7 @@ def test_slot_order_follows_section_10() -> None:
 def test_every_slot_is_a_clarify_target() -> None:
     targets = {t.value for t in c.ClarifyTarget}
     assert {s.value for s in c.SlotName} <= targets
-    assert targets - {s.value for s in c.SlotName} == {"language", "authentication"}
+    assert targets - {s.value for s in c.SlotName} == {"language", "authentication", "correction"}
 
 
 def test_case_statuses_follow_the_lifecycle_diagram() -> None:
@@ -320,11 +320,10 @@ def test_customer_record_has_no_prohibited_fields() -> None:
         assert not prohibited & set(model.model_fields), model.__name__
 
 
-def test_dispute_history_rejects_negative_values() -> None:
-    with pytest.raises(ValidationError):
-        c.DisputeHistory(disputed_usd_last_30d=Decimal("-1"), cases_last_90d=0)
-    with pytest.raises(ValidationError):
-        c.DisputeHistory(disputed_usd_last_30d=Decimal("0"), cases_last_90d=-1)
+def test_policy_request_rejects_extra_fields() -> None:
+    # DATA-02: no attribute outside the contract can reach the Policy Engine.
+    with pytest.raises(ValidationError, match="Extra inputs"):
+        c.PolicyRequest(now=NOW, as_of=AS_OF, conversation_id="CONV-1", gender="F")  # type: ignore[call-arg]
 
 
 # --- Slots and flags --------------------------------------------------------
@@ -569,12 +568,9 @@ def test_full_policy_request() -> None:
         session=session(),
         slots=c.Slots(reason_code=c.ReasonCode.UNRECOGNIZED),
         customer=c.CustomerRecord(customer_id=CUSTOMER, customer_status="Active"),
-        transaction_candidates=[transaction()],
-        product=product(),
-        duplicate_candidates=[transaction(transaction_id="TXN-2")],
-        fee_candidates=[transaction(transaction_id="TXN-3", transaction_type="Adjustment")],
-        open_cases=[case()],
-        dispute_history=c.DisputeHistory(disputed_usd_last_30d=Decimal("0"), cases_last_90d=0),
+        transaction_candidates=[transaction(), transaction(transaction_id="TXN-2")],
+        products=[product()],
+        cases=[case()],
         tool_results=[tool_result()],
         input_guard=c.InputGuardResult(flagged=False, strikes=0),
     )
@@ -590,15 +586,14 @@ def test_records_without_session_are_rejected() -> None:
 
 @pytest.mark.parametrize(
     "field",
-    ["customer", "transaction_candidates", "product", "duplicate_candidates", "open_cases"],
+    ["customer", "transaction_candidates", "products", "cases"],
 )
 def test_records_of_another_customer_are_rejected(field: str) -> None:
     values: dict[str, Any] = {
         "customer": c.CustomerRecord(customer_id=OTHER, customer_status="Active"),
         "transaction_candidates": [transaction(customer_id=OTHER)],
-        "product": product(customer_id=OTHER),
-        "duplicate_candidates": [transaction(customer_id=OTHER)],
-        "open_cases": [case(customer_id=OTHER)],
+        "products": [product(customer_id=OTHER)],
+        "cases": [case(customer_id=OTHER)],
     }
     with pytest.raises(ValidationError, match="GATE-04"):
         c.PolicyRequest(
@@ -647,6 +642,7 @@ def test_escalate_decision_valid() -> None:
         queue=c.Queue.FRAUD,
         priority=c.Priority.HIGH,
         authorized_actions=[c.ActionId.BLOCK_CARD, c.ActionId.TRANSFER_TO_HUMAN],
+        card_product_id="PRD-1",
         tier=c.Tier.T3,
         provisional_credit_flag=None,
     )

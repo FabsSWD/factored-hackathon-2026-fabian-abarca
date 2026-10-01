@@ -149,6 +149,7 @@ class ClarifyTarget(StrEnum):
     CONFIRMATION = "confirmation"
     LANGUAGE = "language"
     AUTHENTICATION = "authentication"
+    CORRECTION = "correction"  # declined summary: ask which detail is wrong (policy §8)
 
 
 class InformReason(StrEnum):
@@ -165,6 +166,7 @@ class InformReason(StrEnum):
     AMOUNT_NOT_EXCEEDED = "amount_not_exceeded"  # GATE-10 RC_INCORRECT_AMOUNT
     DELIVERY_DATE_NOT_REACHED = "delivery_date_not_reached"  # GATE-10 RC_NOT_RECEIVED
     MERCHANT_NOT_CONTACTED = "merchant_not_contacted"  # GATE-10 RC_NOT_RECEIVED
+    DISPUTE_WITHDRAWN = "dispute_withdrawn"  # the customer withdrew at the summary (§8)
 
 
 class Confirmation(StrEnum):
@@ -177,7 +179,8 @@ class Confirmation(StrEnum):
 
     CONFIRMED = "confirmed"  # "sí, confirmo" / "sim, confirmo" or an equivalent
     HEDGED = "hedged"  # "creo que sí" / "acho que sim": not a confirmation
-    DECLINED = "declined"
+    DECLINED = "declined"  # "no, eso no es correcto": a detail is wrong
+    WITHDRAWN = "withdrawn"  # "no, ya no quiero", "deixa pra lá": no case
 
 
 class ModelSource(StrEnum):
@@ -266,13 +269,6 @@ class CaseRecord(Contract):
     created_at: AwareDatetime  # real time, for audit
     # Business clock (naive, like PolicyRequest.as_of) at creation; used by ESC-02.
     business_created_at: NaiveDatetime
-
-
-class DisputeHistory(Contract):
-    """Aggregates for ESC-02, excluding the dispute being evaluated."""
-
-    disputed_usd_last_30d: NonNegativeAmount
-    cases_last_90d: NonNegativeInt
 
 
 class VerifiedFact(Contract):
@@ -567,15 +563,18 @@ class PolicyRequest(Contract):
     input_guard: InputGuardResult | None = None
     counters: ConversationCounters = Field(default_factory=ConversationCounters)
 
-    # Verified records read through the Tool Layer (only after GATE-02 passes)
+    # Verified records read through the Tool Layer (only after GATE-02 passes). The engine
+    # applies the matching and counting rules itself, so the Tool Layer only reads.
     customer: CustomerRecord | None = None
     ownership_violation: bool = False  # GATE-04: the Tool Layer returned access_denied
-    transaction_candidates: list[TransactionRecord] = Field(default_factory=list)  # GATE-05
-    product: ProductRecord | None = None
-    duplicate_candidates: list[TransactionRecord] = Field(default_factory=list)  # GATE-10
-    fee_candidates: list[TransactionRecord] = Field(default_factory=list)  # GATE-10 RC_FEE
-    open_cases: list[CaseRecord] = Field(default_factory=list)  # GATE-11
-    dispute_history: DisputeHistory | None = None  # ESC-02
+    # The pool GATE-05 and the RC_DUPLICATE rule search: the customer's transactions within
+    # LATE_WINDOW_DAYS of as_of, plus any transaction the customer referenced by ID.
+    transaction_candidates: list[TransactionRecord] = Field(default_factory=list)
+    # The customer's products: the product of the transaction (GATE-09, ACT-03) and the cards
+    # considered for ACT-03 when ESC-03 fires without an identified transaction.
+    products: list[ProductRecord] = Field(default_factory=list)
+    # The customer's cases (any status): GATE-11 and ESC-02.
+    cases: list[CaseRecord] = Field(default_factory=list)
     tool_results: list[ToolResult] = Field(default_factory=list)  # ESC-10
 
     @model_validator(mode="after")
@@ -583,9 +582,8 @@ class PolicyRequest(Contract):
         records_present = (
             self.customer is not None
             or self.transaction_candidates
-            or self.product is not None
-            or self.open_cases
-            or self.dispute_history is not None
+            or self.products
+            or self.cases
         )
         if self.session is None and records_present:
             raise ValueError("account records cannot be present without a session (GATE-02)")
@@ -593,14 +591,11 @@ class PolicyRequest(Contract):
             owner = self.session.customer_id
             owned: list[CustomerRecord | ProductRecord | TransactionRecord | CaseRecord] = [
                 *self.transaction_candidates,
-                *self.duplicate_candidates,
-                *self.fee_candidates,
-                *self.open_cases,
+                *self.products,
+                *self.cases,
             ]
             if self.customer is not None:
                 owned.append(self.customer)
-            if self.product is not None:
-                owned.append(self.product)
             if any(record.customer_id != owner for record in owned):
                 raise ValueError("records of another customer cannot enter a request (GATE-04)")
         return self
@@ -628,6 +623,15 @@ class PolicyDecision(Contract):
     inform_reason: InformReason | None = None
     transaction_id: NonEmptyStr | None = None
     reason_code: ReasonCode | None = None
+    # What the Orchestrator needs to render the turn (templates) and the handoff (M10):
+    candidate_transaction_ids: list[NonEmptyStr] = Field(default_factory=list)  # choose_transaction
+    duplicate_transaction_id: NonEmptyStr | None = None  # clarify_duplicate_ref
+    existing_case_id: NonEmptyStr | None = None  # duplicate_case (GATE-11)
+    existing_case_status: CaseStatus | None = None
+    card_product_id: NonEmptyStr | None = None  # the card ACT-03 would block
+    card_already_blocked: bool = False  # card_already_blocked template
+    # Codes for the audit record and the handoff's open_questions, e.g. "fraud_score_missing".
+    notes: list[NonEmptyStr] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _check(self) -> Self:
@@ -653,6 +657,8 @@ class PolicyDecision(Contract):
             raise ValueError("ACT-04 is authorized together with ACT-02 and never alone")
         if self.outcome is Outcome.REFUSE and self.authorized_actions:
             raise ValueError("a REFUSE outcome authorizes no action")
+        if (ActionId.BLOCK_CARD in self.authorized_actions) != (self.card_product_id is not None):
+            raise ValueError("ACT-03 is authorized if and only if a card product is named")
         expected_flag = (
             {
                 Tier.T1: ProvisionalCreditFlag.ELIGIBLE,
@@ -799,7 +805,6 @@ __all__ = [
     "ConversationCounters",
     "ConversationFlags",
     "CustomerRecord",
-    "DisputeHistory",
     "DraftCase",
     "ExtractionResult",
     "GateResult",

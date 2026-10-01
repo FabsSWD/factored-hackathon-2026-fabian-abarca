@@ -2,7 +2,7 @@
 # Every value here must match that table. Change the policy document first, then this file,
 # and bump policy_version together with the policy's own version.
 
-policy_version: "0.3.6"
+policy_version: "0.4.0"
 
 parameters:
   # GATE-02
@@ -15,22 +15,22 @@ parameters:
   LATE_WINDOW_DAYS: 120                # calendar days · Fixed
 
   # GATE-10 (RC_DUPLICATE)
-  DUPLICATE_WINDOW_HOURS: 48           # hours · Provisional
+  DUPLICATE_WINDOW_HOURS: 48           # hours · Fixed
 
   # §6 USD equivalent (as-of exchange rate), automation tiers, ESC-01
   FX_MAX_STALENESS_DAYS: 3             # calendar days · Fixed
-  PROVISIONAL_CREDIT_AUTO_MAX_USD: 100 # USD · Provisional
-  AUTO_INTAKE_MAX_USD: 1000            # USD · Provisional
+  PROVISIONAL_CREDIT_AUTO_MAX_USD: 100 # USD · Fixed
+  AUTO_INTAKE_MAX_USD: 1000            # USD · Fixed
 
   # ESC-02
-  AGG_DISPUTED_30D_MAX_USD: 2000       # USD · Provisional
-  REPEAT_DISPUTES_90D: 3               # cases · Provisional
+  AGG_DISPUTED_30D_MAX_USD: 2000       # USD · Fixed
+  REPEAT_DISPUTES_90D: 3               # cases · Fixed
 
   # ESC-03
   UNRECOGNIZED_BATCH_MAX: 3            # transactions · Fixed
 
   # ESC-04
-  FRAUD_SCORE_ESCALATE: 80             # score 0-100 · Provisional
+  FRAUD_SCORE_ESCALATE: 35             # score 0-100 · Fixed
 
   # §10, ESC-09
   MAX_CLARIFICATION_TURNS: 2           # turns per slot · Fixed

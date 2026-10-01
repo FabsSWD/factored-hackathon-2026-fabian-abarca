@@ -14,7 +14,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.4.0"
+template_version: "1.5.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -93,6 +93,10 @@ templates:
   merchant_not_contacted:  # GATE-10 RC_NOT_RECEIVED
     es: "Antes de registrar esta disputa, le recomendamos contactar al comercio para intentar resolver la entrega. Si no obtiene respuesta, puede volver a escribirnos."
     pt: "Antes de registrar esta contestação, recomendamos entrar em contato com o estabelecimento para tentar resolver a entrega. Se não tiver resposta, você pode nos procurar novamente."
+
+  dispute_withdrawn:  # §8: the customer withdrew at the summary; no case was created
+    es: "Entendido, no registré ninguna disputa."
+    pt: "Entendido, não registrei nenhuma contestação."
 
   # --- Confirmations (COM-03) and card block (ACT-03) ---------------------------
   # One confirmation turn covers exactly one action. When both apply, confirm_block_card
@@ -174,6 +178,10 @@ templates:
   clarify_fee_ref:
     es: "¿Qué cargo del banco quiere disputar? Me ayuda saber la fecha y el monto."
     pt: "Qual tarifa do banco você quer contestar? Ajuda saber a data e o valor."
+
+  ask_correction:  # declined summary (policy §8): ask which detail is wrong
+    es: "¿Qué dato no es correcto? Si prefiere no registrar la disputa, dígamelo."
+    pt: "Qual dado não está correto? Se preferir não registrar a contestação, é só me dizer."
 
   clarify_confirmation:  # hedged reply to COM-03: ask once more (policy §8)
     es: "Para continuar necesito una confirmación clara. Si los datos son correctos, responda “sí, confirmo”; si no, dígame qué debo corregir."

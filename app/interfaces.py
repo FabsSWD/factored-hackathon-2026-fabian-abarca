@@ -16,7 +16,6 @@ from typing import Protocol, runtime_checkable
 from app.contracts import (
     CaseRecord,
     CustomerRecord,
-    DisputeHistory,
     ExtractionResult,
     HandoffPacket,
     InputGuardResult,
@@ -150,11 +149,7 @@ class ToolLayer(Protocol):
 
     def get_transaction(self, transaction_id: str) -> TransactionRecord: ...
 
-    def find_duplicate_candidates(self, transaction_id: str) -> list[TransactionRecord]: ...
-
     def list_cases(self, transaction_id: str | None = None) -> list[CaseRecord]: ...
-
-    def get_dispute_history(self) -> DisputeHistory: ...
 
     # Actions
     def create_case(self, transaction_id: str, reason_code: ReasonCode, tier: Tier) -> ToolResult:

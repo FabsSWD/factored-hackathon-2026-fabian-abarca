@@ -31,7 +31,15 @@ from typing import Any
 import yaml
 
 from app.config import PolicyParameters
-from app.contracts import ActionId, CaseStatus, InformReason, Language, ReasonCode, SlotName
+from app.contracts import (
+    ActionId,
+    CaseStatus,
+    ClarifyTarget,
+    InformReason,
+    Language,
+    ReasonCode,
+    SlotName,
+)
 from app.templates.formatting import FormattedAmount, is_masked
 from app.templates.promises import find_promises
 
@@ -69,9 +77,17 @@ INFORM_TEMPLATES: dict[InformReason, str] = {
     InformReason.AMOUNT_NOT_EXCEEDED: "amount_not_exceeded",
     InformReason.DELIVERY_DATE_NOT_REACHED: "delivery_date_not_reached",
     InformReason.MERCHANT_NOT_CONTACTED: "merchant_not_contacted",
+    InformReason.DISPUTE_WITHDRAWN: "dispute_withdrawn",
 }
 CLARIFY_TEMPLATES: dict[SlotName, str] = {slot: f"clarify_{slot.value}" for slot in SlotName}
 CLARIFY_TEMPLATES[SlotName.CONFIRMATION] = "clarify_confirmation"
+CLARIFY_TARGET_TEMPLATES: dict[ClarifyTarget, str] = {
+    **{ClarifyTarget(slot.value): template for slot, template in CLARIFY_TEMPLATES.items()},
+    ClarifyTarget.LANGUAGE: "ask_language",
+    ClarifyTarget.AUTHENTICATION: "ask_authentication",
+    ClarifyTarget.CORRECTION: "ask_correction",
+}
+"""The template for each CLARIFY target of a PolicyDecision."""
 
 LABEL_KINDS: dict[str, frozenset[str]] = {
     "reason_code": frozenset(code.value for code in ReasonCode),
@@ -225,6 +241,7 @@ class TemplateService:
         required = (
             set(INFORM_TEMPLATES.values())
             | set(CLARIFY_TEMPLATES.values())
+            | set(CLARIFY_TARGET_TEMPLATES.values())
             | set(REQUIRED_FOLLOW_UPS)
             | {follow_up for options in REQUIRED_FOLLOW_UPS.values() for follow_up in options}
             | {"handoff_unauthenticated", "session_expired_reconfirm", "ask_rephrase"}

@@ -12,7 +12,7 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode
 
-EXTRACT_PROMPT_VERSION = "extract@1.5.0"
+EXTRACT_PROMPT_VERSION = "extract@1.6.0"
 CONNECT_PROMPT_VERSION = "connect@1.0.0"
 
 EXTRACT_SYSTEM = """\
@@ -45,10 +45,13 @@ disputes).
   - expected_delivery_date: the date the delivery was due, as {day, month, year} with the \
 same rule as transaction_date (year only if the customer says it; relative days resolved).
   - fee_ref: the customer's description of the disputed bank fee.
-  - confirmation: only when the context has a pending "confirmation" slot. "confirmed" for \
-an explicit yes to the summary ("sí, confirmo", "sim, confirmo"); "hedged" for an unclear \
-yes ("creo que sí", "acho que sim") or a blanket approval that answers no specific summary \
-("confirmo todo lo que me propongas"); "declined" for a no.
+  - confirmation: only when the context has a pending "confirmation" or "duplicate_ref" \
+slot (the customer answers a yes/no question). "confirmed" for an explicit yes ("sí, \
+confirmo", "sim, confirmo"); "hedged" for an unclear yes ("creo que sí", "acho que sim") or \
+a blanket approval that answers no specific question ("confirmo todo lo que me propongas"); \
+"declined" for a no because a detail is wrong ("no, el monto no es ese"); "withdrawn" when \
+the customer no longer wants to file the dispute ("no, ya no quiero", "mejor no", "deixa \
+pra lá").
 - flags (booleans, from the customer's own statements):
   - human_requested: asks to talk to a human agent.
   - account_takeover_reported: unknown login or device, a credential change they did not \

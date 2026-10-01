@@ -80,7 +80,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.4.0"
+    assert templates.version == "1.5.0"
     assert isinstance(templates, interfaces.TemplateService)
 
 
@@ -702,3 +702,18 @@ def test_duplicate_case_never_shows_a_draft(templates: TemplateService, language
 def test_portuguese_uses_estabelecimento_for_merchant() -> None:
     for entry in RAW["templates"].values():
         assert "loja" not in entry["pt"].lower()
+
+
+def test_every_clarify_target_has_a_template(templates: TemplateService) -> None:
+    from app.contracts import ClarifyTarget
+    from app.templates.service import CLARIFY_TARGET_TEMPLATES
+
+    assert set(CLARIFY_TARGET_TEMPLATES) == set(ClarifyTarget)
+    assert set(CLARIFY_TARGET_TEMPLATES.values()) <= templates.template_ids
+
+
+def test_withdrawn_and_correction_texts(templates: TemplateService) -> None:
+    assert "no registré ninguna disputa" in templates.render("dispute_withdrawn", "es")
+    assert "não registrei nenhuma contestação" in templates.render("dispute_withdrawn", "pt")
+    assert "¿Qué dato no es correcto?" in templates.render("ask_correction", "es")
+    assert "Qual dado não está correto?" in templates.render("ask_correction", "pt")

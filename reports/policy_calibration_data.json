@@ -1,0 +1,190 @@
+{
+  "description": "Data behind the policy thresholds fixed in policy 0.4.0 (§15). Computed on the full Core Banking table loaded in PostgreSQL (4,425,008 transactions), not on the M17 evaluation set. is_fraud is used only here, for calibration; no rule reads it at run time.",
+  "measured_on": "2026-10-01",
+  "dataset": "transactions 2023-06-17 to 2026-06-17 (1,097 partitions)",
+  "fraud_score_vs_is_fraud": {
+    "bands": [
+      {
+        "band": "<60",
+        "rows": 3538508,
+        "is_fraud": 2082,
+        "rate_pct": 0.06
+      },
+      {
+        "band": "60-70",
+        "rows": 344,
+        "is_fraud": 344,
+        "rate_pct": 100.0
+      },
+      {
+        "band": "70-80",
+        "rows": 326,
+        "is_fraud": 326,
+        "rate_pct": 100.0
+      },
+      {
+        "band": "80-90",
+        "rows": 334,
+        "is_fraud": 334,
+        "rate_pct": 100.0
+      },
+      {
+        "band": "90+",
+        "rows": 339,
+        "is_fraud": 339,
+        "rate_pct": 100.0
+      },
+      {
+        "band": "null",
+        "rows": 885157,
+        "is_fraud": 891,
+        "rate_pct": 0.1
+      }
+    ],
+    "five_point_bands_from_30": [
+      {
+        "from": 30,
+        "rows": 784,
+        "is_fraud": 175
+      },
+      {
+        "from": 35,
+        "rows": 185,
+        "is_fraud": 185
+      },
+      {
+        "from": 40,
+        "rows": 172,
+        "is_fraud": 172
+      },
+      {
+        "from": 45,
+        "rows": 171,
+        "is_fraud": 171
+      },
+      {
+        "from": 50,
+        "rows": 165,
+        "is_fraud": 165
+      },
+      {
+        "from": 55,
+        "rows": 162,
+        "is_fraud": 162
+      },
+      {
+        "from": 60,
+        "rows": 161,
+        "is_fraud": 161
+      },
+      {
+        "from": 65,
+        "rows": 183,
+        "is_fraud": 183
+      },
+      {
+        "from": 70,
+        "rows": 146,
+        "is_fraud": 146
+      },
+      {
+        "from": 75,
+        "rows": 180,
+        "is_fraud": 180
+      },
+      {
+        "from": 80,
+        "rows": 167,
+        "is_fraud": 167
+      },
+      {
+        "from": 85,
+        "rows": 167,
+        "is_fraud": 167
+      },
+      {
+        "from": 90,
+        "rows": 161,
+        "is_fraud": 161
+      },
+      {
+        "from": 95,
+        "rows": 178,
+        "is_fraud": 178
+      }
+    ],
+    "max_score_of_legitimate_transaction": 30.0,
+    "fraud_total": 4316,
+    "fraud_with_score_above_30": 2413,
+    "fraud_with_null_score": 891,
+    "candidate_thresholds": [
+      {
+        "threshold": 31,
+        "fraud_caught": 2413,
+        "recall_pct": 55.9,
+        "false_positives": 0
+      },
+      {
+        "threshold": 35,
+        "fraud_caught": 2238,
+        "recall_pct": 51.9,
+        "false_positives": 0,
+        "chosen": true
+      },
+      {
+        "threshold": 80,
+        "fraud_caught": 673,
+        "recall_pct": 15.6,
+        "false_positives": 0
+      }
+    ],
+    "note": "The step at 30.00 is an artifact of the synthetic generator; 35 leaves a margin over it instead of fitting it. In production the threshold would be recalibrated."
+  },
+  "tier_distribution": {
+    "cutoffs_usd": {
+      "T1": "<= 100",
+      "T2": "<= 1000",
+      "T3": "> 1000 or unknown"
+    },
+    "all_transactions": [
+      {
+        "tier": "T1",
+        "rows": 406613,
+        "pct": 9.19
+      },
+      {
+        "tier": "T2",
+        "rows": 2331798,
+        "pct": 52.7
+      },
+      {
+        "tier": "T3",
+        "rows": 1686597,
+        "pct": 38.12
+      },
+      {
+        "tier": "unknown",
+        "rows": 0,
+        "pct": 0.0
+      }
+    ],
+    "automatable_types": {
+      "Purchase": {
+        "T1": 208585,
+        "T2": 874821,
+        "T3": 0
+      },
+      "Withdrawal": {
+        "T1": 160854,
+        "T2": 803819,
+        "T3": 0
+      },
+      "Adjustment": {
+        "T1": 11958,
+        "T2": 120144,
+        "T3": 16
+      }
+    },
+    "note": "T3 transactions are transfers, payments and deposits (H or N in policy §4). For automatable types ESC-01 almost never fires on real data; M17 seeds synthetic T3 scenarios."
+  }
+}

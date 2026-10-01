@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.3.6 |
+| Version | 0.4.0 |
 | Last updated | 2026-09-28 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -116,25 +116,27 @@ Gates are evaluated in the order listed. Evaluation stops at the first gate that
 | `GATE-02` | Authenticated session | Session was issued by the identity service, is younger than `SESSION_MAX_AGE_MIN`, and has been idle less than `SESSION_IDLE_TIMEOUT_MIN`. | The system MUST NOT read or disclose account data. It asks the customer to authenticate (a `CLARIFY` turn targeting authentication). An explicit refusal gives `INFORM` at once; exceeding `AUTH_MAX_ATTEMPTS` gives `INFORM` with an offer to transfer. See the authentication attempts rule below. |
 | `GATE-03` | Customer status | `customers.customer_status = 'Active'`. | [ESC-08](#7-mandatory-escalation-triggers). |
 | `GATE-04` | Ownership | Every transaction or product the customer references has `customer_id` equal to the session customer. Enforced in the tool layer, which returns `access_denied` for other customers' records. | `REFUSE`. The system MUST NOT confirm or deny that the record exists. The attempt is logged as a security event. |
-| `GATE-05` | Transaction identified | Exactly one transaction of the session customer matches the reference given. | `CLARIFY` (see [§10](#10-required-information-and-clarification)). |
+| `GATE-05` | Transaction identified | Exactly one transaction of the session customer matches the reference given (see the matching rule below). | `CLARIFY` (see [§10](#10-required-information-and-clarification)): with 2 to `MAX_CANDIDATES_SHOWN` matches the candidates are listed; with more, the customer is asked for more details without a list. |
 | `GATE-06` | Transaction status | `transactions.transaction_status = 'Approved'`. | `Pending`: `INFORM` (wait until posted). `Declined`: `INFORM` (nothing was charged). `Reversed`: `INFORM` (already reversed). |
 | `GATE-07` | Disputable combination | The transaction type and reason code are marked **A** in [§4](#4-disputable-transactions). | **H**: [ESC-14](#7-mandatory-escalation-triggers). **N**: `INFORM` with an offer to transfer. |
-| `GATE-08` | Filing window | Transaction age at filing is at most `DISPUTE_WINDOW_DAYS`. | Age up to `LATE_WINDOW_DAYS`: [ESC-07](#7-mandatory-escalation-triggers). Older: `INFORM` (outside the filing window) with an offer to transfer. |
+| `GATE-08` | Filing window | Transaction age at filing is at most `DISPUTE_WINDOW_DAYS`. The age is the number of calendar days between `BUSINESS_DATE` and the business day of the transaction (its `transaction_date` minus `BUSINESS_DAY_CUTOFF`); the same function serves `DISPUTE_WINDOW_DAYS` and `LATE_WINDOW_DAYS`. | Age up to `LATE_WINDOW_DAYS`: [ESC-07](#7-mandatory-escalation-triggers). Older: `INFORM` (outside the filing window) with an offer to transfer. |
 | `GATE-09` | Product status | `products.product_status` is `Active` or `Blocked`. | [ESC-08](#7-mandatory-escalation-triggers). |
 | `GATE-10` | Reason-specific preconditions | See the table below. | See the table below. |
-| `GATE-11` | No duplicate case | No open case exists for the same `transaction_id`. A `Draft` case exists only inside a conversation and does not count. | `INFORM` with the existing case reference and status. A `Draft` status is never shown to the customer. |
+| `GATE-11` | No duplicate case | No case exists for the same `transaction_id`, whatever its status (open or closed). A `Draft` case exists only inside a conversation and never counts. | `INFORM` with the existing case reference and status, and an offer to transfer. A dispute that was rejected or closed is never reopened automatically; reopening it is a human decision. A `Draft` status is never shown to the customer. |
 
 **Authentication attempts (`GATE-02`).** Every turn in which the system asks the customer to authenticate and the customer does not end up authenticated counts as one attempt, including a wrong OTP. When the attempts exceed `AUTH_MAX_ATTEMPTS`, the outcome is `INFORM` with an offer to transfer. An explicit refusal to authenticate gives `INFORM` immediately. Authentication is not a slot of [§10](#10-required-information-and-clarification), so attempts do not count toward `MAX_CLARIFICATION_TURNS` or `MAX_TOTAL_CLARIFICATIONS`. Every failed OTP is recorded as a security event in the audit record.
+
+**Transaction matching (`GATE-05`).** A `transaction_id` matches only if the customer gave it, or picked it among candidates shown to them, and it is consistent with any date, amount, or merchant they also gave; otherwise the reference is ambiguous. Without an ID, any combination of date (±1 business day), amount (exact, in the transaction currency), and merchant (case- and accent-insensitive; one name contained in the other) is valid if it resolves to exactly one of the customer's transactions within `LATE_WINDOW_DAYS`. The `COM-03` confirmation protects against a wrong match.
 
 Reason-specific preconditions (`GATE-10`):
 
 | Reason code | Pass condition | If it does not pass |
 |---|---|---|
-| `RC_UNRECOGNIZED` | Slots `card_in_possession` and `shared_credentials` are answered. `shared_credentials = no`. | `shared_credentials = yes`: [ESC-03](#7-mandatory-escalation-triggers). |
+| `RC_UNRECOGNIZED` | Slots `card_in_possession` and `shared_credentials` are answered. `shared_credentials = no`. `card_in_possession = no` (a lost or stolen card) passes; the card block is offered under `ACT-03`. | `shared_credentials = yes`: [ESC-03](#7-mandatory-escalation-triggers). |
 | `RC_DUPLICATE` | A second transaction with a different `transaction_id` exists with the same `product_id`, `merchant_name`, `amount`, and `currency`, status `Approved`, within `DUPLICATE_WINDOW_HOURS`. The earlier one is treated as legitimate and the later one is disputed. | `CLARIFY` once whether the customer means another reason. If it remains unresolved: [ESC-09](#7-mandatory-escalation-triggers). |
 | `RC_INCORRECT_AMOUNT` | `expected_amount` is given in the transaction currency and is lower than the posted `amount`. | `expected_amount >= amount`: `INFORM` (the posted amount does not exceed what was agreed). |
 | `RC_NOT_RECEIVED` | `expected_delivery_date` is in the past and `merchant_contacted = yes`. | Delivery date not reached: `INFORM` (wait until the date). Merchant not contacted: `INFORM` with guidance to contact the merchant first. |
-| `RC_FEE` | The charged fee is identified. | `CLARIFY`. |
+| `RC_FEE` | The charged fee is identified: the resolved transaction is an `Adjustment`, which is a charge (see the assumption in [§17](#17-assumptions-limitations-and-open-questions)). | `CLARIFY` for the fee reference (`fee_ref`). |
 
 ## 6. Automation tiers
 
@@ -167,12 +169,14 @@ In the supplied data, `amount_usd` is null for every USD transaction (2,437,979 
 
 Hard triggers (`ESC-01` to `ESC-10`, `ESC-12` to `ESC-14`) always cause `ESCALATE`, regardless of model outputs. The soft trigger `ESC-11` is evaluated only if no hard rule has already decided the outcome. When each trigger is evaluated is defined in [§5](#5-gates).
 
+**Several triggers at once.** The packet goes to the most restrictive queue among the triggered rules (security review > fraud > disputes), with high priority if any triggered rule asks for it, and lists every triggered rule.
+
 `transactions.is_fraud` MUST NOT be used by any rule: it is a label the bank assigns afterwards, not a signal available when the dispute is filed. A null `fraud_score` does not escalate, because the case is investigated by a person anyway and escalating it would inflate unnecessary transfers. The null rate is 20.0% (885,157 of 4,425,008 rows) and is spread evenly across `transaction_type`, `channel`, `is_fraud`, `transaction_status`, currency, and year (19.8% to 20.6% in every group), so ignoring it does not bias any group (data profile of 2026-09-28, dataset 2023-06-17 to 2026-06-17).
 
 | ID | Trigger | Condition | Route |
 |---|---|---|---|
 | `ESC-01` | High amount | USD-equivalent amount `> AUTO_INTAKE_MAX_USD` (tier `T3`). | Disputes queue |
-| `ESC-02` | Dispute velocity | Including the current dispute, the customer's disputed total in the last 30 days exceeds `AGG_DISPUTED_30D_MAX_USD`, **or** the customer has at least `REPEAT_DISPUTES_90D` cases in the last 90 days. Both windows end at `as_of` and count cases by their business creation date (see [§15](#15-parameters)). | Disputes queue |
+| `ESC-02` | Dispute velocity | Including the current dispute, the customer's disputed total in the last 30 days exceeds `AGG_DISPUTED_30D_MAX_USD`, **or** the customer has at least `REPEAT_DISPUTES_90D` cases in the last 90 days. Both windows end at `as_of` and count cases by their business creation date (see [§15](#15-parameters)). The 30-day total includes the current dispute; the 90-day count includes only previous cases. `Draft` cases never count. | Disputes queue |
 | `ESC-03` | Account takeover indicators | The customer reports an unknown login or device, a credential change they did not make, a lost or stolen phone, or sharing credentials or codes with a third party; **or** raises at least `UNRECOGNIZED_BATCH_MAX` unrecognized transactions in one conversation. | Fraud queue, high priority. A card block (`ACT-03`) is offered first. |
 | `ESC-04` | Fraud score | `transactions.fraud_score >= FRAUD_SCORE_ESCALATE` on the disputed transaction. A null `fraud_score` does not fire this trigger; its absence is recorded in the audit record and, if there is a handoff, in `open_questions`. | Fraud queue |
 | `ESC-05` | Human requested | The customer asks for a human at any point. | Disputes queue. Honored immediately; the system MUST NOT try to retain the customer. |
@@ -181,7 +185,7 @@ Hard triggers (`ESC-01` to `ESC-10`, `ESC-12` to `ESC-14`) always cause `ESCALAT
 | `ESC-08` | Ineligible status | Customer status is not `Active`, or product status is not `Active` or `Blocked`. | Disputes queue |
 | `ESC-09` | Unresolved ambiguity | A slot is still missing or ambiguous after `MAX_CLARIFICATION_TURNS` for that slot, the conversation exceeds `MAX_TOTAL_CLARIFICATIONS`, or the customer's claim contradicts verified facts and clarification does not resolve it. | Disputes queue |
 | `ESC-10` | Tool failure | A write action fails after `TOOL_MAX_RETRIES`, or its read-back verification does not match. | Disputes queue, with the failure in the handoff packet |
-| `ESC-11` | Model uncertainty (soft) | The decision layer's top reason-code probability is below `DECISION_CONFIDENCE_MIN`, or its escalation-risk probability is at least `ESCALATION_RISK_THRESHOLD`. | Disputes queue |
+| `ESC-11` | Model uncertainty (soft) | The decision layer's top reason-code probability is below `DECISION_CONFIDENCE_MIN`, or its escalation-risk probability is at least `ESCALATION_RISK_THRESHOLD`. The thresholds apply only to signals from Kev; the fallback derived from the extraction (0/1, uncalibrated) never fires this trigger. While the thresholds are null, it fires only when the signals are unavailable. It is evaluated only once the session is authenticated. | Disputes queue |
 | `ESC-12` | Unsupported language | The language is not `es` or `pt`, or remains ambiguous after one clarification. | Disputes queue |
 | `ESC-13` | Manipulation attempts | The conversation contains at least `INJECTION_STRIKES_MAX` attempts to override instructions, impersonate staff, or request other customers' data. The first attempt is ignored and logged; automation ends at the threshold. Attempts are counted per conversation from its first message, before authentication, and re-authenticating does not reset them. Impersonation means a first-person claim made to the assistant; a customer reporting what a caller or message claimed (vishing) is an account-takeover signal under `ESC-03`, not an attempt. | Security review queue |
 | `ESC-14` | Plausible but unsupported dispute | The transaction type and reason code are marked **H** in [§4](#4-disputable-transactions). | Fraud queue for `RC_UNRECOGNIZED` on transfers and payments; disputes queue otherwise |
@@ -208,13 +212,22 @@ A card block (`ACT-03`) MAY be executed before an escalation, because it protect
 **Card block offer.** The system MUST offer `ACT-03` when all of these hold, so that the expected actions of every case are deterministic:
 
 - `GATE-02` passed. If `ESC-03` fires before the customer authenticates, no block is offered.
-- The reason is `RC_UNRECOGNIZED`, or `ESC-03` fired.
+- The reason is `RC_UNRECOGNIZED`, or `ESC-03` fired. When `ESC-03` fires without an identified transaction, the block is offered only if the customer has exactly one active card; with several or none there is no offer, and the handoff packet says so in `open_questions`.
 - The product involved is a card: `products.product_type` is a card type (`Tarjeta Crédito` or `Tarjeta Débito` in the supplied data). The condition depends on the product, not on the transaction type: a purchase charged to a checking account has no card to block.
 - `products.product_status = 'Active'`. If the card is already `Blocked`, the system says so and offers nothing. If it is `Closed` or `Suspended`, there is no offer and `GATE-09` escalates under `ESC-08`.
 
 An `RC_UNRECOGNIZED` dispute on a transfer or payment (**H** in [§4](#4-disputable-transactions), routed by `ESC-14`) normally concerns an account, not a card, so there is no `ACT-03`; the handoff packet says so in `open_questions`.
 
 **Explicit confirmation** means an affirmative reply to the templated summary in the same conversation ("sí, confirmo" in Spanish, "sim, confirmo" in Portuguese, or an equivalent). A hedged or unclear reply ("creo que sí", "acho que sim") is not confirmation: the system asks once more, and that question counts as a clarification turn.
+
+The reply to the summary is classified as confirmed, hedged, declined, or withdrawn:
+
+- **Confirmed**: `ACT-02` is authorized.
+- **Hedged**: the system asks once more (a clarification turn).
+- **Declined** ("no, eso no es correcto"): the system asks which detail is wrong and offers to drop the dispute (a clarification turn), then shows the summary again.
+- **Withdrawn** ("no, ya no quiero", "deixa pra lá"): the conversation ends without a case, with an offer to transfer (`INFORM`).
+
+The same classification answers the duplicate question of `RC_DUPLICATE`: a yes fills `duplicate_ref` with the candidate the rule found; a no leads to the clarification of `GATE-10`.
 
 A confirmation is valid only if it arrives in a session that passes `GATE-02`. If the session expired before the confirmation, the system asks the customer to authenticate again and then presents the [COM-03](#11-customer-communication) summary again.
 
@@ -377,22 +390,24 @@ All parameters live in one versioned configuration file in the codebase; this ta
 | `AUTH_MAX_ATTEMPTS` | 3 | attempts | `GATE-02` | Fixed | Usual OTP lockout threshold: tolerates a typo without allowing brute force. |
 | `DISPUTE_WINDOW_DAYS` | 60 | calendar days | `GATE-08` | Fixed | Automated intake only for recent transactions. |
 | `LATE_WINDOW_DAYS` | 120 | calendar days | `GATE-08`, `ESC-07` | Fixed | Late filings still reach a human who can judge exceptions. |
-| `DUPLICATE_WINDOW_HOURS` | 48 | hours | `GATE-10` | Provisional | Covers same-day and next-day reposting. |
+| `DUPLICATE_WINDOW_HOURS` | 48 | hours | `GATE-10` | Fixed | Covers same-day and next-day reposting. No data contradicts it. |
 | `FX_MAX_STALENESS_DAYS` | 3 | calendar days | §6 | Fixed | An as-of rate a few days old is close enough for a tier; older rates are not trusted. |
-| `PROVISIONAL_CREDIT_AUTO_MAX_USD` | 100 | USD | §6 | Provisional | Low-value disputes where review cost exceeds risk. |
-| `AUTO_INTAKE_MAX_USD` | 1,000 | USD | §6, `ESC-01` | Provisional | Above this, a human reviews before a case exists. |
-| `AGG_DISPUTED_30D_MAX_USD` | 2,000 | USD | `ESC-02` | Provisional | Limits exposure from many small automated disputes. |
-| `REPEAT_DISPUTES_90D` | 3 | cases | `ESC-02` | Provisional | Repeated disputes need a human view of the pattern. |
+| `PROVISIONAL_CREDIT_AUTO_MAX_USD` | 100 | USD | §6 | Fixed | Low-value disputes where review cost exceeds risk. 19% of purchases, 17% of withdrawals and 9% of adjustments fall in `T1`. |
+| `AUTO_INTAKE_MAX_USD` | 1,000 | USD | §6, `ESC-01` | Fixed | Above this, a human reviews before a case exists. Purchases, withdrawals and adjustments almost never exceed it in the data (0, 0 and 16 rows). |
+| `AGG_DISPUTED_30D_MAX_USD` | 2,000 | USD | `ESC-02` | Fixed | Limits exposure from many small automated disputes: two `T2` disputes near the maximum already exceed it. |
+| `REPEAT_DISPUTES_90D` | 3 | cases | `ESC-02` | Fixed | Repeated disputes need a human view of the pattern; three previous cases in a quarter is already unusual. |
 | `UNRECOGNIZED_BATCH_MAX` | 3 | transactions | `ESC-03` | Fixed | Several unrecognized charges at once suggest compromise. |
-| `FRAUD_SCORE_ESCALATE` | 80 | score (0–100) | `ESC-04` | Provisional | To be calibrated against the `fraud_score` distribution. |
+| `FRAUD_SCORE_ESCALATE` | 35 | score (0–100) | `ESC-04` | Fixed | Calibrated against `is_fraud` on the full Core Banking table: no legitimate transaction scores above 30.00, so 35 catches 2,238 of 4,316 frauds (51.9%) with no false positives, against 673 (15.6%) with 80. The step at 30.00 is an artifact of the synthetic generator; 35 leaves a margin over it instead of fitting it, and production would recalibrate it. Evidence: `reports/policy_calibration_data.json`. |
 | `MAX_CLARIFICATION_TURNS` | 2 | turns per slot | §10, `ESC-09` | Fixed | Avoids looping on the same question. |
 | `MAX_TOTAL_CLARIFICATIONS` | 4 | turns per conversation | §10, `ESC-09` | Fixed | Bounds customer effort before a human takes over. |
 | `MAX_CANDIDATES_SHOWN` | 3 | transactions | §10 | Fixed | Keeps the choice readable and limits disclosure. |
 | `TOOL_MAX_RETRIES` | 2 | retries | `ESC-10` | Fixed | Bounded retries with idempotency keys. |
 | `INJECTION_STRIKES_MAX` | 2 | attempts | `ESC-13` | Fixed | One attempt can be accidental; two show intent. |
-| `DECISION_CONFIDENCE_MIN` | TBD | probability | `ESC-11` | Calibrated | Chosen on the validation split to keep unsafe outcomes at or below the target. |
+| `DECISION_CONFIDENCE_MIN` | TBD | probability | `ESC-11` | Calibrated | Chosen on the validation split by the calibration objective below. |
 | `ESCALATION_RISK_THRESHOLD` | TBD | probability | `ESC-11` | Calibrated | Same method as above. |
 | `RESOLUTION_TARGET_BUSINESS_DAYS` | 10 | business days | `COM-05` | Fixed | Synthetic service level shown to customers. |
+
+**Calibration objective (`ESC-11`).** Kev's answers are first rescaled with one temperature per question, fitted by minimizing the log loss on the validation split. Then, among the thresholds that leave zero improper `RESOLVE` outcomes on the validation split, the one with the fewest unnecessary escalations is chosen: Kev only adds escalations, so its role is to catch what the rules let through without inflating transfers. If no threshold qualifies, or the validation split has fewer than 30 cases per relevant class, the thresholds stay null (the signals do not influence outcomes) and the report says so. The test split is never used (§16).
 
 **Business date.** Rules that depend on transaction age or on calendar windows (`GATE-08`, `ESC-02`, `ESC-07`, and the delivery date of `RC_NOT_RECEIVED`) use a business date instead of the real clock. The supplied data ends on 2026-06-17, so with the real clock every transaction would fail `GATE-08`. Session age and idle time (`GATE-02`) always use real time, because the identity service issues sessions now. The two clocks are a limitation of the prototype.
 
@@ -429,8 +444,11 @@ The full evaluation design, including case mix and metrics, will be documented s
 **Limitations**
 
 - The supplied data contains Spanish only. Portuguese behavior is evaluated with team-generated cases, and results are reported separately by language.
-- Thresholds marked *Provisional* are design choices, not values derived from loss data.
+- The amount and velocity thresholds are design choices checked against the data profile, not values derived from loss data.
 - The supplied transcripts and complaint descriptions cannot be used to validate natural-language understanding (see the spike).
+- 44% of frauds cannot be told apart by `fraud_score` (a low score like legitimate transactions, or a null score). `ESC-04` does not cover them; they are covered by the `RC_UNRECOGNIZED` flow and the card block offer.
+- `FRAUD_SCORE_ESCALATE` was calibrated with `is_fraud` on the full Core Banking table, not on the evaluation set of M17. `is_fraud` is never read at run time.
+- For purchases, withdrawals and adjustments the real data has almost no `T3` amounts, so `ESC-01` almost never fires on real data. Evaluation (M17) and the demo seed synthetic `T3` scenarios, and scenarios with `fraud_score` above 35 for `ESC-04`.
 - Fees cannot be told apart from other adjustments. All 132,118 `Adjustment` rows have a positive amount, no merchant, no category, and no field that gives their direction, and they appear only on loans, investments, and insurance (`Préstamo Personal`, `Préstamo Hipotecario`, `Inversión`, `Seguro`), never on accounts or cards. If some adjustments were credits in the customer's favor, `RC_FEE` would wrongly treat them as disputable charges.
 - Timestamps carry no time zone, so transaction ages across Mexico, Colombia, and Argentina are compared on one naive clock.
 - The reported-speech exception of `ESC-13` can be evaded on purpose: a first-person staff claim preceded by a reporting verb ("me dijo…", "dizendo…") or placed in quotes is not counted. Not flagging fraud victims who report what a scammer said has priority, and claiming to be staff grants nothing, because `GATE-04` is enforced in the Tool Layer with the session's customer.
@@ -443,7 +461,7 @@ The full evaluation design, including case mix and metrics, will be documented s
 |---|---|---|
 | 1 | *Closed with an assumption in 0.3.0:* `transaction_type` and `transaction_status` values observed in the data match §4 and `GATE-06`. Bank fees are assumed to be `Adjustment` rows (see limitations). | §4, `RC_FEE` |
 | 2 | *Resolved in 0.3.0:* `amount_usd` is null for every USD transaction (structural) and for about 5% of COP and ARS rows; all are resolved at load time (§6). | §6 |
-| 3 | *Partly resolved in 0.3.0:* `fraud_score` has a median of 15.0, a 99th percentile of 29.7, and 673 rows at or above 80; 20% is null. The mean score is 49.5 when `is_fraud` is true and 15.0 when false. Still open: calibrating `FRAUD_SCORE_ESCALATE`. | `ESC-04` |
+| 3 | *Partly resolved in 0.3.0:* `fraud_score` has a median of 15.0, a 99th percentile of 29.7, and 673 rows at or above 80; 20% is null. The mean score is 49.5 when `is_fraud` is true and 15.0 when false. *Closed in 0.4.0:* `FRAUD_SCORE_ESCALATE` = 35, calibrated against `is_fraud` (§15). | `ESC-04` |
 | 4 | Can `complaints` be linked to `transactions` through `affected_product_id` to seed realistic scenarios? | §16 |
 | 5 | *Closed in 0.3.0:* `AUTH_MAX_ATTEMPTS` = 3 (§15). | `GATE-02` |
 
@@ -460,3 +478,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.3.4 | 2026-09-28 | `ESC-13`: counted per conversation; impersonation is a first-person claim, and reported vishing belongs to `ESC-03`. Limitation: a new conversation starts at zero (§17). |
 | 0.3.5 | 2026-09-28 | §17: the reported-speech exception of `ESC-13` is evadable by design, and why that is acceptable. |
 | 0.3.6 | 2026-09-28 | `GATE-11`: `Draft` cases do not count as open and their status is never shown to the customer. |
+| 0.4.0 | 2026-10-01 | Rules for the Policy Engine: transaction matching (`GATE-05`), age computation (`GATE-08`), any non-draft case blocks (`GATE-11`), `RC_UNRECOGNIZED` with a lost card, `RC_FEE` identification, `ESC-02` counting, `ESC-11` only with Kev signals or unavailable signals, queue precedence for several triggers, `ACT-03` with exactly one active card, declined and withdrawn confirmations. Provisional parameters fixed with data; `FRAUD_SCORE_ESCALATE` = 35. Calibration objective for `ESC-11`. |
