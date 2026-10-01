@@ -114,6 +114,15 @@ class DatabaseToolLayer:
     def get_customer(self) -> CustomerRecord:
         return self._read("customer", None, lambda repo, cid: repo.get_customer(cid))
 
+    def customer_country(self) -> str | None:
+        """Presentation only: the locale of amounts (COM-08). It never enters a PolicyRequest,
+        so it cannot influence an outcome (DATA-02)."""
+        customer_id = self._customer_id
+        if customer_id is None:
+            return None
+        with self._sessions() as db:
+            return CoreBankingRepository(db).get_customer_country(customer_id)
+
     def list_products(self) -> list[ProductRecord]:
         return self._read("products", None, lambda repo, cid: repo.list_products(cid))
 

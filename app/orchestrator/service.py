@@ -1,0 +1,1043 @@
+"""M12 Orchestrator: one customer message per turn, through the modules of architecture §4.
+
+Session -> Input Guard -> LLM Adapter and Decision Client in parallel -> Policy Engine with the
+Tool Layer's records -> action and read-back -> Handoff Builder on ESCALATE -> templates (and
+connecting sentences) -> one audit trace -> reply.
+
+Contracts it keeps (each has a test):
+
+1. One turn deadline (``LLM_TURN_DEADLINE_SECONDS``): Kev runs in parallel with ``extract``;
+   ``connect`` gets only what is left.
+2. A message flagged by the Input Guard reaches neither the LLM nor Kev; the reply is
+   ``ask_rephrase``; it is not a clarification; strikes count per ``conversation_id``. At the
+   strike limit the turn escalates (ESC-13) without the models.
+3. If ``extract`` fails, the turn goes on with empty slots and the rule-based signals; no
+   exception reaches the customer.
+4. Any unexpected exception (engine, Tool Layer, templates) becomes a handoff with the
+   ``tool_failure`` notice and a trace with the error, never an HTTP error with a stack trace.
+5. One confirmation per action (COM-03); the card block before the dispute summary; declining
+   the block does not affect the dispute. ``confirmation`` is cleared after it is used and when
+   a slot changes after the summary; the first summary is not a clarification.
+6. A declined summary is corrected with ``app.orchestrator.corrections``.
+7. ESC-05 is honored at once; a pending or unoffered card block goes to the open questions.
+8. ESC-03: the card block confirmation turn comes first, then the handoff; that turn is not a
+   clarification.
+9. Replies follow the template composition rules (``app.orchestrator.replies``).
+10. ``detected_language`` is the conversation's language; amounts use language + country.
+11. A session that expired with a confirmation pending gets ``session_expired_reconfirm``, and
+    that confirmation no longer counts.
+12. Exactly one trace per turn.
+13. The builder receives ``slot_turns``, ``transaction_ref_said`` and ``picked_candidate``.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+import uuid
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Any, TypeVar
+
+from app.audit.cost import TokenRates, estimate_cost
+from app.config import PolicyParameters
+from app.contracts import (
+    AccessDeniedError,
+    ActionId,
+    ClarifyTarget,
+    Confirmation,
+    ConversationFlags,
+    CustomerRecord,
+    Evidence,
+    EvidenceKind,
+    ExtractionResult,
+    InputGuardResult,
+    Language,
+    LLMContext,
+    LLMTransaction,
+    ModelSignals,
+    ModelSource,
+    Outcome,
+    PolicyDecision,
+    PolicyRequest,
+    Priority,
+    ProductRecord,
+    Queue,
+    ReasonCode,
+    RuleEvidence,
+    SessionContext,
+    SlotName,
+    Slots,
+    ToolResult,
+    ToolStatus,
+    TraceRecord,
+    TransactionRecord,
+    TransactionRef,
+)
+from app.deadline import Deadline
+from app.decision.fallback import resolve_signals
+from app.interfaces import (
+    AuditTracer,
+    DecisionClient,
+    HandoffBuilder,
+    IdentityService,
+    InputGuard,
+    LLMAdapter,
+    PolicyEngine,
+    ToolLayer,
+)
+from app.llm_adapter.adapter import ExtractionUnavailableError
+from app.llm_adapter.language import guess_language
+from app.llm_adapter.signals import RuleBasedSignalDetector
+from app.orchestrator.calls import collect_calls
+from app.orchestrator.corrections import apply_declined_correction
+from app.orchestrator.replies import Reply
+from app.orchestrator.state import (
+    BlockOffer,
+    ConversationState,
+    ConversationStore,
+    Pending,
+)
+from app.policy.clock import business_date
+from app.pseudonym import UNAUTHENTICATED_REF, customer_ref
+from app.templates.formatting import Locale, format_date, locale_for
+from app.templates.service import INFORM_TEMPLATES, TemplateService
+
+T = TypeVar("T")
+Clock = Callable[[], datetime]
+ToolFactory = Callable[[SessionContext | None, str], ToolLayer]
+
+SUPPORTED = frozenset(language.value for language in Language)
+NOT_COUNTED = frozenset({ClarifyTarget.LANGUAGE, ClarifyTarget.AUTHENTICATION})
+SUMMARY_TARGETS = frozenset({ClarifyTarget.CONFIRMATION, ClarifyTarget.CORRECTION})
+BLOCK_REASKS = 1  # an unclear answer to the block offer is asked once more (policy §8)
+MIN_GUESS_WORDS = 3  # the rule-based language guess needs a few words
+
+
+class ConversationAccessError(Exception):
+    """The conversation belongs to another customer."""
+
+
+@dataclass(frozen=True)
+class OrchestratorConfig:
+    as_of: datetime
+    parameters: PolicyParameters
+    policy_version: str
+    pseudonym_key: str
+    turn_deadline_seconds: float
+    token_cap: int | None = None  # LLM tokens per conversation (architecture §7)
+    rates: TokenRates | None = None
+
+
+@dataclass(frozen=True)
+class TurnResult:
+    conversation_id: str
+    trace_id: str
+    turn_index: int
+    reply: str
+    reply_kind: str
+    outcome: Outcome | None
+    language: Language | None
+    closed: bool
+
+
+@dataclass
+class _Records:
+    customer: CustomerRecord | None = None
+    products: list[ProductRecord] = field(default_factory=list)
+    pool: list[TransactionRecord] = field(default_factory=list)
+    cases: list[Any] = field(default_factory=list)
+    country: str | None = None
+
+
+@dataclass
+class _Turn:
+    state: ConversationState
+    message: str
+    trace_id: str
+    created_at: datetime
+    session: SessionContext | None = None
+    tools: ToolLayer | None = None
+    guard: InputGuardResult | None = None
+    records: _Records = field(default_factory=_Records)
+    context: LLMContext | None = None
+    deadline: Deadline | None = None
+    extraction: ExtractionResult | None = None
+    llm_ok: bool = True
+    signals: ModelSignals | None = None
+    detected_language: str | None = None
+    language_ambiguous: bool = False
+    decisions: list[PolicyDecision] = field(default_factory=list)
+    tool_calls: list[ToolResult] = field(default_factory=list)
+    stages: dict[str, float] = field(default_factory=dict)
+    prefix: list[tuple[str, dict[str, object]]] = field(default_factory=list)
+    reply: Reply | None = None
+    reply_kind: str = ""
+    outcome: Outcome | None = None
+    handoff_id: str | None = None
+    error: str | None = None
+
+
+class Orchestrator:
+    def __init__(
+        self,
+        *,
+        identity: IdentityService | None,
+        guard: InputGuard,
+        llm: LLMAdapter,
+        decision: DecisionClient,
+        engine: PolicyEngine,
+        tools: ToolFactory,
+        builder: HandoffBuilder,
+        templates: TemplateService,
+        tracer: AuditTracer,
+        store: ConversationStore,
+        config: OrchestratorConfig,
+        clock: Clock | None = None,
+    ) -> None:
+        self._identity = identity
+        self._guard = guard
+        self._llm = llm
+        self._decision = decision
+        self._engine = engine
+        self._tools = tools
+        self._builder = builder
+        self._templates = templates
+        self._tracer = tracer
+        self._store = store
+        self._config = config
+        self._p = config.parameters
+        self._clock = clock or (lambda: datetime.now(UTC))
+        self._detector = RuleBasedSignalDetector()
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    # ------------------------------------------------------------------ public API
+
+    async def handle_turn(
+        self, conversation_id: str | None, message: str, token: str | None = None
+    ) -> TurnResult:
+        cid = conversation_id or f"CONV-{uuid.uuid4().hex[:16]}"
+        lock = self._locks.setdefault(cid, asyncio.Lock())
+        async with lock:
+            state = self._store.get(cid) or ConversationState(conversation_id=cid)
+            turn = _Turn(
+                state=state,
+                message=message,
+                trace_id=f"TRC-{uuid.uuid4().hex}",
+                created_at=self._clock(),
+            )
+            started = time.perf_counter()
+            with collect_calls() as calls:
+                try:
+                    await self._run_turn(turn, token)
+                except ConversationAccessError:
+                    raise
+                except Exception as exc:  # contract 4: never an error page with a trace
+                    await self._emergency(turn, exc)
+                text = await self._finish_reply(turn)
+            total_ms = (time.perf_counter() - started) * 1000
+            self._trace(turn, calls, total_ms)
+            state.turn_index += 1
+            self._store.save(state)
+            return TurnResult(
+                conversation_id=cid,
+                trace_id=turn.trace_id,
+                turn_index=state.turn_index - 1,
+                reply=text,
+                reply_kind=turn.reply_kind,
+                outcome=turn.outcome,
+                language=state.language,
+                closed=state.closed,
+            )
+
+    # ------------------------------------------------------------------ the turn
+
+    async def _run_turn(self, turn: _Turn, token: str | None) -> None:
+        state = turn.state
+        with self._stage(turn, "identity"):
+            session = (
+                await self._io(self._identity.validate_session, token)
+                if token and self._identity is not None
+                else None
+            )
+        if session is not None:
+            if state.customer_id is not None and session.customer_id != state.customer_id:
+                raise ConversationAccessError(state.conversation_id)
+            state.customer_id = session.customer_id
+        turn.session = session
+        turn.tools = self._tools(session, state.conversation_id)
+
+        if state.closed:
+            reply = self._new_reply(turn)
+            reply.add("handoff" if session else "handoff_unauthenticated")
+            turn.reply_kind = "closed"
+            turn.outcome = Outcome.ESCALATE
+            turn.handoff_id = state.handoff_id
+            return
+
+        with self._stage(turn, "input_guard"):
+            guard = await self._io(
+                self._guard.inspect, state.conversation_id, turn.message, session
+            )
+        turn.guard = guard
+        state.counters = state.counters.model_copy(
+            update={"injection_strikes": max(state.counters.injection_strikes, guard.strikes)}
+        )
+        if guard.flagged and not guard.escalate_security:
+            # Contract 2: nothing reaches the models; not a clarification.
+            self._new_reply(turn).add("ask_rephrase")
+            turn.reply_kind = "ask_rephrase"
+            return
+
+        if session is not None:
+            with self._stage(turn, "records"):
+                await self._read_records(turn)
+        turn.context = self._context(turn)
+
+        if guard.flagged:  # ESC-13 at the strike limit: the message reaches no model
+            turn.signals = ModelSignals(source=ModelSource.UNAVAILABLE)
+        else:
+            with self._stage(turn, "models"):
+                await self._understand(turn)
+        self._resolve_language(turn)
+        if await self._merge(turn):
+            return
+        await self._evaluate_and_act(turn)
+
+    async def _read_records(self, turn: _Turn) -> None:
+        tools = turn.tools
+        assert tools is not None
+        records = turn.records
+        records.customer = await self._io(tools.get_customer)
+        records.products = await self._io(tools.list_products)
+        records.pool = await self._io(tools.transaction_candidates)
+        records.cases = await self._io(tools.list_cases)
+        records.country = await self._io(tools.customer_country)
+
+    def _context(self, turn: _Turn) -> LLMContext:
+        state, session = turn.state, turn.session
+        return LLMContext(
+            customer_ref=(
+                customer_ref(session.customer_id, self._config.pseudonym_key)
+                if session
+                else UNAUTHENTICATED_REF
+            ),
+            language=state.language,
+            masked_products=[p.product_number_masked for p in turn.records.products],
+            transactions=[
+                LLMTransaction(
+                    transaction_ref=txn.transaction_id,
+                    transaction_date=txn.transaction_date.date(),
+                    amount=txn.amount,
+                    currency=txn.currency,
+                    merchant_name=txn.merchant_name,
+                    transaction_status=txn.transaction_status,
+                )
+                for txn in turn.records.pool
+            ],
+            pending_slot=self._pending_slot(state),
+            shown_candidates=list(state.shown_candidates),
+            business_date=business_date(self._config.as_of),
+        )
+
+    @staticmethod
+    def _pending_slot(state: ConversationState) -> SlotName | None:
+        if state.pending in (Pending.BLOCK_OFFER, Pending.SUMMARY):
+            return SlotName.CONFIRMATION
+        target = state.pending_target
+        if state.pending is not Pending.CLARIFY or target is None:
+            return None
+        if target is ClarifyTarget.CORRECTION:
+            return SlotName.CONFIRMATION  # "mejor no" withdraws, details correct
+        if target in NOT_COUNTED:
+            return None
+        return SlotName(target.value)
+
+    async def _understand(self, turn: _Turn) -> None:
+        """Contract 1: extract and Kev in parallel on one deadline."""
+        state, context = turn.state, turn.context
+        assert context is not None
+        cap = self._config.token_cap
+        if cap is not None and state.tokens_used >= cap:
+            # Token cap reached (architecture §7): the LLM is not called again.
+            turn.llm_ok = False
+            turn.extraction = ExtractionResult(flags=self._detector.detect(turn.message))
+            kev = await self._kev(turn, None)
+        else:
+            turn.deadline = Deadline(self._config.turn_deadline_seconds)
+            turn.extraction, kev = await asyncio.gather(
+                self._extract(turn, turn.deadline), self._kev(turn, turn.deadline)
+            )
+        turn.signals = resolve_signals(kev, turn.extraction)
+
+    async def _extract(self, turn: _Turn, deadline: Deadline) -> ExtractionResult:
+        assert turn.context is not None
+        try:
+            return await self._llm.extract(turn.message, turn.context, deadline)
+        except ExtractionUnavailableError as exc:  # contract 3
+            turn.llm_ok = False
+            return exc.fallback
+        except Exception:
+            turn.llm_ok = False
+            return ExtractionResult(flags=self._detector.detect(turn.message))
+
+    async def _kev(self, turn: _Turn, deadline: Deadline | None) -> ModelSignals:
+        assert turn.context is not None
+        try:
+            return await self._decision.signals(turn.message, turn.context, deadline)
+        except Exception:
+            return ModelSignals(source=ModelSource.UNAVAILABLE)
+
+    def _resolve_language(self, turn: _Turn) -> None:
+        """Contract 10: the conversation keeps its language until a message is clearly in
+        another one; short or ambiguous messages ("C2", "sí") do not change it."""
+        state, extraction = turn.state, turn.extraction
+        detected = extraction.detected_language if extraction else None
+        ambiguous = extraction.language_ambiguous if extraction else True
+        if detected is None and not turn.llm_ok:
+            guessed = guess_language(turn.message)
+            detected, ambiguous = (guessed.value, False) if guessed else (None, True)
+        if detected in SUPPORTED and not ambiguous:
+            state.language = Language(detected)
+            turn.detected_language, turn.language_ambiguous = detected, False
+        elif detected is not None and not ambiguous:
+            turn.detected_language, turn.language_ambiguous = detected, False
+        elif state.language is not None:
+            turn.detected_language, turn.language_ambiguous = state.language.value, False
+        elif (
+            len(turn.message.split()) >= MIN_GUESS_WORDS
+            and (guessed := guess_language(turn.message)) is not None
+        ):
+            # A first message the model found ambiguous: the rule-based guess decides before
+            # the customer is asked which language they prefer (not for one or two words,
+            # where it is unreliable: "no sé" reads as Portuguese).
+            state.language = guessed
+            turn.detected_language, turn.language_ambiguous = guessed.value, False
+        else:
+            turn.detected_language, turn.language_ambiguous = detected, True
+
+    # ------------------------------------------------------------------ merging the message
+
+    async def _merge(self, turn: _Turn) -> bool:
+        """Apply the extraction to the conversation. True when the reply is already decided."""
+        state, extraction = turn.state, turn.extraction
+        if extraction is None:
+            return False
+        claims = [c for c in extraction.customer_claims if c not in state.claims]
+        state.claims.extend(claims)
+        self._merge_flags(state, extraction.flags, extraction.customer_claims)
+        new = extraction.slots
+        answer = new.confirmation
+        pending, target = state.pending, state.pending_target
+        state.pending, state.pending_target = Pending.NONE, None
+        urgent = state.flags.human_requested or state.flags.legal_or_vulnerability
+
+        if pending is Pending.BLOCK_OFFER:
+            # Whatever else the customer said is kept, even when the block is asked again.
+            self._apply_slots(
+                turn, new.model_copy(update={"confirmation": None}), extraction.customer_claims
+            )
+            if answer is Confirmation.CONFIRMED:
+                await self._block_card(turn)
+            elif answer in (Confirmation.DECLINED, Confirmation.WITHDRAWN):
+                state.block_offer = BlockOffer.DECLINED  # the dispute goes on (COM-03)
+            elif urgent:
+                pass  # still offered and unconfirmed: the handoff tells the agent (contract 7)
+            elif self._asked(state, ClarifyTarget.CONFIRMATION) < BLOCK_REASKS:
+                self._count(state, ClarifyTarget.CONFIRMATION)
+                state.pending = Pending.BLOCK_OFFER
+                self._offer_block(turn, reask=True)
+                return True
+            else:
+                state.block_offer = BlockOffer.DECLINED  # no clear yes: nothing is blocked
+            return False
+
+        summary_reply = pending is Pending.SUMMARY or (
+            pending is Pending.CLARIFY and target in SUMMARY_TARGETS
+        )
+        if summary_reply:
+            correcting = answer is Confirmation.DECLINED or (
+                target is ClarifyTarget.CORRECTION and answer is not Confirmation.WITHDRAWN
+            )
+            if correcting:
+                return self._correct(turn, new, extraction.customer_claims)
+            changed = self._apply_slots(turn, new, extraction.customer_claims)
+            if not changed and answer is not None:
+                state.slots = state.slots.model_copy(update={"confirmation": answer})
+            return False
+
+        if pending is Pending.CLARIFY and target is ClarifyTarget.DUPLICATE_REF:
+            if answer is Confirmation.CONFIRMED and state.pending_duplicate_id:
+                state.slots = state.slots.model_copy(
+                    update={"duplicate_ref": state.pending_duplicate_id, "confirmation": None}
+                )
+                self._mark(turn, SlotName.DUPLICATE_REF, extraction.customer_claims)
+                return False
+            if answer is not None:
+                state.slots = state.slots.model_copy(update={"confirmation": answer})
+                return False
+
+        self._apply_slots(turn, new, extraction.customer_claims)
+        return False
+
+    def _correct(self, turn: _Turn, new: Slots, claims: list[str]) -> bool:
+        """Contract 6: a declined summary is a proposed correction (corrections.py)."""
+        state = turn.state
+        identified = self._find(turn.records.pool, state.last_transaction_id)
+        correction = apply_declined_correction(state.slots, new, identified)
+        if correction.clarify_target is ClarifyTarget.REASON_CODE:
+            state.slots = correction.slots
+            self._count(state, ClarifyTarget.REASON_CODE)
+            self._new_reply(turn).add("clarify_reason_code")
+            state.pending, state.pending_target = Pending.CLARIFY, ClarifyTarget.REASON_CODE
+            turn.reply_kind = "clarify:reason_code"
+            turn.outcome = Outcome.CLARIFY
+            return True
+        baseline = state.slots.model_copy(update={"confirmation": None})
+        if correction.slots == baseline:
+            # Nothing to correct with: ask which detail is wrong (ask_correction).
+            state.slots = state.slots.model_copy(update={"confirmation": Confirmation.DECLINED})
+            return False
+        for name in SlotName:
+            if getattr(correction.slots, name.value) != getattr(baseline, name.value):
+                self._mark(turn, name, claims)
+        if correction.rematch and new.transaction_ref is not None:
+            self._remember_said(state, new.transaction_ref, picked=None)
+        elif correction.rematch and correction.slots.transaction_ref is not None:
+            amount = correction.slots.transaction_ref.amount
+            said = state.transaction_ref_said or TransactionRef(amount=amount)
+            state.transaction_ref_said = said.model_copy(update={"amount": amount})
+            state.picked_candidate = None
+        state.slots = correction.slots
+        return False
+
+    def _apply_slots(self, turn: _Turn, new: Slots, claims: list[str]) -> bool:
+        """Merge the slots of this message; True if any changed. A change after the summary
+        clears the confirmation (contract 5)."""
+        state = turn.state
+        updates: dict[str, object] = {}
+        for name in SlotName:
+            if name in (SlotName.CONFIRMATION, SlotName.TRANSACTION_REF):
+                continue
+            value = getattr(new, name.value)
+            if value is not None and value != getattr(state.slots, name.value):
+                updates[name.value] = value
+        if new.transaction_ref is not None:
+            merged = self._merge_reference(state, new.transaction_ref)
+            if merged != state.slots.transaction_ref:
+                updates[SlotName.TRANSACTION_REF.value] = merged
+        if not updates:
+            return False
+        if state.slots.confirmation is not None:
+            updates["confirmation"] = None
+        state.slots = state.slots.model_copy(update=updates)
+        for key in updates:
+            if key != "confirmation":
+                self._mark(turn, SlotName(key), claims)
+        return True
+
+    def _merge_reference(self, state: ConversationState, ref: TransactionRef) -> TransactionRef:
+        if ref.transaction_id is not None:
+            picked = (
+                state.shown_candidates.index(ref.transaction_id) + 1
+                if ref.transaction_id in state.shown_candidates
+                else None
+            )
+            self._remember_said(state, ref, picked)
+            return ref
+        current = state.slots.transaction_ref
+        base = current.model_dump(exclude={"transaction_id"}, exclude_none=True) if current else {}
+        base.update(ref.model_dump(exclude_none=True))
+        self._remember_said(state, ref, picked=None)
+        return TransactionRef.model_validate(base)
+
+    @staticmethod
+    def _remember_said(state: ConversationState, ref: TransactionRef, picked: int | None) -> None:
+        """What the customer said about the transaction: descriptors, an ID only if typed."""
+        said = ref.model_dump(exclude_none=True)
+        if picked is not None:
+            said.pop("transaction_id", None)
+        if picked is None and "transaction_id" not in said and state.transaction_ref_said:
+            said = {
+                **state.transaction_ref_said.model_dump(
+                    exclude={"transaction_id"}, exclude_none=True
+                ),
+                **said,
+            }
+        state.transaction_ref_said = TransactionRef.model_validate(said) if said else None
+        state.picked_candidate = picked
+
+    def _merge_flags(
+        self, state: ConversationState, flags: ConversationFlags, claims: list[str]
+    ) -> None:
+        sticky = ("human_requested", "account_takeover_reported", "legal_or_vulnerability")
+        updates: dict[str, bool] = {"authentication_declined": flags.authentication_declined}
+        for name in sticky:
+            raised = getattr(flags, name)
+            if raised and not getattr(state.flags, name) and claims:
+                state.evidence_claims[name] = list(claims)
+            updates[name] = getattr(state.flags, name) or raised
+        state.flags = ConversationFlags(**updates)
+
+    def _mark(self, turn: _Turn, slot: SlotName, claims: list[str]) -> None:
+        turn.state.slot_turns[slot] = turn.state.turn_index
+        if claims:
+            turn.state.evidence_claims[slot.value] = list(claims)
+
+    # ------------------------------------------------------------------ evaluation
+
+    async def _evaluate_and_act(self, turn: _Turn) -> None:
+        request = await self._request(turn)
+        with self._stage(turn, "policy"):
+            decision = self._engine.evaluate(request)
+        turn.decisions.append(decision)
+        await self._act(turn, request, decision)
+
+    async def _request(self, turn: _Turn) -> PolicyRequest:
+        state, records, session = turn.state, turn.records, turn.session
+        pool = list(records.pool)
+        violation = False
+        ref = state.slots.transaction_ref
+        if (
+            session is not None
+            and ref is not None
+            and ref.transaction_id is not None
+            and all(t.transaction_id != ref.transaction_id for t in pool)
+        ):
+            assert turn.tools is not None
+            try:
+                pool = await self._io(turn.tools.transaction_candidates, ref.transaction_id)
+            except AccessDeniedError:
+                violation = True  # GATE-04: neither confirmed nor denied
+        current = 1 if state.slots.reason_code is ReasonCode.UNRECOGNIZED else 0
+        counters = state.counters.model_copy(
+            update={"unrecognized_transactions": len(state.unrecognized_ids) + current}
+        )
+        return PolicyRequest(
+            now=self._clock(),
+            as_of=self._config.as_of,
+            conversation_id=state.conversation_id,
+            detected_language=turn.detected_language,
+            language_ambiguous=turn.language_ambiguous,
+            session=session,
+            slots=state.slots,
+            flags=state.flags,
+            signals=turn.signals or ModelSignals(source=ModelSource.UNAVAILABLE),
+            input_guard=turn.guard,
+            counters=counters,
+            customer=records.customer if session else None,
+            ownership_violation=violation,
+            transaction_candidates=pool if session else [],
+            products=records.products if session else [],
+            cases=records.cases if session else [],
+            tool_results=list(state.tool_results),
+        )
+
+    async def _act(self, turn: _Turn, request: PolicyRequest, decision: PolicyDecision) -> None:
+        state = turn.state
+        state.last_transaction_id = decision.transaction_id
+        rules = decision.triggered_rules
+        if decision.card_already_blocked and not state.card_already_blocked_told:
+            product = self._product_of(turn, decision.transaction_id)
+            if product is not None:
+                turn.prefix.append(
+                    ("card_already_blocked", {"product": product.product_number_masked})
+                )
+            state.card_already_blocked_told = True
+            state.block_offer = BlockOffer.DONE
+        if (
+            decision.card_product_id is not None
+            and decision.outcome is not Outcome.REFUSE
+            and "ESC-05" not in rules
+            and state.block_offer is BlockOffer.NOT_OFFERED
+        ):
+            # Contracts 5 and 8: the block is confirmed first, on its own; not a clarification.
+            state.block_offer, state.block_product_id = BlockOffer.OFFERED, decision.card_product_id
+            state.pending = Pending.BLOCK_OFFER
+            self._offer_block(turn, reask=False)
+            return
+        if decision.outcome is Outcome.CLARIFY:
+            self._clarify(turn, request, decision)
+        elif decision.outcome is Outcome.INFORM:
+            self._inform(turn, decision)
+        elif decision.outcome is Outcome.REFUSE:
+            self._new_reply(turn).add("refuse")
+            turn.reply_kind, turn.outcome = "refuse", Outcome.REFUSE
+            state.slots = state.slots.model_copy(update={"transaction_ref": None})
+            state.transaction_ref_said, state.picked_candidate = None, None
+        elif decision.outcome is Outcome.RESOLVE:
+            await self._resolve(turn, request, decision)
+        else:
+            await self._escalate(turn, request, decision)
+
+    def _clarify(self, turn: _Turn, request: PolicyRequest, decision: PolicyDecision) -> None:
+        state = turn.state
+        target = decision.clarify_target
+        assert target is not None
+        reply = self._new_reply(turn)
+        turn.outcome = Outcome.CLARIFY
+        turn.reply_kind = f"clarify:{target.value}"
+        state.pending, state.pending_target = Pending.CLARIFY, target
+        first_summary = target is ClarifyTarget.CONFIRMATION and request.slots.confirmation is None
+        if target is ClarifyTarget.AUTHENTICATION:
+            reconfirm = (
+                state.slots.confirmation is not None or state.block_offer is BlockOffer.OFFERED
+            )
+            reconfirm = reconfirm or state.last_reply_kind in ("summary", "clarify:confirmation")
+            # Contract 11: a confirmation from before the expiry no longer counts.
+            reply.add("session_expired_reconfirm" if reconfirm else "ask_authentication")
+            state.slots = state.slots.model_copy(update={"confirmation": None})
+            state.counters = state.counters.model_copy(
+                update={"authentication_attempts": state.counters.authentication_attempts + 1}
+            )
+        elif target is ClarifyTarget.LANGUAGE:
+            reply.add("ask_language")
+            state.counters = state.counters.model_copy(
+                update={"language_clarifications": state.counters.language_clarifications + 1}
+            )
+        elif first_summary:
+            txn = self._find(request.transaction_candidates, decision.transaction_id)
+            product = self._product_of(turn, decision.transaction_id)
+            assert txn is not None and product is not None and decision.reason_code is not None
+            reply.summary(txn, product, decision.reason_code)
+            state.pending, state.pending_target = Pending.SUMMARY, None
+            turn.reply_kind = "summary"
+        elif target is ClarifyTarget.CONFIRMATION:
+            reply.add("clarify_confirmation")
+        elif target is ClarifyTarget.CORRECTION:
+            reply.add("ask_correction")
+        elif target is ClarifyTarget.TRANSACTION_REF and decision.candidate_transaction_ids:
+            candidates = [
+                txn
+                for tid in decision.candidate_transaction_ids
+                if (txn := self._find(request.transaction_candidates, tid)) is not None
+            ]
+            reply.candidates(candidates, {p.product_id: p for p in turn.records.products})
+            state.shown_candidates = [t.transaction_id for t in candidates]
+        elif target is ClarifyTarget.DUPLICATE_REF:
+            twin = self._find(request.transaction_candidates, decision.duplicate_transaction_id)
+            assert twin is not None
+            reply.add(
+                "clarify_duplicate_ref",
+                transaction_date=format_date(twin.transaction_date),
+                amount=reply.amount(twin),
+            )
+            state.pending_duplicate_id = twin.transaction_id
+        elif target is ClarifyTarget.EXPECTED_AMOUNT:
+            txn = self._find(request.transaction_candidates, decision.transaction_id)
+            reply.add("clarify_expected_amount", currency=txn.currency if txn else "USD")
+        else:
+            reply.add(f"clarify_{target.value}")
+        if target not in NOT_COUNTED and not first_summary:
+            self._count(state, target)
+        if decision.duplicate_reason_reask:
+            state.counters = state.counters.model_copy(update={"duplicate_reason_reasked": True})
+        if target is not ClarifyTarget.TRANSACTION_REF or not decision.candidate_transaction_ids:
+            state.shown_candidates = []
+        if target in SUMMARY_TARGETS or decision.duplicate_reason_reask or first_summary:
+            state.slots = state.slots.model_copy(update={"confirmation": None})  # used
+
+    def _inform(self, turn: _Turn, decision: PolicyDecision) -> None:
+        reason = decision.inform_reason
+        assert reason is not None
+        reply = self._new_reply(turn)
+        if decision.existing_case_id is not None:
+            case = next(c for c in turn.records.cases if c.case_id == decision.existing_case_id)
+            reply.duplicate_case(case)
+        else:
+            reply.add(INFORM_TEMPLATES[reason])
+            reply.add("offer_transfer")
+        turn.reply_kind, turn.outcome = f"inform:{reason.value}", Outcome.INFORM
+        self._close_transaction(turn.state, decision, Outcome.INFORM)
+
+    async def _resolve(self, turn: _Turn, request: PolicyRequest, decision: PolicyDecision) -> None:
+        tools = turn.tools
+        assert tools is not None and decision.transaction_id and decision.reason_code
+        assert decision.tier is not None
+        with self._stage(turn, "tools"):
+            result = await self._io(
+                tools.create_case, decision.transaction_id, decision.reason_code, decision.tier
+            )
+        self._record_tool(turn, result)
+        if result.status is ToolStatus.SUCCESS and result.verified and result.record_id:
+            self._new_reply(turn).add("case_created", case_ref=result.record_id)
+            turn.reply_kind, turn.outcome = "case_created", Outcome.RESOLVE
+            self._close_transaction(turn.state, decision, Outcome.RESOLVE)
+            return
+        # Failed or unverified (COM-04): evaluate again with the result, ESC-10 escalates.
+        retry = request.model_copy(update={"tool_results": list(turn.state.tool_results)})
+        decision = self._engine.evaluate(retry)
+        turn.decisions.append(decision)
+        await self._escalate(turn, retry, decision)
+
+    async def _escalate(
+        self, turn: _Turn, request: PolicyRequest, decision: PolicyDecision
+    ) -> None:
+        state = turn.state
+        questions: list[str] = []
+        offered = decision.card_product_id or state.block_product_id
+        if state.block_offer is BlockOffer.OFFERED or (
+            decision.card_product_id and state.block_offer is BlockOffer.NOT_OFFERED
+        ):
+            # Contract 7: ESC-05 is honored at once; the block goes to the agent.
+            product = self._product_by_id(turn, offered)
+            last4 = product.product_number_masked if product else "the card"
+            questions.append(
+                f"The card block of {last4} was not confirmed because the customer asked for "
+                "a human: offer it."
+            )
+        with self._stage(turn, "handoff"):
+            packet = self._builder.build(
+                request=request,
+                decision=decision,
+                language=state.language or Language.ES,
+                customer_claims=list(state.claims),
+                actions_taken=list(state.tool_results),
+                open_questions=questions,
+                transcript_ref=state.conversation_id,
+                evidence_claims={
+                    name: [c for c in claims if c in state.claims]
+                    for name, claims in state.evidence_claims.items()
+                },
+                slot_turns=dict(state.slot_turns),
+                transaction_ref_said=state.transaction_ref_said,
+                picked_candidate=state.picked_candidate,
+            )
+            assert turn.tools is not None
+            transfer = await self._io(turn.tools.transfer_to_human, packet)
+        self._record_tool(turn, transfer)
+        authenticated = self._authenticated(turn)
+        reply = self._new_reply(turn)
+        if "ESC-10" in decision.triggered_rules:
+            reply.add("tool_failure")
+        turn.outcome = Outcome.ESCALATE
+        if transfer.status is ToolStatus.SUCCESS:
+            reply.add("handoff" if authenticated else "handoff_unauthenticated")
+            turn.reply_kind = "handoff"
+            turn.handoff_id = packet.handoff_id
+            state.closed, state.handoff_id = True, packet.handoff_id
+        else:
+            if "tool_failure" not in reply.ids:
+                reply.add("tool_failure")
+            reply.add("offer_transfer")
+            turn.reply_kind = "handoff_failed"
+        if decision.transaction_id:
+            state.outcomes[decision.transaction_id] = Outcome.ESCALATE
+
+    # ------------------------------------------------------------------ actions
+
+    async def _block_card(self, turn: _Turn) -> None:
+        state = turn.state
+        assert turn.tools is not None and state.block_product_id is not None
+        with self._stage(turn, "tools"):
+            result = await self._io(turn.tools.block_card, state.block_product_id)
+        self._record_tool(turn, result)
+        state.block_offer = BlockOffer.DONE
+        if result.status is ToolStatus.SUCCESS and result.verified:
+            product = self._product_by_id(turn, state.block_product_id)
+            masked = product.product_number_masked if product else None
+            if masked:
+                turn.prefix.append(("card_blocked", {"product": masked}))
+
+    def _offer_block(self, turn: _Turn, *, reask: bool) -> None:
+        product = self._product_by_id(turn, turn.state.block_product_id)
+        assert product is not None
+        self._new_reply(turn).add("confirm_block_card", product=product.product_number_masked)
+        turn.reply_kind = "block_offer"
+
+    def _record_tool(self, turn: _Turn, result: ToolResult) -> None:
+        turn.tool_calls.append(result)
+        if result.action is not ActionId.TRANSFER_TO_HUMAN:
+            turn.state.tool_results.append(result)
+
+    def _close_transaction(
+        self, state: ConversationState, decision: PolicyDecision, outcome: Outcome
+    ) -> None:
+        if decision.transaction_id:
+            state.outcomes[decision.transaction_id] = outcome
+            if decision.reason_code is ReasonCode.UNRECOGNIZED:
+                state.unrecognized_ids.add(decision.transaction_id)
+        state.reset_transaction()
+
+    # ------------------------------------------------------------------ failures
+
+    async def _emergency(self, turn: _Turn, exc: Exception) -> None:
+        """Contract 4: a handoff with the tool_failure notice; the trace records the error."""
+        state = turn.state
+        turn.error = f"{type(exc).__name__}: {exc}"[:500]
+        turn.prefix.clear()
+        evidence = Evidence(
+            kind=EvidenceKind.TOOL_RESULT,
+            name="orchestrator",
+            value=type(exc).__name__,
+            origin="Orchestrator",
+        )
+        decision = PolicyDecision(
+            outcome=Outcome.ESCALATE,
+            policy_version=self._config.policy_version,
+            triggered_rules=["ESC-10"],
+            authorized_actions=[ActionId.TRANSFER_TO_HUMAN],
+            queue=Queue.DISPUTES,
+            priority=Priority.NORMAL,
+            evidence=[RuleEvidence(rule_id="ESC-10", evidence=[evidence])],
+        )
+        authenticated = turn.session is not None
+        reply = Reply(self._templates, state.language or Language.ES, self._locale(turn))
+        reply.add("tool_failure")
+        turn.reply, turn.outcome, turn.reply_kind = reply, Outcome.ESCALATE, "tool_failure"
+        try:
+            request = PolicyRequest(
+                now=self._clock(),
+                as_of=self._config.as_of,
+                conversation_id=state.conversation_id,
+                session=turn.session,
+            )
+            packet = self._builder.build(
+                request=request,
+                decision=decision,
+                language=state.language or Language.ES,
+                customer_claims=list(state.claims),
+                actions_taken=list(state.tool_results),
+                open_questions=["The conversation stopped on an internal error: review it."],
+                transcript_ref=state.conversation_id,
+            )
+            tools = turn.tools or self._tools(turn.session, state.conversation_id)
+            transfer = await self._io(tools.transfer_to_human, packet)
+            if transfer.status is ToolStatus.SUCCESS:
+                reply.add("handoff" if authenticated else "handoff_unauthenticated")
+                state.closed, state.handoff_id = True, packet.handoff_id
+                turn.handoff_id = packet.handoff_id
+                return
+        except Exception as failure:
+            turn.error += f" | handoff failed: {type(failure).__name__}"
+        reply.add("offer_transfer")
+
+    # ------------------------------------------------------------------ reply and trace
+
+    async def _finish_reply(self, turn: _Turn) -> str:
+        reply = turn.reply or self._new_reply(turn)
+        if turn.prefix:
+            ids, texts = list(reply.ids), list(reply.texts)
+            reply.ids, reply.texts = [], []
+            for template_id, values in turn.prefix:
+                reply.add(template_id, **values)
+            reply.ids += ids
+            reply.texts += texts
+        try:
+            reply.check(self._authenticated(turn) or turn.session is not None)
+        except Exception as exc:
+            if turn.error is None:
+                await self._emergency(turn, exc)
+                reply = turn.reply or reply
+        text = reply.text
+        state = turn.state
+        if (
+            turn.llm_ok
+            and turn.deadline is not None
+            and turn.context is not None
+            and state.language is not None
+            and "ask_language" not in reply.ids
+        ):
+            context = turn.context.model_copy(update={"language": state.language})
+            try:
+                with self._stage(turn, "connect"):
+                    text = await self._llm.connect(text, turn.message, context, turn.deadline)
+            except Exception:
+                text = reply.text
+        return text
+
+    def _trace(self, turn: _Turn, calls: list[Any], total_ms: float) -> None:
+        state = turn.state
+        tokens = sum(
+            (c.input_tokens or 0) + (c.output_tokens or 0) for c in calls if c.provider == "openai"
+        )
+        state.tokens_used += tokens
+        state.last_reply_kind = turn.reply_kind
+        cost: Decimal | None = estimate_cost(calls, self._config.rates)
+        trace = TraceRecord(
+            trace_id=turn.trace_id,
+            conversation_id=state.conversation_id,
+            session_id=turn.session.session_id if turn.session else None,
+            turn_index=state.turn_index,
+            created_at=turn.created_at,
+            language=state.language,
+            message=turn.message,
+            input_guard=turn.guard,
+            model_calls=list(calls),
+            signals=turn.signals,
+            decisions=list(turn.decisions),
+            tool_calls=list(turn.tool_calls),
+            outcome=turn.outcome,
+            handoff_id=turn.handoff_id,
+            stage_latencies_ms=dict(turn.stages),
+            total_latency_ms=total_ms,
+            estimated_cost_usd=cost,
+            policy_version=self._config.policy_version,
+            error=turn.error,
+        )
+        try:
+            self._tracer.record(trace)
+        except Exception:  # the reply must not fail because the trace could not be stored
+            turn.error = turn.error or "trace not stored"
+
+    # ------------------------------------------------------------------ helpers
+
+    def _new_reply(self, turn: _Turn) -> Reply:
+        language = turn.state.language or guess_language(turn.message) or Language.ES
+        turn.reply = Reply(self._templates, language, self._locale(turn))
+        return turn.reply
+
+    def _locale(self, turn: _Turn) -> Locale:
+        language = turn.state.language or guess_language(turn.message) or Language.ES
+        return locale_for(language, turn.records.country)
+
+    def _authenticated(self, turn: _Turn) -> bool:
+        return any(
+            gate.gate_id == "GATE-02" and gate.passed
+            for decision in turn.decisions
+            for gate in decision.gates_evaluated
+        )
+
+    @staticmethod
+    def _find(
+        records: list[TransactionRecord], transaction_id: str | None
+    ) -> TransactionRecord | None:
+        return next((t for t in records if t.transaction_id == transaction_id), None)
+
+    def _product_by_id(self, turn: _Turn, product_id: str | None) -> ProductRecord | None:
+        return next((p for p in turn.records.products if p.product_id == product_id), None)
+
+    def _product_of(self, turn: _Turn, transaction_id: str | None) -> ProductRecord | None:
+        txn = self._find(turn.records.pool, transaction_id)
+        return self._product_by_id(turn, txn.product_id) if txn else None
+
+    @staticmethod
+    def _asked(state: ConversationState, target: ClarifyTarget) -> int:
+        return state.counters.clarifications_by_slot.get(target, 0)
+
+    @staticmethod
+    def _count(state: ConversationState, target: ClarifyTarget) -> None:
+        by_slot = dict(state.counters.clarifications_by_slot)
+        by_slot[target] = by_slot.get(target, 0) + 1
+        state.counters = state.counters.model_copy(
+            update={
+                "clarifications_by_slot": by_slot,
+                "total_clarifications": state.counters.total_clarifications + 1,
+            }
+        )
+
+    @contextmanager
+    def _stage(self, turn: _Turn, name: str) -> Iterator[None]:
+        started = time.perf_counter()
+        try:
+            yield
+        finally:
+            turn.stages[name] = turn.stages.get(name, 0.0) + (time.perf_counter() - started) * 1000
+
+    @staticmethod
+    async def _io(fn: Callable[..., T], *args: Any) -> T:
+        """Blocking database work runs in a thread (architecture §3)."""
+        return await asyncio.to_thread(fn, *args)
