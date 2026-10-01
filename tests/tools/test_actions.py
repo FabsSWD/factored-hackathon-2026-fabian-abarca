@@ -395,6 +395,7 @@ def test_no_prohibited_action_exists() -> None:
     assert sorted(public) == [
         "block_card",
         "create_case",
+        "customer_country",
         "get_case",
         "get_customer",
         "get_product",

@@ -163,3 +163,11 @@ def test_every_record_names_its_source_and_id(tools: DatabaseToolLayer) -> None:
     assert fact == VerifiedFact(
         fact="Card ending 4821 is Active", source="products", record_id=CARD
     )
+
+
+def test_customer_country_is_presentation_only(
+    tools: DatabaseToolLayer, make_tools: ToolFactory
+) -> None:
+    assert tools.customer_country() == "Colombia"
+    assert make_tools(None).customer_country() is None
+    assert "country" not in tools.get_customer().model_dump()  # never a decision input
