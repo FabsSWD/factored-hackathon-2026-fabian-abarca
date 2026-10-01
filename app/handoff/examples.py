@@ -1,6 +1,12 @@
 """Example handoff packets, one per route, from synthetic records through the real Policy
 Engine and Handoff Builder. Used by ``scripts/show_handoff_example.py`` (packet review, M15,
-the demo) and by the tests. No database and no model calls."""
+the demo) and by the tests. No database and no model calls.
+
+The model signals of each example are what that turn would really have: Kev's answer about the
+reason the customer gave; the extraction fallback (``derive_fallback``) when Kev did not answer;
+and ``unavailable`` when the Input Guard flagged the message, which then reaches neither the LLM
+nor Kev.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +19,7 @@ from app.contracts import (
     ConversationCounters,
     ConversationFlags,
     CustomerRecord,
+    ExtractionResult,
     HandoffPacket,
     InputGuardResult,
     Language,
@@ -28,6 +35,7 @@ from app.contracts import (
     TransactionRecord,
     TransactionRef,
 )
+from app.decision.fallback import derive_fallback
 from app.handoff.builder import PolicyHandoffBuilder
 from app.policy.engine import DeterministicPolicyEngine
 
@@ -78,20 +86,45 @@ _LAPTOP = TransactionRecord(
     merchant_name="Electro Mundo",
     fraud_score=18.0,
 )
-_KEV = ModelSignals(
-    source=ModelSource.KEV,
-    model_version="jaredpalmer/kev-0.8b@2026-09-24",
-    model_info={"run": "jaredpalmer/kev-0.8b", "release_date": "2026-09-24"},
-    reason_code_probs={
+_KEV_SERVING = {
+    "model_version": "jaredpalmer/kev-0.8b@2026-09-24",
+    "model_info": {"run": "jaredpalmer/kev-0.8b", "release_date": "2026-09-24"},
+}
+
+
+def _kev(probs: dict[ReasonCode, float], other: float, risk: float) -> ModelSignals:
+    """Kev's answer: a complete distribution over the five codes plus OTHER."""
+    return ModelSignals(
+        source=ModelSource.KEV,
+        reason_code_probs=probs,
+        reason_code_other=other,
+        ambiguity=0.52,
+        escalation_risk=risk,
+        **_KEV_SERVING,  # type: ignore[arg-type]
+    )
+
+
+_KEV_NOT_RECEIVED = _kev(
+    {
+        ReasonCode.UNRECOGNIZED: 0.02,
+        ReasonCode.DUPLICATE: 0.01,
+        ReasonCode.INCORRECT_AMOUNT: 0.04,
+        ReasonCode.NOT_RECEIVED: 0.9,
+        ReasonCode.FEE: 0.0,
+    },
+    other=0.03,
+    risk=0.55,
+)
+_KEV_UNRECOGNIZED = _kev(
+    {
         ReasonCode.UNRECOGNIZED: 0.94,
         ReasonCode.DUPLICATE: 0.03,
         ReasonCode.INCORRECT_AMOUNT: 0.01,
         ReasonCode.NOT_RECEIVED: 0.01,
         ReasonCode.FEE: 0.0,
     },
-    reason_code_other=0.01,
-    ambiguity=0.52,
-    escalation_risk=0.58,
+    other=0.01,
+    risk=0.58,
 )
 
 
@@ -102,7 +135,6 @@ def _request(**values: object) -> PolicyRequest:
         "conversation_id": "CONV-EXAMPLE",
         "detected_language": "es",
         "session": _SESSION,
-        "signals": _KEV,
         "customer": CustomerRecord(customer_id=CUSTOMER_ID, customer_status="Active"),
         "transaction_candidates": [_PURCHASE, _LAPTOP],
         "products": [_CARD],
@@ -142,6 +174,7 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
                     merchant_contacted=True,
                 ),
                 flags=ConversationFlags(human_requested=True),
+                signals=_KEV_NOT_RECEIVED,
             ),
             Language.ES,
             ["La laptop nunca llegó", "Ya escribió a la tienda"],
@@ -157,6 +190,7 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
                     shared_credentials=False,
                 ),
                 flags=ConversationFlags(account_takeover_reported=True),
+                signals=_KEV_UNRECOGNIZED,
             ),
             Language.PT,
             ["Não fez a compra", "O celular foi roubado no dia 9 de junho"],
@@ -170,6 +204,8 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
                 input_guard=InputGuardResult(
                     flagged=True, strikes=2, pattern_id="override", escalate_security=True
                 ),
+                # The flagged message reached neither the LLM nor Kev.
+                signals=ModelSignals(source=ModelSource.UNAVAILABLE),
             ),
             Language.ES,
             [],
@@ -182,7 +218,10 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
                 customer=None,
                 transaction_candidates=[],
                 products=[],
-                signals=ModelSignals(source=ModelSource.LLM_FALLBACK),
+                # Kev did not answer: the fallback derived from this turn's extraction.
+                signals=derive_fallback(
+                    ExtractionResult(flags=ConversationFlags(human_requested=True))
+                ),
                 flags=ConversationFlags(human_requested=True),
             ),
             Language.ES,

@@ -299,11 +299,14 @@ class OtpFailure(Base):
 
 
 class AuditLog(Base):
-    """Turn traces (architecture §9) and security events (GATE-04, ESC-13, failed OTPs)."""
+    """Turn traces (architecture §9), security events (GATE-04, ESC-13, failed OTPs), and
+    reads of the audit API (audit_access)."""
 
     __tablename__ = "audit_logs"
     __table_args__ = (
-        CheckConstraint(_in("event_type", ("security_event", "turn_trace")), name="event_type"),
+        CheckConstraint(
+            _in("event_type", ("audit_access", "security_event", "turn_trace")), name="event_type"
+        ),
         CheckConstraint(
             "(event_type = 'turn_trace') = (trace_id IS NOT NULL)", name="trace_id_for_traces"
         ),

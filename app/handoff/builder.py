@@ -345,6 +345,7 @@ class PolicyHandoffBuilder:
         return HandoffModelSignals(
             source=signals.source,
             reason_code_probs=signals.reason_code_probs,
+            reason_code_other=signals.reason_code_other,
             escalation_risk=signals.escalation_risk,
             model_version=signals.model_version,
             model_info=signals.model_info,

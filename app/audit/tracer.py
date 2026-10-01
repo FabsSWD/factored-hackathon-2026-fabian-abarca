@@ -21,6 +21,7 @@ from app.contracts import Language, Outcome, TraceRecord
 from app.storage.models import AuditLog
 
 TRACE_EVENT = "turn_trace"
+ACCESS_EVENT = "audit_access"
 METRICS_MAX_TRACES = 100_000
 
 
@@ -71,6 +72,19 @@ class DatabaseAuditTracer:
                 if "trace_id" in str(exc.orig):
                     raise DuplicateTraceError(kept.trace_id) from exc
                 raise
+
+    def record_access(self, endpoint: str, details: dict[str, object], *, granted: bool) -> None:
+        """Every read of the audit API: what was read (trace or filters), when, and whether
+        access was granted. There is no per-agent identity, so reads are not attributed to a
+        person (a documented limitation)."""
+        with self._sessions() as db:
+            db.add(
+                AuditLog(
+                    event_type=ACCESS_EVENT,
+                    payload={"endpoint": endpoint, "granted": granted, **details},
+                )
+            )
+            db.commit()
 
     def get(self, trace_id: str) -> TraceRecord | None:
         with self._sessions() as db:

@@ -118,6 +118,7 @@ class _Attempt:
     prompt_hash: str
     started: float
     tokens_in: int | None = None
+    tokens_cached: int | None = None
     tokens_out: int | None = None
     response_model: str | None = None
     fingerprint: str | None = None
@@ -237,6 +238,8 @@ class OpenAIJsonClient:
             payload = response.json()
             usage = payload.get("usage") or {}
             record.tokens_in = usage.get("prompt_tokens")
+            details = usage.get("prompt_tokens_details") or {}
+            record.tokens_cached = details.get("cached_tokens")
             record.tokens_out = usage.get("completion_tokens")
             record.response_model = payload.get("model") or None
             record.fingerprint = payload.get("system_fingerprint") or None
@@ -281,6 +284,7 @@ class OpenAIJsonClient:
                 prompt_hash=record.prompt_hash,
                 purpose=record.purpose,
                 input_tokens=record.tokens_in,
+                cached_input_tokens=record.tokens_cached,
                 output_tokens=record.tokens_out,
                 latency_ms=max(0.0, (self._monotonic() - record.started) * 1000),
                 success=error is None,

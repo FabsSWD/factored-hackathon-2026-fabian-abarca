@@ -746,6 +746,7 @@ class HandoffModelSignals(Contract):
 
     source: ModelSource | None = None
     reason_code_probs: dict[ReasonCode, Probability] = Field(default_factory=dict)
+    reason_code_other: Probability | None = None  # a reason outside the five codes
     escalation_risk: Probability | None = None
     model_version: NonEmptyStr | None = None
     model_info: dict[NonEmptyStr, str] = Field(default_factory=dict)  # Kev run, release_date
