@@ -13,6 +13,10 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class PseudonymKeyMissingError(RuntimeError):
+    """PSEUDONYM_KEY is required to start the application."""
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", frozen=True)
 
@@ -29,6 +33,9 @@ class Settings(BaseSettings):
     business_day_cutoff: time = time(6, 0)
 
     document_hash_key: SecretStr | None = None
+    # Key of the pseudonymous customer references (app/pseudonym.py), separate from
+    # DOCUMENT_HASH_KEY so each key can be rotated on its own. Required at startup.
+    pseudonym_key: SecretStr | None = None
 
     # Identity service (mock of an identity provider). Session age and idle limits are policy
     # parameters (GATE-02); these settings belong to the provider itself.
@@ -58,6 +65,16 @@ class Settings(BaseSettings):
     # /auth/verify (which have no session yet).
     rate_limit_requests_per_minute: int = Field(default=20, gt=0)
     auth_rate_limit_per_minute: int = Field(default=10, gt=0)
+
+    def require_pseudonym_key(self) -> str:
+        """The pseudonym key, or ``PseudonymKeyMissingError`` (the application does not start
+        without it)."""
+        key = self.pseudonym_key.get_secret_value() if self.pseudonym_key else ""
+        if not key:
+            raise PseudonymKeyMissingError(
+                "PSEUDONYM_KEY is not set: it keys the pseudonymous customer references"
+            )
+        return key
 
     @property
     def owner_database_url(self) -> str | None:

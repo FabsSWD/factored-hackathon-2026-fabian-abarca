@@ -361,6 +361,8 @@ class ModelSignals(Contract):
 
     source: ModelSource
     model_version: NonEmptyStr | None = None
+    # Serving details reported by the model (Kev: run, release_date), for the handoff (§13).
+    model_info: dict[NonEmptyStr, str] = Field(default_factory=dict)
     reason_code_probs: dict[ReasonCode, Probability] = Field(default_factory=dict)
     reason_code_other: Probability | None = None
     ambiguity: Probability | None = None
@@ -510,6 +512,7 @@ class ToolResult(Contract):
     record_id: NonEmptyStr | None = None
     detail: str | None = None
     error: str | None = None
+    completed_at: AwareDatetime | None = None  # real time, set by the Tool Layer
 
     @model_validator(mode="after")
     def _check(self) -> Self:
@@ -600,6 +603,35 @@ class PolicyRequest(Contract):
         return self
 
 
+class EvidenceKind(StrEnum):
+    """Where a piece of evidence for a fired rule comes from."""
+
+    SLOT = "slot"  # a value the customer stated (DATA-03: a claim)
+    FLAG = "flag"  # a customer-statement flag (rule detector and/or LLM extraction)
+    COUNTER = "counter"  # a conversation counter kept by the Orchestrator
+    RECORD = "record"  # a verified record (DATA-04: source table and record ID)
+    SIGNAL = "signal"  # decision-layer signals (informative)
+    TOOL_RESULT = "tool_result"  # a Tool Layer action result
+    INPUT_GUARD = "input_guard"  # the Input Guard's verdict
+    LANGUAGE = "language"  # language detection
+
+
+class Evidence(Contract):
+    """One input that made a rule fire. Taken from the request, never generated."""
+
+    kind: EvidenceKind
+    name: NonEmptyStr  # e.g. "shared_credentials", "fraud_score", "injection_strikes"
+    value: NonEmptyStr  # e.g. "yes", "91.5 (threshold 35)"
+    origin: NonEmptyStr  # e.g. "customer statement (LLM extraction)", "Core Banking"
+    source: NonEmptyStr | None = None  # table, for records
+    record_id: NonEmptyStr | None = None
+
+
+class RuleEvidence(Contract):
+    rule_id: RuleId
+    evidence: Annotated[list[Evidence], Field(min_length=1)]
+
+
 class GateResult(Contract):
     gate_id: Annotated[str, Field(pattern=r"^GATE-\d{2}$")]
     passed: bool
@@ -634,6 +666,8 @@ class PolicyDecision(Contract):
     duplicate_reason_reask: bool = False
     # Codes for the audit record and the handoff's open_questions, e.g. "fraud_score_missing".
     notes: list[NonEmptyStr] = Field(default_factory=list)
+    # Why each triggered rule fired (handoff escalation_reasons, audit).
+    evidence: list[RuleEvidence] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _check(self) -> Self:
@@ -673,6 +707,9 @@ class PolicyDecision(Contract):
             expected_flag
         ):
             raise ValueError("provisional_credit_flag does not match the tier (policy §6)")
+        escalation_rules = [rule for rule in self.triggered_rules if rule.startswith("ESC-")]
+        if [e.rule_id for e in self.evidence] != escalation_rules:
+            raise ValueError("every triggered escalation rule has its evidence, in the same order")
         return self
 
 
@@ -694,6 +731,7 @@ class ActionTaken(Contract):
     result: ToolStatus
     verified: bool
     detail: str | None = None
+    at: AwareDatetime | None = None  # when the action finished (real time)
 
 
 class DraftCase(Contract):
@@ -706,16 +744,30 @@ class DraftCase(Contract):
 class HandoffModelSignals(Contract):
     """Informative model output shown to the agent (never a decision)."""
 
+    source: ModelSource | None = None
     reason_code_probs: dict[ReasonCode, Probability] = Field(default_factory=dict)
     escalation_risk: Probability | None = None
     model_version: NonEmptyStr | None = None
+    model_info: dict[NonEmptyStr, str] = Field(default_factory=dict)  # Kev run, release_date
+    calibrated: bool = False  # false until M7 calibrates the ESC-11 thresholds
+
+
+class EscalationReason(Contract):
+    """A triggered rule in plain words, with the evidence that made it fire."""
+
+    rule_id: RuleId
+    description: NonEmptyStr
+    evidence: Annotated[list[Evidence], Field(min_length=1)]
 
 
 class HandoffPacket(Contract):
     """Policy §13. Never contains the raw transcript, only ``transcript_ref``."""
 
-    handoff_id: Annotated[str, Field(pattern=r"^HO-\d{8}-\d{6}$")]
+    handoff_id: Annotated[str, Field(pattern=r"^HO-\d{8}-\d{6,}$")]
     created_at: AwareDatetime
+    # The business clock (policy §15): transaction ages are counted against this date, not
+    # against created_at.
+    business_date: date
     language: Language
     queue: Queue
     priority: Priority
@@ -724,6 +776,7 @@ class HandoffPacket(Contract):
     request_summary: NonEmptyStr
     reason_code: ReasonCode | None = None
     triggered_rules: Annotated[list[RuleId], Field(min_length=1)]
+    escalation_reasons: list[EscalationReason] = Field(default_factory=list)
     verified_facts: list[VerifiedFact] = Field(default_factory=list)
     customer_claims: list[NonEmptyStr] = Field(default_factory=list)
     actions_taken: list[ActionTaken] = Field(default_factory=list)
@@ -732,6 +785,12 @@ class HandoffPacket(Contract):
     open_questions: list[NonEmptyStr] = Field(default_factory=list)
     transcript_ref: NonEmptyStr
     policy_version: NonEmptyStr
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if [r.rule_id for r in self.escalation_reasons] != list(self.triggered_rules):
+            raise ValueError("every triggered rule has an escalation reason, in the same order")
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -808,6 +867,9 @@ __all__ = [
     "ConversationFlags",
     "CustomerRecord",
     "DraftCase",
+    "EscalationReason",
+    "Evidence",
+    "EvidenceKind",
     "ExtractionResult",
     "GateResult",
     "HandoffAuth",
@@ -829,6 +891,7 @@ __all__ = [
     "ProvisionalCreditFlag",
     "Queue",
     "ReasonCode",
+    "RuleEvidence",
     "SessionContext",
     "SlotName",
     "Slots",

@@ -154,6 +154,10 @@ class ToolLayer(Protocol):
 
     def get_transaction(self, transaction_id: str) -> TransactionRecord: ...
 
+    def get_case(self, case_id: str) -> CaseRecord:
+        """Filtered by the session customer: case numbers are sequential."""
+        ...
+
     def list_cases(self, transaction_id: str | None = None) -> list[CaseRecord]: ...
 
     # Actions
@@ -172,7 +176,9 @@ class ToolLayer(Protocol):
 
 @runtime_checkable
 class HandoffBuilder(Protocol):
-    """M10. Builds the §13 packet for ESCALATE outcomes only."""
+    """M10. Builds the §13 packet for ESCALATE outcomes only. The summary, the escalation
+    reasons and the verified facts are built from the decision and the records; pass the
+    results of the actions already run in the turn, so facts reflect them."""
 
     def build(
         self,
@@ -180,7 +186,6 @@ class HandoffBuilder(Protocol):
         request: PolicyRequest,
         decision: PolicyDecision,
         language: Language,
-        request_summary: str,
         customer_claims: Sequence[str],
         actions_taken: Sequence[ToolResult],
         open_questions: Sequence[str],

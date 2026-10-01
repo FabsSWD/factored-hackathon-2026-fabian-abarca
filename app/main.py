@@ -26,17 +26,19 @@ def create_app(
     """Build the application. The policy is loaded and validated before serving requests.
 
     Tests inject ``identity`` and ``rate_limits``; otherwise they are built from settings. If
-    the Identity Service is not configured, authentication endpoints answer 503.
+    the Identity Service is not configured, authentication endpoints answer 503. Startup fails
+    without PSEUDONYM_KEY.
     """
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         policy = policy_config or load_policy_config()
         app.state.policy_config = policy
+        resolved = settings or get_settings()
+        app.state.pseudonym_key = resolved.require_pseudonym_key()
         engine = None
         service = identity
         if service is None or rate_limits is None:
-            resolved = settings or get_settings()
             app.state.rate_limits = rate_limits or RateLimits.from_settings(resolved)
             if service is None and resolved.database_url:
                 try:
