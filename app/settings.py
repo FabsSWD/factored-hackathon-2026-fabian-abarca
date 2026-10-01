@@ -72,8 +72,14 @@ class Settings(BaseSettings):
     audit_message_mode: AuditMessageMode = AuditMessageMode.MASKED
     llm_input_usd_per_mtok: Decimal | None = Field(default=None, ge=0)
     llm_output_usd_per_mtok: Decimal | None = Field(default=None, ge=0)
+    llm_cached_input_usd_per_mtok: Decimal | None = Field(default=None, ge=0)
 
-    @field_validator("llm_input_usd_per_mtok", "llm_output_usd_per_mtok", mode="before")
+    @field_validator(
+        "llm_input_usd_per_mtok",
+        "llm_output_usd_per_mtok",
+        "llm_cached_input_usd_per_mtok",
+        mode="before",
+    )
     @classmethod
     def _empty_rate_is_unknown(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value

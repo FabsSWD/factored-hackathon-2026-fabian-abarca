@@ -814,6 +814,8 @@ class ModelCall(Contract):
     model_info: dict[NonEmptyStr, str] = Field(default_factory=dict)
     purpose: NonEmptyStr  # e.g. "extract_slots", "decision_signals"
     input_tokens: NonNegativeInt | None = None
+    # Part of input_tokens the provider served from its prompt cache, when it reports it.
+    cached_input_tokens: NonNegativeInt | None = None
     output_tokens: NonNegativeInt | None = None
     latency_ms: NonNegativeFloat
     success: bool
