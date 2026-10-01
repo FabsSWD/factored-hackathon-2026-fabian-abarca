@@ -360,6 +360,12 @@ Every `ESCALATE` outcome produces one handoff packet. It gives the human agent w
     "Não fiz essa compra",
     "O celular foi roubado no dia 9 de junho"
   ],
+  "collected_slots": [
+    { "name": "transaction_ref", "value": "candidate 2 of the list shown", "turn_index": 0, "verified": false },
+    { "name": "reason_code", "value": "RC_UNRECOGNIZED", "turn_index": 0, "verified": false },
+    { "name": "card_in_possession", "value": "yes", "turn_index": 1, "verified": false },
+    { "name": "shared_credentials", "value": "no", "turn_index": 1, "verified": false }
+  ],
   "actions_taken": [
     {
       "action": "ACT-03",
@@ -404,7 +410,8 @@ Field rules:
 - `verified_facts` MUST each have `source` and `record_id` ([DATA-04](#12-data-handling-and-fairness)). Facts describe the records after the actions of the turn: a card blocked by `ACT-03` is reported as blocked. The customer record is identified by `customer_ref`, never by the customer ID.
 - `business_date` is the business clock ([§15](#15-parameters)). Transaction ages in the facts are counted against it, with the same function as `GATE-08`, never against `created_at`.
 - `customer_claims` are only what the customer said, in the conversation language. The system never writes a claim for the customer. The evidence of a slot or flag lists, in `claims`, the customer's own words behind it (for example, the stolen phone behind `account_takeover_reported`). Everything the system writes (summary, reasons, facts, questions) is in English, the language of the agent console.
-- `open_questions` include every reason-specific slot ([§10](#10-required-information-and-clarification), `GATE-10`) that is still missing, with the same table the policy engine uses to ask for them.
+- `collected_slots` are the slots the customer already gave, with the turn that set them, always unverified claims (DATA-03); `confirmation` is never one of them. Their values, like the customer claims, pass through the same masking as the audit trail. For `transaction_ref` the value is what the customer said (date, amount, merchant, or the candidate picked from a list), never the ID the engine resolved, which is in `verified_facts`; an ID appears only if the customer typed it.
+- `open_questions` include every slot that is still missing: the transaction reference, the reason, and the reason-specific slots ([§10](#10-required-information-and-clarification), `GATE-10`), with the same table the policy engine uses to ask for them. A collected slot is never asked again.
 - `actions_taken` records when each action finished. `model_signals` names its `source` (`kev` or `llm_fallback`), the serving details of Kev, and `calibrated`, which stays false until the `ESC-11` thresholds are calibrated.
 - `actions_taken` lists only actions that were attempted, with their verification result. Failed actions are included.
 - `open_questions` lists what the agent still needs to establish. It is empty only if nothing is pending.
@@ -526,4 +533,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.4.0 | 2026-10-01 | Rules for the Policy Engine: transaction matching (`GATE-05`), age computation (`GATE-08`), any non-draft case blocks (`GATE-11`), `RC_UNRECOGNIZED` with a lost card, `RC_FEE` identification, `ESC-02` counting, `ESC-11` only with Kev signals or unavailable signals, queue precedence for several triggers, `ACT-03` with exactly one active card, declined and withdrawn confirmations. Provisional parameters fixed with data; `FRAUD_SCORE_ESCALATE` = 35. Calibration objective for `ESC-11`. |
 | 0.4.1 | 2026-10-01 | Policy Engine review: `ESC-11` only on `CLARIFY` or `RESOLVE` candidates (§5, §7). `RC_DUPLICATE` asks for another reason exactly once, with its own indicator; the later charge is disputed even if the customer names the earlier one. A delivery due on `BUSINESS_DATE` is not reached. One inclusive window convention (§15). `GATE-04` is per record and independent of `GATE-03`. Values outside the data contract stop evaluation and get a safe answer. |
 | 0.4.2 | 2026-10-01 | Handoff packet (§13): `business_date`, `escalation_reasons` with evidence, templated `request_summary`, facts after actions, action times, model signal source, serving details and calibration state, and the language rule for system text and claims. Limitations: simulated handoff queue and card blocks without unblocking (§17). |
-| 0.4.3 | 2026-10-01 | Handoff packet (§13): claims are only the customer's words, and evidence links to them; open questions list the missing reason-specific slots. |
+| 0.4.3 | 2026-10-01 | Handoff packet (§13): claims are only the customer's words, and evidence links to them; `collected_slots` with the turn that set them; open questions list the missing slots and never a collected one. |

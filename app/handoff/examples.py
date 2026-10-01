@@ -46,8 +46,17 @@ AS_OF = datetime(2026, 6, 18, 6, 0)  # BUSINESS_DATE 2026-06-17 at the 06:00 cut
 CUSTOMER_ID = "CLI-EXAMPLE00001"
 ROUTES = ("disputes", "fraud", "security_review", "unauthenticated")
 
-# request, conversation language, customer claims, actions run, claims behind each slot/flag
-Scenario = tuple[PolicyRequest, Language, list[str], list[ToolResult], dict[str, list[str]]]
+# request, conversation language, customer claims, actions run, claims behind each slot/flag,
+# what the customer said about the transaction, and the candidate they picked from a list
+Scenario = tuple[
+    PolicyRequest,
+    Language,
+    list[str],
+    list[ToolResult],
+    dict[str, list[str]],
+    TransactionRef | None,
+    int | None,
+]
 
 _SESSION = SessionContext(
     session_id="SES-EXAMPLE",
@@ -187,6 +196,9 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
                 "merchant_contacted": ["Ya le escribí a la tienda"],
                 "human_requested": ["Quiero hablar con una persona"],
             },
+            # "la laptop de Electro Mundo del 12 de junio"
+            TransactionRef(transaction_date=datetime(2026, 6, 12).date(), merchant="Electro Mundo"),
+            None,
         ),
         # Unrecognized purchase, stolen phone, card blocked first: fraud queue, high priority.
         "fraud": (
@@ -204,6 +216,8 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
             ["Não fiz essa compra", "O celular foi roubado no dia 9 de junho"],
             [blocked],
             {"account_takeover_reported": ["O celular foi roubado no dia 9 de junho"]},
+            None,
+            2,  # "a segunda" from the two candidates listed
         ),
         # Second manipulation attempt: security review.
         "security_review": (
@@ -223,6 +237,8 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
             [],
             [],
             {},
+            None,
+            None,
         ),
         # A person is requested before authenticating: no account data in the packet.
         "unauthenticated": (
@@ -241,10 +257,12 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
             ["Quiero hablar con una persona"],
             [],
             {"human_requested": ["Quiero hablar con una persona"]},
+            None,
+            None,
         ),
     }
     packets: dict[str, HandoffPacket] = {}
-    for route, (request, language, claims, actions, links) in scenarios.items():
+    for route, (request, language, claims, actions, links, said, picked) in scenarios.items():
         packets[route] = builder.build(
             request=request,
             decision=engine.evaluate(request),
@@ -256,5 +274,7 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
             evidence_claims=links,
             # In these examples every slot the customer gave was set in the first turn.
             slot_turns={name: 0 for name in SlotName},
+            transaction_ref_said=said,
+            picked_candidate=picked,
         )
     return packets

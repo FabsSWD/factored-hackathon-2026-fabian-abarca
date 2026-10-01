@@ -32,6 +32,7 @@ from app.contracts import (
     ToolResult,
     TraceRecord,
     TransactionRecord,
+    TransactionRef,
 )
 from app.deadline import Deadline
 
@@ -193,6 +194,8 @@ class HandoffBuilder(Protocol):
         transcript_ref: str,
         evidence_claims: Mapping[str, Sequence[str]] | None = None,
         slot_turns: Mapping[SlotName, int] | None = None,
+        transaction_ref_said: TransactionRef | None = None,
+        picked_candidate: int | None = None,
     ) -> HandoffPacket: ...
 
 

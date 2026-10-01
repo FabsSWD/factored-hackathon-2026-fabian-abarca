@@ -791,10 +791,12 @@ def test_missing_required_slots_become_questions(reason: ReasonCode) -> None:
 
 
 def test_every_required_slot_has_a_question() -> None:
+    from app.contracts import SlotName
     from app.handoff.builder import SLOT_QUESTIONS
     from app.policy.rules import REQUIRED_SLOTS
 
-    assert {s for slots in REQUIRED_SLOTS.values() for s in slots} == set(SLOT_QUESTIONS)
+    required = {s for slots in REQUIRED_SLOTS.values() for s in slots}
+    assert required | {SlotName.TRANSACTION_REF, SlotName.REASON_CODE} == set(SLOT_QUESTIONS)
 
 
 def test_disputes_example_asks_for_the_delivery_date() -> None:
@@ -909,3 +911,182 @@ def test_examples_cover_every_route() -> None:
     assert packets["unauthenticated"].auth.status is AuthStatus.UNAUTHENTICATED
     assert packets["unauthenticated"].verified_facts == []
     assert len({p.handoff_id for p in packets.values()}) == 4
+
+
+# --- collected_slots ---------------------------------------------------------------------------
+
+
+def test_collected_slots_are_unverified_claims_with_their_turn() -> None:
+    from app.contracts import SlotName
+    from app.handoff.builder import NOT_RECORDED
+
+    req = request(
+        slots=slots(
+            reason_code=ReasonCode.UNRECOGNIZED,
+            card_in_possession=False,
+            shared_credentials=True,
+            expected_amount=None,
+            confirmation=Confirmation.HEDGED,
+        ),
+    )
+    packet = build(
+        req,
+        slot_turns={
+            SlotName.TRANSACTION_REF: 0,
+            SlotName.REASON_CODE: 0,
+            SlotName.SHARED_CREDENTIALS: 2,
+        },
+    )
+    collected = {s.name: (s.value, s.turn_index, s.verified) for s in packet.collected_slots}
+    assert collected == {
+        # The ID in the slots was resolved by the engine, not said by the customer.
+        SlotName.TRANSACTION_REF: (NOT_RECORDED, 0, False),
+        SlotName.REASON_CODE: ("RC_UNRECOGNIZED", 0, False),
+        SlotName.CARD_IN_POSSESSION: ("no", None, False),
+        SlotName.SHARED_CREDENTIALS: ("yes", 2, False),
+    }
+    assert SlotName.CONFIRMATION not in collected
+
+
+def test_collected_slot_values_are_masked() -> None:
+    from app.contracts import SlotName, TransactionRef
+
+    req = request(
+        flags={"human_requested": True},
+        slots=slots(
+            reason_code=ReasonCode.FEE,
+            fee_ref="cobro del 17/06/2026, mi cuenta 4111 1111 1111 1111, cel 300 000 0000",
+            transaction_ref=TransactionRef(
+                transaction_date=date(2026, 6, 10), amount=Decimal("50"), merchant="Cafe"
+            ),
+        ),
+    )
+    collected = {s.name: s.value for s in build(req).collected_slots}
+    assert collected[SlotName.FEE_REF] == "cobro del 17/06/2026, mi cuenta ****1111, cel [telefono]"
+    assert (
+        collected[SlotName.TRANSACTION_REF]
+        == "transaction_date=2026-06-10; amount=50; merchant=Cafe"
+    )
+
+
+def test_customer_claims_are_masked_like_the_rest_of_the_packet() -> None:
+    said = ["Mi documento es X1234567", "Tarjeta 4111-1111-1111-1111"]
+    packet = build(
+        request(flags={"human_requested": True}),
+        customer_claims=said,
+        evidence_claims={"human_requested": [said[0]]},
+    )
+    assert packet.customer_claims == ["Mi documento es [documento]", "Tarjeta ****1111"]
+    (reason,) = packet.escalation_reasons
+    assert reason.evidence[0].claims == ["Mi documento es [documento]"]
+
+
+@pytest.mark.parametrize(
+    ("slot", "value"),
+    [
+        ("transaction_ref", None),
+        ("reason_code", None),
+        ("card_in_possession", True),
+        ("shared_credentials", False),
+        ("expected_amount", Decimal("10")),
+        ("expected_delivery_date", date(2026, 6, 1)),
+        ("merchant_contacted", True),
+        ("duplicate_ref", "TXN-0"),
+    ],
+)
+def test_a_slot_is_either_collected_or_asked_never_both(slot: str, value: object) -> None:
+    from app.contracts import SlotName
+    from app.handoff.builder import SLOT_QUESTIONS
+    from app.policy.rules import REQUIRED_SLOTS
+
+    name = SlotName(slot)
+    reason = next((r for r, required in REQUIRED_SLOTS.items() if name in required), ReasonCode.FEE)
+    base = {s.value: None for s in REQUIRED_SLOTS[reason]}
+    missing = request(
+        flags={"human_requested": True}, slots=slots(**{"reason_code": reason, **base, slot: None})
+    )
+    asked = build(missing)
+    assert SLOT_QUESTIONS[name] in asked.open_questions
+    assert name not in {s.name for s in asked.collected_slots}
+    if value is not None:
+        given = request(
+            flags={"human_requested": True},
+            slots=slots(**{"reason_code": reason, **base, slot: value}),
+        )
+        packet = build(given)
+        assert name in {s.name for s in packet.collected_slots}
+        assert SLOT_QUESTIONS[name] not in packet.open_questions
+
+
+def test_collected_transaction_ref_that_matched_nothing_is_not_asked_again() -> None:
+    from app.contracts import SlotName, TransactionRef
+    from app.handoff.builder import SLOT_QUESTIONS
+
+    req = request(
+        flags={"human_requested": True},
+        slots=slots(transaction_ref=TransactionRef(amount=Decimal("999"))),
+    )
+    packet = build(req)
+    assert SLOT_QUESTIONS[SlotName.TRANSACTION_REF] not in packet.open_questions
+    assert any("No transaction matched" in q for q in packet.open_questions)
+
+
+def test_policy_example_collected_slots_shape() -> None:
+    produced = json.loads(full_packet().model_dump_json())
+    example = _policy_example()
+    assert set(produced["collected_slots"][0]) == set(example["collected_slots"][0])
+
+
+def test_confirmation_cannot_be_a_collected_slot() -> None:
+    from pydantic import ValidationError
+
+    from app.contracts import CollectedSlot
+
+    example = _policy_example()
+    bad = {**example, "collected_slots": [{"name": "confirmation", "value": "confirmed"}]}
+    with pytest.raises(ValidationError, match="confirmation is not a collected slot"):
+        HandoffPacket.model_validate(bad)
+    with pytest.raises(ValidationError):
+        CollectedSlot(name="reason_code", value="RC_FEE", verified=True)  # type: ignore[arg-type]
+
+
+# --- transaction_ref as the customer said it -------------------------------------------------
+
+
+def collected_ref(packet: HandoffPacket) -> str:
+    return next(s.value for s in packet.collected_slots if s.name == "transaction_ref")
+
+
+def test_resolved_id_is_never_shown_as_something_the_customer_said() -> None:
+    from app.contracts import TransactionRef
+
+    # The engine resolved TXN-1; the customer only gave the date and the merchant.
+    said = TransactionRef(transaction_date=date(2026, 6, 10), merchant="Cafe Sintetico")
+    packet = build(request(flags={"human_requested": True}), transaction_ref_said=said)
+    assert collected_ref(packet) == "transaction_date=2026-06-10; merchant=Cafe Sintetico"
+    assert "TXN-1" not in collected_ref(packet)
+    assert any(f.record_id == "TXN-1" for f in packet.verified_facts)  # the resolved ID is here
+
+
+def test_an_id_the_customer_typed_is_shown() -> None:
+    from app.contracts import TransactionRef
+
+    said = TransactionRef(transaction_id="TXN-1")
+    packet = build(request(flags={"human_requested": True}), transaction_ref_said=said)
+    assert collected_ref(packet) == "transaction_id=TXN-1"
+
+
+def test_a_candidate_picked_from_a_list() -> None:
+    packet = build(request(flags={"human_requested": True}), picked_candidate=2)
+    assert collected_ref(packet) == "candidate 2 of the list shown"
+
+
+def test_stored_descriptors_are_used_when_nothing_else_is_known() -> None:
+    from app.contracts import TransactionRef
+    from app.handoff.builder import NOT_RECORDED
+
+    only_id = build(request(flags={"human_requested": True}))  # slots hold the resolved ID only
+    assert collected_ref(only_id) == NOT_RECORDED
+    ref = TransactionRef(transaction_id="TXN-1", amount=Decimal("50"))
+    with_amount = build(request(flags={"human_requested": True}, slots=slots(transaction_ref=ref)))
+    assert collected_ref(with_amount) == "amount=50"

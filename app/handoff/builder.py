@@ -13,7 +13,9 @@ The packet lets a human agent continue without rereading the conversation:
   (``evidence_claims``); the system never writes a claim for the customer.
 - ``collected_slots`` are the slots the customer already gave, with the turn that set them,
   marked as unverified claims; ``confirmation`` is not one of them. A collected slot is never
-  asked again in ``open_questions``.
+  asked again in ``open_questions``. For ``transaction_ref`` they show what the customer said
+  (date, amount, merchant, or the candidate picked from a list), never the ID the engine
+  resolved, which is in the verified facts; an ID appears only if the customer typed it.
 - Customer-provided text (claims and slot values) passes through the same masking as the audit
   trail (``app.audit.masking.mask_message``, built on the LLM Adapter's DATA-01 minimization).
 - ``actions_taken`` lists every attempted action with its verification and time, failed ones
@@ -181,11 +183,15 @@ class PolicyHandoffBuilder:
         transcript_ref: str,
         evidence_claims: Mapping[str, Sequence[str]] | None = None,
         slot_turns: Mapping[SlotName, int] | None = None,
+        transaction_ref_said: TransactionRef | None = None,
+        picked_candidate: int | None = None,
     ) -> HandoffPacket:
         """``evidence_claims`` maps a slot or flag name (``shared_credentials``,
         ``account_takeover_reported``) to the customer claims of the turn that set it. Every
         linked claim must be one of ``customer_claims``. ``slot_turns`` gives the turn that set
-        each collected slot."""
+        each collected slot. ``transaction_ref_said`` is what the customer said about the
+        transaction (with ``transaction_id`` only if they typed it), and ``picked_candidate``
+        the 1-based position they picked from a listed set of candidates."""
         if decision.outcome is not Outcome.ESCALATE:
             raise ValueError("a handoff packet is built only for ESCALATE outcomes")
         unknown = {c for claims in (evidence_claims or {}).values() for c in claims} - set(
@@ -261,7 +267,9 @@ class PolicyHandoffBuilder:
             escalation_reasons=reasons,
             verified_facts=facts,
             customer_claims=_dedupe([mask_message(claim) for claim in customer_claims]),
-            collected_slots=_collected(request.slots, slot_turns or {}),
+            collected_slots=_collected(
+                request.slots, slot_turns or {}, transaction_ref_said, picked_candidate
+            ),
             actions_taken=actions,
             draft_case=draft,
             model_signals=self._signals(request),
@@ -490,26 +498,45 @@ def _linked(evidence: Evidence, reference: str, links: dict[str, list[str]]) -> 
     return evidence.model_copy(update=update) if update else evidence
 
 
+NOT_RECORDED = "given by the customer; details not recorded"
+
+
+def _said_reference(stored: TransactionRef, said: TransactionRef | None, picked: int | None) -> str:
+    """What the customer said about the transaction. Without ``said`` the stored reference is
+    used without its ``transaction_id``: an ID there may be the one the engine resolved."""
+    parts = [f"candidate {picked} of the list shown"] if picked is not None else []
+    source = said if said is not None else stored.model_copy(update={"transaction_id": None})
+    parts += [f"{key}={item}" for key, item in source.model_dump(exclude_none=True).items()]
+    return "; ".join(parts) or NOT_RECORDED
+
+
 def _slot_value(value: object) -> str:
     if isinstance(value, bool):
         return "yes" if value else "no"
-    if isinstance(value, TransactionRef):
-        parts = value.model_dump(exclude_none=True)
-        return "; ".join(f"{key}={item}" for key, item in parts.items())
     return str(value)
 
 
-def _collected(slots: Slots, turns: Mapping[SlotName, int]) -> list[CollectedSlot]:
+def _collected(
+    slots: Slots,
+    turns: Mapping[SlotName, int],
+    said: TransactionRef | None,
+    picked: int | None,
+) -> list[CollectedSlot]:
     """Slots the customer gave, in the order of policy §10; never ``confirmation``."""
-    return [
-        CollectedSlot(
-            name=slot,
-            value=mask_message(_slot_value(value)),
-            turn_index=turns.get(slot),
+    collected: list[CollectedSlot] = []
+    for slot in SlotName:
+        value = getattr(slots, slot.value)
+        if slot is SlotName.CONFIRMATION or value is None:
+            continue
+        text = (
+            _said_reference(value, said, picked)
+            if isinstance(value, TransactionRef)
+            else _slot_value(value)
         )
-        for slot in SlotName
-        if slot is not SlotName.CONFIRMATION and (value := getattr(slots, slot.value)) is not None
-    ]
+        collected.append(
+            CollectedSlot(name=slot, value=mask_message(text), turn_index=turns.get(slot))
+        )
+    return collected
 
 
 def _dedupe(items: list[str]) -> list[str]:
