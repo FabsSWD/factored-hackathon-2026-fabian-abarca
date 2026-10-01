@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.4.3 |
+| Version | 0.4.4 |
 | Last updated | 2026-10-01 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -98,13 +98,17 @@ Rationale:
 
 ## 5. Gates
 
-Gates are evaluated in the order listed. Evaluation stops at the first gate that does not pass, and that gate determines the outcome. The same order appears in the [decision flow diagram](diagrams/dispute-decision-flow.md).
+Gates `GATE-01` to `GATE-09` are evaluated in the order listed, then `GATE-11`, the record-dependent triggers, and `GATE-10` last (see the evaluation order below). Evaluation stops at the first gate that does not pass, and that gate determines the outcome. The same order appears in the [decision flow diagram](diagrams/dispute-decision-flow.md).
 
 **Combining gates and escalation triggers.** Rules are evaluated in two channels, and [§9](#9-outcomes-and-precedence) precedence resolves among all candidate outcomes:
 
 1. **Interrupts**: `ESC-03`, `ESC-05`, `ESC-06`, and `ESC-13` are evaluated on every turn, whatever the gate results, because they come from the conversation, not from the transaction record.
-2. **Gates** run in order and stop at the first that does not pass. `ESC-07`, `ESC-08`, `ESC-12`, and `ESC-14` are the outcomes of their gates. The one exception is `GATE-04`: it is evaluated per record and does not depend on `GATE-03`, so a record of another customer is refused even when the customer is not active (see the `GATE-04` row).
-3. **Record-dependent triggers**: `ESC-01`, `ESC-02`, and `ESC-04` are evaluated only when every gate passes.
+2. **Gates** `GATE-01` to `GATE-09` run in order and stop at the first that does not pass. `ESC-07`, `ESC-08`, `ESC-12`, and `ESC-14` are the outcomes of their gates. The one exception is `GATE-04`: it is evaluated per record and does not depend on `GATE-03`, so a record of another customer is refused even when the customer is not active (see the `GATE-04` row).
+3. **`GATE-11`** (no duplicate case) runs next, before any slot is asked: a transaction that already has a case gets no questions.
+4. **Record-dependent triggers**: `ESC-01`, `ESC-02`, and `ESC-04` are evaluated next, on the disputed transaction (for `RC_DUPLICATE`, the later charge of the pair). If one fires, the outcome is `ESCALATE` and the reason-specific slots still missing go to the handoff packet's `open_questions`.
+5. **`GATE-10`** (reason-specific slots and preconditions) runs last. When a record-dependent trigger has fired, `GATE-10` is still evaluated on the slots the customer already gave, but only its escalations count (for example `ESC-03` for shared credentials); its `CLARIFY` and `INFORM` outcomes are dropped, as the precedence of [§9](#9-outcomes-and-precedence) would drop them anyway.
+
+*Why this order.* The record-dependent triggers depend only on verified records, not on the reason-specific slots, so asking for a delivery date or a merchant contact before escalating a high-amount case would not change the outcome: it would only spend the customer's turns and the clarification limits of `ESC-09`. The agent receives the missing slots as open questions instead.
 
 `ESC-09` replaces a `CLARIFY` once its limits are exceeded, `ESC-10` follows a failed action, and `ESC-11` is evaluated only when no hard rule decided the outcome, that is, when the candidate outcome is `CLARIFY` or `RESOLVE` (an `INFORM` or `REFUSE` is decided by a gate on verified records), as described in [§7](#7-mandatory-escalation-triggers).
 
@@ -534,3 +538,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.4.1 | 2026-10-01 | Policy Engine review: `ESC-11` only on `CLARIFY` or `RESOLVE` candidates (§5, §7). `RC_DUPLICATE` asks for another reason exactly once, with its own indicator; the later charge is disputed even if the customer names the earlier one. A delivery due on `BUSINESS_DATE` is not reached. One inclusive window convention (§15). `GATE-04` is per record and independent of `GATE-03`. Values outside the data contract stop evaluation and get a safe answer. |
 | 0.4.2 | 2026-10-01 | Handoff packet (§13): `business_date`, `escalation_reasons` with evidence, templated `request_summary`, facts after actions, action times, model signal source, serving details and calibration state, and the language rule for system text and claims. Limitations: simulated handoff queue and card blocks without unblocking (§17). |
 | 0.4.3 | 2026-10-01 | Handoff packet (§13): claims are only the customer's words, and evidence links to them; `collected_slots` with the turn that set them; open questions list the missing slots and never a collected one. |
+| 0.4.4 | 2026-10-01 | Evaluation order (§5): `GATE-11` and the record-dependent triggers (`ESC-01`, `ESC-02`, `ESC-04`) before the reason-specific slots (`GATE-10`), so a case that will escalate is not asked questions that cannot change its outcome. |

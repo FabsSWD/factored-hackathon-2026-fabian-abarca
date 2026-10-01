@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.2.0 |
-| Last updated | 2026-09-25 |
+| Version | 0.3.0 |
+| Last updated | 2026-10-01 |
 | Related | [Dispute policy](../dispute-policy.md) |
 
 How the deterministic policy engine evaluates one customer message about a disputed transaction. The order follows [dispute policy §5 (gates)](../dispute-policy.md#5-gates), [§7 (escalation triggers)](../dispute-policy.md#7-mandatory-escalation-triggers), and [§9 (outcomes)](../dispute-policy.md#9-outcomes-and-precedence). If this diagram and the policy disagree, the policy wins.
@@ -17,6 +17,7 @@ How the deterministic policy engine evaluates one customer message about a dispu
 - **Left column**: the path to `RESOLVE`. Each decision continues downward when it passes.
 - **Right column**: the single outcome of each decision that does not pass, colored by outcome type. Where a box names two outcomes, the policy row it refers to decides between them.
 - **Interrupts first.** Triggers that can happen at any point in a conversation (a request for a human, legal or regulatory signals, account takeover indicators, repeated manipulation attempts) are checked before any gate. A first manipulation attempt is ignored and logged; it does not change the path.
+- **No questions that cannot change the outcome.** After the product check, an existing case (`GATE-11`) and the record-dependent triggers (`ESC-01`, `ESC-02`, `ESC-04`) are checked before the reason-specific slots (`GATE-10`). A case that will escalate anyway escalates at once, and the slots it still lacks go to the handoff's open questions.
 - **Limits.** Clarifications are bounded by `MAX_CLARIFICATION_TURNS` and `MAX_TOTAL_CLARIFICATIONS`; exceeding them produces `ESCALATE` via `ESC-09` on the next evaluation.
 
 ## Source
