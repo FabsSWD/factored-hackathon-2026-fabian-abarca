@@ -182,7 +182,11 @@ def test_invalid_tokens_do_not_consume_a_session_quota(identity: IdentityService
 
 
 def test_auth_is_unavailable_without_identity_configuration() -> None:
-    settings = Settings(_env_file=None, business_date=date(2026, 6, 17))
+    settings = Settings(
+        _env_file=None,
+        business_date=date(2026, 6, 17),
+        pseudonym_key=SecretStr("test-pseudonym-key"),
+    )
     with TestClient(create_app(load_policy_config(), settings=settings)) as c:
         response = c.post("/auth/login", json={"document_number": DOCUMENT})
         assert response.status_code == 503
@@ -193,6 +197,7 @@ def test_identity_is_built_from_complete_settings(database_url: URL) -> None:
     settings = Settings(
         _env_file=None,
         business_date=date(2026, 6, 17),
+        pseudonym_key=SecretStr("test-pseudonym-key"),
         database_url=database_url.render_as_string(hide_password=False),
         jwt_secret=SecretStr(SECRET),
         test_otp=SecretStr(OTP),
@@ -216,6 +221,7 @@ def test_incomplete_settings_leave_identity_unavailable(database_url: URL) -> No
     settings = Settings(
         _env_file=None,
         business_date=date(2026, 6, 17),
+        pseudonym_key=SecretStr("test-pseudonym-key"),
         database_url=database_url.render_as_string(hide_password=False),
         test_otp=SecretStr(OTP),
     )

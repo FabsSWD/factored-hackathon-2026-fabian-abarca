@@ -45,4 +45,4 @@ def test_downgrade_to_base_and_upgrade_again(database_url: URL, engine: Engine) 
 
 
 def test_case_number_sequence_exists(engine: Engine) -> None:
-    assert "case_number_seq" in inspect(engine).get_sequence_names()
+    assert {"case_number_seq", "handoff_number_seq"} <= set(inspect(engine).get_sequence_names())

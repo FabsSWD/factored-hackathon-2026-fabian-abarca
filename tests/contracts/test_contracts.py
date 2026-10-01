@@ -103,49 +103,21 @@ def tool_result(**overrides: Any) -> c.ToolResult:
     return c.ToolResult(**(data | overrides))
 
 
-POLICY_HANDOFF_EXAMPLE: dict[str, Any] = {
-    "handoff_id": "HO-20260925-000123",
-    "created_at": "2026-09-25T22:45:00Z",
-    "language": "pt",
-    "queue": "fraud",
-    "priority": "high",
-    "customer_ref": "CUS-pseudonym-7f3a",
-    "auth": {"status": "authenticated", "method": "test_otp", "session_age_min": 6},
-    "request_summary": "Customer disputes an unrecognized purchase and reports a lost phone.",
-    "reason_code": "RC_UNRECOGNIZED",
-    "triggered_rules": ["ESC-03"],
-    "verified_facts": [
-        {
-            "fact": "Purchase of 1,250.00 MXN at MERCHANT_X on 2026-06-10, status Approved",
-            "source": "transactions",
-            "record_id": "TXN-...",
-        },
-        {"fact": "Card ending 4821 is Active", "source": "products", "record_id": "PRD-..."},
-    ],
-    "customer_claims": ["Did not make the purchase", "Phone was stolen on 2026-06-09"],
-    "actions_taken": [
-        {
-            "action": "ACT-03",
-            "result": "success",
-            "verified": True,
-            "detail": "Card ending 4821 blocked",
-        }
-    ],
-    "draft_case": {
-        "transaction_ref": "TXN-...",
-        "amount_usd": 68.40,
-        "tier": "T1",
-        "provisional_credit_flag": "eligible",
-    },
-    "model_signals": {
-        "reason_code_probs": {"RC_UNRECOGNIZED": 0.94, "RC_DUPLICATE": 0.03},
-        "escalation_risk": 0.81,
-        "model_version": "decision-layer@0.1.0",
-    },
-    "open_questions": ["Were other transactions made after 2026-06-09?"],
-    "transcript_ref": "CONV-...",
-    "policy_version": "0.1.0",
-}
+def _policy_handoff_example() -> dict[str, Any]:
+    """The §13 example of docs/dispute-policy.md: the single source of the packet's shape."""
+    import re
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[2] / "docs" / "dispute-policy.md").read_text(
+        encoding="utf-8"
+    )
+    block = re.search(r"```json\n(.*?)```", text[text.index("## 13. Handoff packet") :], re.DOTALL)
+    assert block is not None
+    data: dict[str, Any] = json.loads(block.group(1))
+    return data
+
+
+POLICY_HANDOFF_EXAMPLE = _policy_handoff_example()
 
 
 # --- Enums ------------------------------------------------------------------
@@ -645,8 +617,39 @@ def test_escalate_decision_valid() -> None:
         card_product_id="PRD-1",
         tier=c.Tier.T3,
         provisional_credit_flag=None,
+        evidence=[
+            c.RuleEvidence(
+                rule_id="ESC-03",
+                evidence=[
+                    c.Evidence(
+                        kind=c.EvidenceKind.FLAG,
+                        name="account_takeover_reported",
+                        value="true",
+                        origin="customer statement (LLM extraction)",
+                    )
+                ],
+            )
+        ],
     )
     assert result.queue is c.Queue.FRAUD
+
+
+def test_escalation_rules_need_their_evidence() -> None:
+    with pytest.raises(ValidationError, match="has its evidence"):
+        decision(
+            outcome=c.Outcome.ESCALATE,
+            triggered_rules=["ESC-05"],
+            queue=c.Queue.DISPUTES,
+            priority=c.Priority.NORMAL,
+            authorized_actions=[c.ActionId.TRANSFER_TO_HUMAN],
+            tier=None,
+            provisional_credit_flag=None,
+        )
+
+
+def test_handoff_needs_a_reason_per_rule() -> None:
+    with pytest.raises(ValidationError, match="escalation reason"):
+        c.HandoffPacket.model_validate(POLICY_HANDOFF_EXAMPLE | {"escalation_reasons": []})
 
 
 def test_clarify_inform_and_refuse_decisions_valid() -> None:
@@ -755,7 +758,8 @@ def test_policy_section_13_example_validates() -> None:
     assert packet.queue is c.Queue.FRAUD
     assert packet.verified_facts[0].source == "transactions"
     assert packet.draft_case is not None
-    assert packet.draft_case.amount_usd == Decimal("68.4")
+    assert packet.draft_case.amount_usd == Decimal("50")
+    assert packet.escalation_reasons[0].evidence[0].name == "account_takeover_reported"
 
 
 def test_handoff_round_trips_through_json() -> None:

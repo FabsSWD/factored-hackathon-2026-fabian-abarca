@@ -114,6 +114,8 @@ def test_model_call_records_latencies_tokens_questions_and_serving_details(
         "device": "cuda",
     }
     assert result.model_version == "jaredpalmer/kev-0.8b@2026-09-24"
+    # Only the run and release date travel with the signals (for the handoff packet).
+    assert result.model_info == {"run": "jaredpalmer/kev-0.8b", "release_date": "2026-09-24"}
     (call,) = calls
     questions = load_kev_questions()
     assert call.provider == "kev"
@@ -131,7 +133,9 @@ def test_model_call_records_latencies_tokens_questions_and_serving_details(
 
 def test_model_version_without_serving_details(client: KevDecisionClient, fake: FakeKev) -> None:
     fake.responses = [response(REAL_ES)]
-    assert signals(client).model_version == "kev-latest"
+    result = signals(client)
+    assert result.model_version == "kev-latest"
+    assert result.model_info == {}
 
 
 # --- Malformed responses -------------------------------------------------------------------------

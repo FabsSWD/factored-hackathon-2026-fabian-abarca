@@ -13,7 +13,7 @@ def test_health_returns_200_with_policy_version() -> None:
     with TestClient(create_app()) as client:
         response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "policy_version": "0.4.1"}
+    assert response.json() == {"status": "ok", "policy_version": "0.4.2"}
 
 
 def test_injected_config_is_used() -> None:
@@ -33,3 +33,33 @@ def test_startup_fails_with_invalid_policy(tmp_path: Path, monkeypatch: pytest.M
 def test_unknown_route_is_404() -> None:
     with TestClient(create_app()) as client:
         assert client.get("/nope").status_code == 404
+
+
+def test_startup_fails_without_pseudonym_key() -> None:
+    from datetime import date
+
+    from app.settings import PseudonymKeyMissingError, Settings
+
+    settings = Settings(_env_file=None, business_date=date(2026, 6, 17))
+    with (
+        pytest.raises(PseudonymKeyMissingError, match="PSEUDONYM_KEY"),
+        TestClient(create_app(settings=settings)),
+    ):
+        pass
+
+
+def test_startup_keeps_the_pseudonym_key() -> None:
+    from datetime import date
+
+    from pydantic import SecretStr
+
+    from app.settings import Settings
+
+    settings = Settings(
+        _env_file=None,
+        business_date=date(2026, 6, 17),
+        pseudonym_key=SecretStr("k"),
+    )
+    app = create_app(settings=settings)
+    with TestClient(app):
+        assert app.state.pseudonym_key == "k"

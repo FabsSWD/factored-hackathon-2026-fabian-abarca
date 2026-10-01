@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import load_policy_config
 from app.contracts import (
     AuthStatus,
+    EscalationReason,
+    Evidence,
+    EvidenceKind,
     HandoffAuth,
     HandoffPacket,
     Language,
@@ -158,6 +161,7 @@ def packet(handoff_id: str = "HO-20261001-000001", **overrides: Any) -> HandoffP
     values: dict[str, Any] = {
         "handoff_id": handoff_id,
         "created_at": NOW,
+        "business_date": date(2026, 6, 17),
         "language": Language.ES,
         "queue": Queue.DISPUTES,
         "priority": Priority.NORMAL,
@@ -165,8 +169,22 @@ def packet(handoff_id: str = "HO-20261001-000001", **overrides: Any) -> HandoffP
         "auth": HandoffAuth(status=AuthStatus.AUTHENTICATED, method="test_otp", session_age_min=3),
         "request_summary": "Customer asks for a human agent.",
         "triggered_rules": ["ESC-05"],
+        "escalation_reasons": [
+            EscalationReason(
+                rule_id="ESC-05",
+                description="The customer asked for a human agent.",
+                evidence=[
+                    Evidence(
+                        kind=EvidenceKind.FLAG,
+                        name="human_requested",
+                        value="true",
+                        origin="customer statement (rule detector and LLM extraction)",
+                    )
+                ],
+            )
+        ],
         "transcript_ref": "CONV-1",
-        "policy_version": "0.4.1",
+        "policy_version": "0.4.2",
     }
     values.update(overrides)
     return HandoffPacket(**values)

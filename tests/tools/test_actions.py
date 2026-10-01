@@ -395,6 +395,7 @@ def test_no_prohibited_action_exists() -> None:
     assert sorted(public) == [
         "block_card",
         "create_case",
+        "get_case",
         "get_customer",
         "get_product",
         "get_transaction",
@@ -419,3 +420,38 @@ def test_read_back_of_an_unknown_key_is_none(tools: DatabaseToolLayer) -> None:
 
 def test_default_clock_is_timezone_aware() -> None:
     assert service.utc_now().tzinfo is not None
+
+
+# --- Case lookup by number and action times ---------------------------------------------------
+
+
+def test_case_number_lookup_is_filtered_by_the_session_customer(
+    tools: DatabaseToolLayer, other_tools: DatabaseToolLayer, db_session: Session
+) -> None:
+    from app.contracts import AccessDeniedError
+
+    created = tools.create_case("TRX-T1-PURCHASE", ReasonCode.UNRECOGNIZED, Tier.T1)
+    assert created.record_id is not None
+    assert tools.get_case(created.record_id).transaction_id == "TRX-T1-PURCHASE"
+    # Case numbers are sequential: another customer guessing one gets access_denied.
+    with pytest.raises(AccessDeniedError):
+        other_tools.get_case(created.record_id)
+    with pytest.raises(AccessDeniedError):
+        other_tools.get_case("DSP-20261001-999999")
+    events = security_events(db_session)
+    assert [e["record_type"] for e in events] == ["case", "case"]
+
+
+def test_every_result_has_its_completion_time(
+    tools: DatabaseToolLayer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests.tools.conftest import NOW
+
+    results = [
+        tools.create_case("TRX-T1-PURCHASE", ReasonCode.UNRECOGNIZED, Tier.T1),
+        tools.create_case("TRX-T3-PURCHASE", ReasonCode.UNRECOGNIZED, Tier.T1),  # failed
+        tools.block_card(OTHER_CARD),  # access denied
+        tools.block_card(CARD),
+        tools.transfer_to_human(packet()),
+    ]
+    assert {r.completed_at for r in results} == {NOW}

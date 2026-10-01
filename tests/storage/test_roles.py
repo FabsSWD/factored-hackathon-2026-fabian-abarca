@@ -405,3 +405,44 @@ def test_statement_parser() -> None:
 def test_missing_variables_are_rejected() -> None:
     with pytest.raises(ValueError, match="missing variables"):
         apply_roles(None, {"owner_role": "x"})  # type: ignore[arg-type]
+
+
+def _owners(db: RolesDb) -> list[tuple[object, ...]]:
+    return query(
+        db.url,
+        "SELECT c.relname, pg_get_userbyid(c.relowner) FROM pg_class c "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relkind IN ('r', 'S') ORDER BY 1",
+    )
+
+
+@pytest.mark.parametrize("failure", ["statement", "verification"])
+def test_a_failure_midway_leaves_no_change(
+    roles_db: RolesDb, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    from app.storage import roles
+
+    suffix = uuid.uuid4().hex[:8]
+    values = {
+        **roles_db.values,
+        "owner_role": f"t_half_owner_{suffix}",
+        "app_role": f"t_half_app_{suffix}",
+    }
+    before = _owners(roles_db)
+    text = ROLES_SQL.read_text()
+    if failure == "statement":
+        text += "\nSELECT 1 / 0;\n"  # after roles, ownership and grants have run
+        expected: type[Exception] = psycopg.errors.DivisionByZero
+    else:
+        monkeypatch.setattr(roles, "problems", lambda *args: ["simulated"])
+        expected = RolesError
+    with connect(roles_db) as conn, pytest.raises(expected):
+        apply_roles(conn, values, text)
+    created = query(
+        roles_db.url,
+        "SELECT rolname FROM pg_roles WHERE rolname IN (%s, %s)",
+        values["owner_role"],
+        values["app_role"],
+    )
+    assert created == []
+    assert _owners(roles_db) == before
