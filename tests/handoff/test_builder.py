@@ -1090,3 +1090,28 @@ def test_stored_descriptors_are_used_when_nothing_else_is_known() -> None:
     ref = TransactionRef(transaction_id="TXN-1", amount=Decimal("50"))
     with_amount = build(request(flags={"human_requested": True}, slots=slots(transaction_ref=ref)))
     assert collected_ref(with_amount) == "amount=50"
+
+
+def test_every_note_the_engine_writes_has_a_question() -> None:
+    import re
+
+    from app.contracts import InformReason
+    from app.handoff.builder import NOTE_QUESTIONS
+
+    source = Path(__file__).resolve().parents[2] / "app" / "policy"
+    written = set()
+    for path in source.glob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        written |= set(re.findall(r'note\("([a-z_]+)"\)', text))
+        written |= set(re.findall(r'note=["\']([a-z_]+)["\']', text))
+    written |= {
+        f"dropped_inform:{reason}"
+        for reason in (
+            InformReason.AMOUNT_NOT_EXCEEDED,
+            InformReason.DELIVERY_DATE_NOT_REACHED,
+            InformReason.MERCHANT_NOT_CONTACTED,
+            InformReason.DISPUTE_WITHDRAWN,
+        )
+    }
+    assert {"fraud_score_missing", "no_matching_transaction", "duplicate_declined"} <= written
+    assert written - set(NOTE_QUESTIONS) == set()

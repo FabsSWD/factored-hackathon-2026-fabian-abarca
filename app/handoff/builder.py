@@ -151,6 +151,24 @@ NOTE_QUESTIONS: dict[str, str] = {
     "expected_delivery_date_before_transaction": (
         "The expected delivery date given is before the transaction: confirm it."
     ),
+    "duplicate_case_pending_confirmation": (
+        "The assumed duplicate charge already has a case: confirm with the customer which "
+        "charge they mean before reporting it."
+    ),
+    # GATE-10 outcomes dropped because a record trigger escalated first (policy §5).
+    "dropped_inform:amount_not_exceeded": (
+        "Context: the expected amount the customer gave is not lower than the amount charged, "
+        "so an incorrect-amount dispute may not apply."
+    ),
+    "dropped_inform:delivery_date_not_reached": (
+        "Context: the delivery date the customer gave has not passed yet."
+    ),
+    "dropped_inform:merchant_not_contacted": (
+        "Context: the customer has not contacted the merchant yet."
+    ),
+    "dropped_inform:dispute_withdrawn": (
+        "Context: the customer withdrew the duplicate claim when asked to confirm it."
+    ),
 }
 
 

@@ -431,6 +431,25 @@ class DeterministicPolicyEngine:
             if case.transaction_id == disputed.transaction_id
             and case.status is not CaseStatus.DRAFT
         ]
+        # A twin the customer has not confirmed is only assumed: an existing case on it is not
+        # reported until the customer confirms that charge (an escalation on it still stands).
+        assumed_twin = (
+            reason is ReasonCode.DUPLICATE
+            and state.twin is not None
+            and disputed.transaction_id != txn.transaction_id
+            and request.slots.duplicate_ref != state.twin.transaction_id
+        )
+        if existing and assumed_twin:
+            if self._record_triggers(request, state, disputed):
+                return self._escalate_before_slots(request, state, reason, txn)
+            if request.slots.confirmation in (Confirmation.DECLINED, Confirmation.WITHDRAWN):
+                # The customer rejected the assumed twin: GATE-10 asks for another reason or
+                # ends without a case, and the case on that twin does not concern them.
+                precondition = self._reason_preconditions(request, state, reason, txn)
+                state.gate("GATE-10", precondition is None)
+                return precondition
+            state.note("duplicate_case_pending_confirmation")
+            return _clarify(ClarifyTarget.DUPLICATE_REF)
         if not state.gate("GATE-11", not existing):
             latest = max(existing, key=lambda case: (case.business_created_at, case.case_id))
             return _inform(InformReason.DUPLICATE_CASE, existing_case=latest)
@@ -438,17 +457,30 @@ class DeterministicPolicyEngine:
         # Record-dependent triggers before the slots: questions that cannot change the outcome
         # would only spend turns and clarification limits (ESC-09).
         if self._record_triggers(request, state, disputed):
-            precondition = self._reason_preconditions(request, state, reason, txn)
-            state.gate("GATE-10", precondition is None)
-            if precondition is not None and precondition.outcome is Outcome.ESCALATE:
-                return precondition  # e.g. ESC-03 for shared credentials keeps its route
-            return _Verdict(Outcome.ESCALATE)
+            return self._escalate_before_slots(request, state, reason, txn)
 
         # GATE-10
         precondition = self._reason_preconditions(request, state, reason, txn)
         if not state.gate("GATE-10", precondition is None):
             return precondition
         return None
+
+    def _escalate_before_slots(
+        self,
+        request: PolicyRequest,
+        state: _State,
+        reason: ReasonCode,
+        txn: TransactionRecord,
+    ) -> _Verdict:
+        """A record trigger fired: GATE-10 still runs on the slots already given, but only its
+        escalations count. A dropped INFORM leaves a note, so the agent gets its reason."""
+        precondition = self._reason_preconditions(request, state, reason, txn)
+        state.gate("GATE-10", precondition is None)
+        if precondition is not None and precondition.outcome is Outcome.ESCALATE:
+            return precondition  # e.g. ESC-03 for shared credentials keeps its route
+        if precondition is not None and precondition.inform_reason is not None:
+            state.note(f"dropped_inform:{precondition.inform_reason}")
+        return _Verdict(Outcome.ESCALATE)
 
     def _reason_preconditions(
         self,

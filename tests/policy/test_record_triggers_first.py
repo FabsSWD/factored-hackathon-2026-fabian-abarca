@@ -142,22 +142,84 @@ def test_gate10_inform_is_dropped_when_a_record_trigger_fires() -> None:
     assert decision.inform_reason is None
 
 
-def test_duplicate_pair_is_located_before_gate11_and_the_triggers() -> None:
-    # The customer names the original; the later twin is the disputed charge, and it is the one
-    # that already has a case.
-    first = txn("TXN-1", when=TXN_DATE, amount="1500", amount_usd="1500")
-    second = txn("TXN-2", when=TXN_DATE + timedelta(hours=3), amount="1500", amount_usd="1500")
-    req = request(
+def duplicate_request(
+    *, duplicate_ref: str | None = None, amount_usd: str = "50", **values: object
+) -> PolicyRequest:
+    """The customer names the original (TXN-1); the later twin TXN-2 already has a case."""
+    first = txn("TXN-1", when=TXN_DATE, amount=amount_usd, amount_usd=amount_usd)
+    second = txn(
+        "TXN-2", when=TXN_DATE + timedelta(hours=3), amount=amount_usd, amount_usd=amount_usd
+    )
+    return request(
         transaction_candidates=[first, second],
         cases=[case("CASE-2", transaction_id="TXN-2")],
         slots=slots(
-            reason_code=ReasonCode.DUPLICATE, transaction_ref=TransactionRef(transaction_id="TXN-1")
+            reason_code=ReasonCode.DUPLICATE,
+            transaction_ref=TransactionRef(transaction_id="TXN-1"),
+            duplicate_ref=duplicate_ref,
+            **values,
         ),
+    )
+
+
+def test_case_on_an_assumed_twin_is_confirmed_first() -> None:
+    decision = evaluate(duplicate_request())
+    assert decision.outcome is Outcome.CLARIFY
+    assert decision.clarify_target is ClarifyTarget.DUPLICATE_REF
+    assert decision.duplicate_transaction_id == "TXN-2"
+    assert decision.inform_reason is None and decision.existing_case_id is None
+    assert "duplicate_case_pending_confirmation" in decision.notes
+
+
+def test_case_on_a_confirmed_twin_is_reported() -> None:
+    decision = evaluate(duplicate_request(duplicate_ref="TXN-2"))
+    assert decision.inform_reason is InformReason.DUPLICATE_CASE
+    assert decision.existing_case_id == "CASE-2"
+    assert decision.transaction_id == "TXN-2"
+
+
+def test_escalation_on_an_assumed_twin_stands() -> None:
+    decision = evaluate(duplicate_request(amount_usd="1500"))
+    assert decision.outcome is Outcome.ESCALATE
+    assert decision.triggered_rules == ["ESC-01"]
+    assert decision.transaction_id == "TXN-2"
+
+
+def test_rejected_assumed_twin_is_not_asked_again() -> None:
+    from app.contracts import Confirmation
+
+    declined = evaluate(duplicate_request(confirmation=Confirmation.DECLINED))
+    assert declined.clarify_target is ClarifyTarget.REASON_CODE  # "another reason?"
+    assert declined.existing_case_id is None
+    withdrawn = evaluate(duplicate_request(confirmation=Confirmation.WITHDRAWN))
+    assert withdrawn.inform_reason is InformReason.DISPUTE_WITHDRAWN
+
+
+def test_case_on_the_charge_the_customer_named_is_reported_at_once() -> None:
+    # The customer named the later charge: the case is on the transaction they pointed to.
+    req = duplicate_request().model_copy(
+        update={
+            "slots": slots(
+                reason_code=ReasonCode.DUPLICATE,
+                transaction_ref=TransactionRef(transaction_id="TXN-2"),
+            )
+        }
     )
     decision = evaluate(req)
     assert decision.inform_reason is InformReason.DUPLICATE_CASE
     assert decision.existing_case_id == "CASE-2"
-    assert decision.transaction_id == "TXN-2"
+
+
+def test_dropped_inform_reason_reaches_the_agent() -> None:
+    # amount_not_exceeded would be the GATE-10 outcome, but ESC-01 escalates first.
+    req = request(transaction_candidates=[T3], slots=slots(expected_amount=Decimal("2000")))
+    decision = evaluate(req)
+    assert decision.triggered_rules == ["ESC-01"]
+    assert "dropped_inform:amount_not_exceeded" in decision.notes
+    assert any(
+        q.startswith("Context: the expected amount the customer gave is not lower")
+        for q in open_questions(req)
+    )
 
 
 def test_record_triggers_use_the_disputed_twin() -> None:
