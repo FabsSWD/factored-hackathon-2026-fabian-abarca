@@ -36,7 +36,9 @@ from tests.policy.conftest import (
 
 def test_happy_path_reaches_the_summary() -> None:
     decision = evaluate(request())
-    assert [g.gate_id for g in decision.gates_evaluated] == [f"GATE-{i:02d}" for i in range(1, 12)]
+    # GATE-11 and the record triggers run before the reason-specific slots (GATE-10), §5.
+    expected = [*(f"GATE-{i:02d}" for i in range(1, 10)), "GATE-11", "GATE-10"]
+    assert [g.gate_id for g in decision.gates_evaluated] == expected
     assert all(g.passed for g in decision.gates_evaluated)
     assert decision.outcome is Outcome.CLARIFY
     assert decision.clarify_target is ClarifyTarget.CONFIRMATION

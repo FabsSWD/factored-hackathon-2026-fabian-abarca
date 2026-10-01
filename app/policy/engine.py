@@ -8,12 +8,18 @@ Evaluation follows policy §5 in two channels, then §9 precedence:
 1. Interrupts, on every turn: ESC-03 (statements and the unrecognized batch), ESC-05, ESC-06
    and ESC-13. Once the session is authenticated, also ESC-10 (a failed write action) and the
    unresolved-contradiction branch of ESC-09.
-2. Gates GATE-01..GATE-11 in order, stopping at the first that does not pass. ESC-03 (shared
-   credentials), ESC-07, ESC-08, ESC-12 and ESC-14 are gate outcomes. The reason code is asked
-   (§10) after GATE-06 and before GATE-07, which needs it.
-3. Record-dependent triggers ESC-01, ESC-02 and ESC-04, only when every gate passes.
-4. The COM-03 confirmation, when every gate passes and no trigger fired.
-5. ESC-09 replaces a CLARIFY once the clarification limits are reached, and the soft ESC-11 is
+2. Gates GATE-01..GATE-09 in order, stopping at the first that does not pass, then GATE-11
+   (a transaction that already has a case gets no questions). ESC-03 (shared credentials),
+   ESC-07, ESC-08, ESC-12 and ESC-14 are gate outcomes. The reason code is asked (§10) after
+   GATE-06 and before GATE-07, which needs it.
+3. Record-dependent triggers ESC-01, ESC-02 and ESC-04, before the reason-specific slots: if one
+   fires the case escalates at once, and the missing slots go to the handoff's open questions
+   instead of costing clarification turns. GATE-10 still runs then, but only its escalations
+   (ESC-03 for shared credentials, ESC-09) count; its CLARIFY and INFORM outcomes are dropped,
+   as §9 precedence would drop them anyway.
+4. GATE-10, the reason-specific slots and preconditions.
+5. The COM-03 confirmation, when every gate passes and no trigger fired.
+6. ESC-09 replaces a CLARIFY once the clarification limits are reached, and the soft ESC-11 is
    considered only when no hard rule decided the outcome (the candidate is CLARIFY or RESOLVE)
    and the session is authenticated.
 
@@ -193,11 +199,8 @@ class DeterministicPolicyEngine:
             tier = self._tier(amount_usd)
             if amount_usd is None:
                 state.note("amount_usd_missing")
-        if verdict is None:
-            assert state.disputed is not None and tier is not None
-            self._record_triggers(request, state, state.disputed, tier)
-            if not state.fired:
-                verdict = self._confirmation(request)
+        if verdict is None and not state.fired:
+            verdict = self._confirmation(request)
         if verdict is not None and verdict.rule is not None:
             queue = self._esc14_queue(request, state) if verdict.rule == "ESC-14" else None
             state.fire(verdict.rule, list(verdict.evidence), queue)
@@ -413,13 +416,15 @@ class DeterministicPolicyEngine:
                 ),
             )
 
-        # GATE-10
-        precondition = self._reason_preconditions(request, state, reason, txn)
-        if not state.gate("GATE-10", precondition is None):
-            return precondition
-
-        # GATE-11: any case that is not a Draft blocks, open or closed.
+        # RC_DUPLICATE disputes the later charge of the pair: locate it before GATE-11 and the
+        # record triggers look at the disputed transaction.
+        if reason is ReasonCode.DUPLICATE:
+            self._locate_duplicate(request, state, txn)
         disputed = state.disputed
+        assert disputed is not None
+
+        # GATE-11 before the slots: a transaction that already has a case gets no questions.
+        # Any case that is not a Draft blocks, open or closed.
         existing = [
             case
             for case in request.cases
@@ -429,6 +434,20 @@ class DeterministicPolicyEngine:
         if not state.gate("GATE-11", not existing):
             latest = max(existing, key=lambda case: (case.business_created_at, case.case_id))
             return _inform(InformReason.DUPLICATE_CASE, existing_case=latest)
+
+        # Record-dependent triggers before the slots: questions that cannot change the outcome
+        # would only spend turns and clarification limits (ESC-09).
+        if self._record_triggers(request, state, disputed):
+            precondition = self._reason_preconditions(request, state, reason, txn)
+            state.gate("GATE-10", precondition is None)
+            if precondition is not None and precondition.outcome is Outcome.ESCALATE:
+                return precondition  # e.g. ESC-03 for shared credentials keeps its route
+            return _Verdict(Outcome.ESCALATE)
+
+        # GATE-10
+        precondition = self._reason_preconditions(request, state, reason, txn)
+        if not state.gate("GATE-10", precondition is None):
+            return precondition
         return None
 
     def _reason_preconditions(
@@ -481,6 +500,20 @@ class DeterministicPolicyEngine:
         # charge (§17). GATE-07 marks RC_FEE automated only on Adjustment, so it holds here.
         return None
 
+    def _locate_duplicate(
+        self, request: PolicyRequest, state: _State, txn: TransactionRecord
+    ) -> None:
+        """The pair GATE-10 will ask about: the twin the customer confirmed, else the nearest
+        one. The later charge of the pair is the disputed transaction."""
+        twins = duplicate_twins(txn, request.transaction_candidates, self._p.DUPLICATE_WINDOW_HOURS)
+        if not twins:
+            return
+        chosen = next(
+            (twin for twin in twins if twin.transaction_id == request.slots.duplicate_ref),
+            nearest_twin(txn, twins),
+        )
+        state.twin, state.disputed = chosen, disputed_of(txn, chosen)
+
     def _duplicate(
         self, request: PolicyRequest, state: _State, txn: TransactionRecord
     ) -> _Verdict | None:
@@ -521,10 +554,13 @@ class DeterministicPolicyEngine:
     # ------------------------------------------------------------------ channel 3
 
     def _record_triggers(
-        self, request: PolicyRequest, state: _State, disputed: TransactionRecord, tier: Tier
-    ) -> None:
+        self, request: PolicyRequest, state: _State, disputed: TransactionRecord
+    ) -> bool:
+        """ESC-01, ESC-02 and ESC-04 on the disputed transaction; True if any fired."""
         p = self._p
-        if tier is Tier.T3:
+        fired = False
+        if self._tier(disputed.amount_usd) is Tier.T3:
+            fired = True
             amount = (
                 f"{disputed.amount_usd} (above {p.AUTO_INTAKE_MAX_USD})"
                 if disputed.amount_usd is not None
@@ -564,11 +600,13 @@ class DeterministicPolicyEngine:
                 )
             )
         if velocity:
+            fired = True
             state.fire("ESC-02", velocity)
 
         if disputed.fraud_score is None:
             state.note("fraud_score_missing")
         elif disputed.fraud_score >= p.FRAUD_SCORE_ESCALATE:
+            fired = True
             state.fire(
                 "ESC-04",
                 [
@@ -579,6 +617,7 @@ class DeterministicPolicyEngine:
                     )
                 ],
             )
+        return fired
 
     # ------------------------------------------------------------------ confirmation
 

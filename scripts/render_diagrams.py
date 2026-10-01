@@ -8,13 +8,13 @@ Edit this script (not the SVG files) and re-run it:
     python scripts/render_diagrams.py
 
 Outputs:
-    docs/diagrams/dispute-decision-flow.svg
-    docs/diagrams/dispute-case-lifecycle.svg
+    docs/diagrams/images/dispute-decision-flow.svg
+    docs/diagrams/images/dispute-case-lifecycle.svg
 """
 from html import escape
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent.parent / "docs" / "diagrams"
+OUT = Path(__file__).resolve().parent.parent / "docs" / "diagrams" / "images"
 
 FONT = "-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
 INK = "#1E293B"
@@ -127,12 +127,12 @@ FLOW = [
      ("ESCALATE", ["ESCALATE (ESC-07) if late", "INFORM if past LATE_WINDOW_DAYS"]), "no"),
     ("decision", ["GATE-09", "Product Active or Blocked?"],
      ("ESCALATE", ["ESCALATE", "ESC-08: ineligible status"]), "no"),
+    ("decision", ["GATE-11", "No case for it yet?"],
+     ("INFORM", ["INFORM", "Existing case_ref and status"]), "no"),
+    ("decision", ["Record triggers clear?", "ESC-01, ESC-02, ESC-04"],
+     ("ESCALATE", ["ESCALATE, no slot questions", "Missing slots in open_questions"]), "no"),
     ("decision", ["GATE-10", "Reason preconditions met?"],
      ("CLARIFY", ["CLARIFY next slot, or", "INFORM / ESCALATE per policy §5"]), "no"),
-    ("decision", ["GATE-11", "No open case for it?"],
-     ("INFORM", ["INFORM", "Existing case_ref and status"]), "no"),
-    ("decision", ["Hard triggers clear?", "ESC-01, ESC-02, ESC-04"],
-     ("ESCALATE", ["ESCALATE", "Draft case in handoff packet"]), "no"),
     ("decision", ["Decision layer confident?", "ESC-11"],
      ("ESCALATE", ["ESCALATE", "ESC-11: model uncertainty"]), "no"),
     ("decision", ["Explicit confirmation?", "COM-03"],

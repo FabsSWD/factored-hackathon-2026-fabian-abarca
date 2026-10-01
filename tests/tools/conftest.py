@@ -184,7 +184,7 @@ def packet(handoff_id: str = "HO-20261001-000001", **overrides: Any) -> HandoffP
             )
         ],
         "transcript_ref": "CONV-1",
-        "policy_version": "0.4.3",
+        "policy_version": "0.4.4",
     }
     values.update(overrides)
     return HandoffPacket(**values)
