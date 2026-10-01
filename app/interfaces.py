@@ -27,6 +27,7 @@ from app.contracts import (
     ProductRecord,
     ReasonCode,
     SessionContext,
+    SlotName,
     Tier,
     ToolResult,
     TraceRecord,
@@ -191,6 +192,7 @@ class HandoffBuilder(Protocol):
         open_questions: Sequence[str],
         transcript_ref: str,
         evidence_claims: Mapping[str, Sequence[str]] | None = None,
+        slot_turns: Mapping[SlotName, int] | None = None,
     ) -> HandoffPacket: ...
 
 

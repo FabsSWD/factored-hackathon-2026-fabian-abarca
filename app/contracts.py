@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, NaiveDatetime, model_validator
 
@@ -756,6 +756,15 @@ class HandoffModelSignals(Contract):
     calibrated: bool = False  # false until M7 calibrates the ESC-11 thresholds
 
 
+class CollectedSlot(Contract):
+    """A slot the customer already gave: a claim, never verified (DATA-03)."""
+
+    name: SlotName
+    value: NonEmptyStr  # minimized like the rest of the packet
+    turn_index: NonNegativeInt | None = None  # the turn that set it, when known
+    verified: Literal[False] = False
+
+
 class EscalationReason(Contract):
     """A triggered rule in plain words, with the evidence that made it fire."""
 
@@ -783,6 +792,7 @@ class HandoffPacket(Contract):
     escalation_reasons: list[EscalationReason] = Field(default_factory=list)
     verified_facts: list[VerifiedFact] = Field(default_factory=list)
     customer_claims: list[NonEmptyStr] = Field(default_factory=list)
+    collected_slots: list[CollectedSlot] = Field(default_factory=list)
     actions_taken: list[ActionTaken] = Field(default_factory=list)
     draft_case: DraftCase | None = None
     model_signals: HandoffModelSignals = Field(default_factory=HandoffModelSignals)
@@ -794,6 +804,8 @@ class HandoffPacket(Contract):
     def _check(self) -> Self:
         if [r.rule_id for r in self.escalation_reasons] != list(self.triggered_rules):
             raise ValueError("every triggered rule has an escalation reason, in the same order")
+        if SlotName.CONFIRMATION in {slot.name for slot in self.collected_slots}:
+            raise ValueError("confirmation is not a collected slot")
         return self
 
 
@@ -868,6 +880,7 @@ __all__ = [
     "CaseRecord",
     "CaseStatus",
     "ClarifyTarget",
+    "CollectedSlot",
     "Confirmation",
     "ConversationCounters",
     "ConversationFlags",

@@ -29,6 +29,7 @@ from app.contracts import (
     ProductRecord,
     ReasonCode,
     SessionContext,
+    SlotName,
     Slots,
     ToolResult,
     ToolStatus,
@@ -253,5 +254,7 @@ def example_packets(config: PolicyConfig | None = None) -> dict[str, HandoffPack
             open_questions=[],
             transcript_ref=request.conversation_id,
             evidence_claims=links,
+            # In these examples every slot the customer gave was set in the first turn.
+            slot_turns={name: 0 for name in SlotName},
         )
     return packets

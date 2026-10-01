@@ -8,9 +8,14 @@ The packet lets a human agent continue without rereading the conversation:
 - ``verified_facts`` are records read through the Tool Layer, each with its source table and
   record ID (DATA-04), as they stand after the actions of the turn: a card blocked by ACT-03 is
   reported as blocked. Transaction ages are counted against ``business_date`` (policy §15).
-- ``customer_claims`` are only what the customer said, verbatim, in the conversation
-  language, kept apart from facts (DATA-03). The evidence of a slot or flag points to the
-  claims behind it (``evidence_claims``); the system never writes a claim for the customer.
+- ``customer_claims`` are only what the customer said, in the conversation language, kept
+  apart from facts (DATA-03). The evidence of a slot or flag points to the claims behind it
+  (``evidence_claims``); the system never writes a claim for the customer.
+- ``collected_slots`` are the slots the customer already gave, with the turn that set them,
+  marked as unverified claims; ``confirmation`` is not one of them. A collected slot is never
+  asked again in ``open_questions``.
+- Customer-provided text (claims and slot values) passes through the same masking as the audit
+  trail (``app.audit.masking.mask_message``, built on the LLM Adapter's DATA-01 minimization).
 - ``actions_taken`` lists every attempted action with its verification and time, failed ones
   included; ``open_questions`` says what the agent still needs to establish.
 
@@ -26,12 +31,14 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from app.audit.masking import mask_message
 from app.config import PolicyParameters
 from app.contracts import (
     ActionId,
     ActionTaken,
     AuthStatus,
     CaseStatus,
+    CollectedSlot,
     DraftCase,
     EscalationReason,
     Evidence,
@@ -47,9 +54,11 @@ from app.contracts import (
     ProductRecord,
     ReasonCode,
     SlotName,
+    Slots,
     ToolResult,
     ToolStatus,
     TransactionRecord,
+    TransactionRef,
     VerifiedFact,
 )
 from app.policy.clock import business_date, transaction_age_days
@@ -89,8 +98,11 @@ RULE_DESCRIPTIONS: dict[str, str] = {
     "ESC-14": "A plausible dispute that is not automated for this transaction type.",
 }
 
-# The question for each reason-specific slot still missing (rules.REQUIRED_SLOTS).
+# The question for each slot still missing: the two every dispute needs, and the
+# reason-specific ones (rules.REQUIRED_SLOTS).
 SLOT_QUESTIONS: dict[SlotName, str] = {
+    SlotName.TRANSACTION_REF: "Which transaction does the customer want to dispute?",
+    SlotName.REASON_CODE: "What is the reason for the dispute?",
     SlotName.CARD_IN_POSSESSION: "Does the customer still have the card?",
     SlotName.SHARED_CREDENTIALS: (
         "Did the customer share credentials or one-time codes with anyone?"
@@ -168,16 +180,23 @@ class PolicyHandoffBuilder:
         open_questions: Sequence[str],
         transcript_ref: str,
         evidence_claims: Mapping[str, Sequence[str]] | None = None,
+        slot_turns: Mapping[SlotName, int] | None = None,
     ) -> HandoffPacket:
         """``evidence_claims`` maps a slot or flag name (``shared_credentials``,
         ``account_takeover_reported``) to the customer claims of the turn that set it. Every
-        linked claim must be one of ``customer_claims``."""
+        linked claim must be one of ``customer_claims``. ``slot_turns`` gives the turn that set
+        each collected slot."""
         if decision.outcome is not Outcome.ESCALATE:
             raise ValueError("a handoff packet is built only for ESCALATE outcomes")
-        links = {name: list(claims) for name, claims in (evidence_claims or {}).items()}
-        unknown = {c for claims in links.values() for c in claims} - set(customer_claims)
+        unknown = {c for claims in (evidence_claims or {}).values() for c in claims} - set(
+            customer_claims
+        )
         if unknown:
             raise ValueError(f"evidence claims not among customer_claims: {sorted(unknown)}")
+        links = {
+            name: [mask_message(claim) for claim in claims]
+            for name, claims in (evidence_claims or {}).items()
+        }
         assert decision.queue is not None and decision.priority is not None
         created_at = self._clock()
         auth = self._auth(request)
@@ -241,7 +260,8 @@ class PolicyHandoffBuilder:
             triggered_rules=decision.triggered_rules,
             escalation_reasons=reasons,
             verified_facts=facts,
-            customer_claims=_dedupe(list(customer_claims)),
+            customer_claims=_dedupe([mask_message(claim) for claim in customer_claims]),
+            collected_slots=_collected(request.slots, slot_turns or {}),
             actions_taken=actions,
             draft_case=draft,
             model_signals=self._signals(request),
@@ -356,15 +376,16 @@ class PolicyHandoffBuilder:
             state = "the session expired" if auth.status is AuthStatus.EXPIRED else "not verified"
             questions.append(f"Verify the customer's identity ({state}).")
         else:
-            if decision.transaction_id is None:
-                questions.append("Which transaction does the customer want to dispute?")
-            if decision.reason_code is None:
-                questions.append("What is the reason for the dispute?")
-            else:
-                questions += [
-                    SLOT_QUESTIONS[slot]
-                    for slot in missing_required_slots(decision.reason_code, request.slots)
-                ]
+            # Only slots the customer has not given; a reference that matched no single
+            # transaction is covered by the engine's notes instead.
+            missing = [
+                slot
+                for slot in (SlotName.TRANSACTION_REF, SlotName.REASON_CODE)
+                if getattr(request.slots, slot.value) is None
+            ]
+            if decision.reason_code is not None:
+                missing += missing_required_slots(decision.reason_code, request.slots)
+            questions += [SLOT_QUESTIONS[slot] for slot in missing]
         for result in actions_taken:
             if result.status is not ToolStatus.SUCCESS or not result.verified:
                 questions.append(
@@ -467,6 +488,28 @@ def _linked(evidence: Evidence, reference: str, links: dict[str, list[str]]) -> 
     if evidence.kind in (EvidenceKind.SLOT, EvidenceKind.FLAG) and evidence.name in links:
         update["claims"] = links[evidence.name]
     return evidence.model_copy(update=update) if update else evidence
+
+
+def _slot_value(value: object) -> str:
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, TransactionRef):
+        parts = value.model_dump(exclude_none=True)
+        return "; ".join(f"{key}={item}" for key, item in parts.items())
+    return str(value)
+
+
+def _collected(slots: Slots, turns: Mapping[SlotName, int]) -> list[CollectedSlot]:
+    """Slots the customer gave, in the order of policy §10; never ``confirmation``."""
+    return [
+        CollectedSlot(
+            name=slot,
+            value=mask_message(_slot_value(value)),
+            turn_index=turns.get(slot),
+        )
+        for slot in SlotName
+        if slot is not SlotName.CONFIRMATION and (value := getattr(slots, slot.value)) is not None
+    ]
 
 
 def _dedupe(items: list[str]) -> list[str]:
