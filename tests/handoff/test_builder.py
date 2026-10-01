@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -697,7 +698,7 @@ def test_summary_is_specific_and_templated() -> None:
     assert anonymous.request_summary == "Customer not authenticated; human requested (ESC-05)."
 
 
-def test_trigger_claims_in_the_conversation_language() -> None:
+def test_claims_are_only_what_the_customer_said() -> None:
     req = request(
         slots=slots(
             reason_code=ReasonCode.UNRECOGNIZED, card_in_possession=False, shared_credentials=True
@@ -708,14 +709,120 @@ def test_trigger_claims_in_the_conversation_language() -> None:
             "account_takeover_reported": True,
         },
     )
-    spanish = build(req, customer_claims=["Me robaron el teléfono"]).customer_claims
-    assert spanish[0] == "Me robaron el teléfono"
-    assert "Dice que compartió sus claves o un código con otra persona." in spanish
-    assert "Dice que no tiene la tarjeta en su poder." in spanish
-    assert len(spanish) == 6
-    portuguese = build(req, language=Language.PT).customer_claims
-    assert "Pede para falar com um atendente humano." in portuguese
-    assert len(portuguese) == 5
+    said = ["Me robaron el teléfono", "Le di el código a alguien que llamó"]
+    packet = build(req, customer_claims=said)
+    assert packet.customer_claims == said
+    assert build(req).customer_claims == []  # nothing is written for the customer
+
+
+def test_no_claim_is_fixed_system_text() -> None:
+    from app.handoff import builder
+    from app.handoff.examples import example_packets
+
+    system_text = {
+        text
+        for name, value in vars(builder).items()
+        if name.isupper() and isinstance(value, dict)
+        for text in value.values()
+        if isinstance(text, str)
+    }
+    for packet in [full_packet(), *example_packets().values()]:
+        assert not set(packet.customer_claims) & system_text
+    assert not hasattr(builder, "DERIVED_CLAIMS")
+
+
+def test_evidence_points_to_the_claims_behind_it() -> None:
+    req = request(
+        slots=slots(reason_code=ReasonCode.UNRECOGNIZED, shared_credentials=True),
+        flags={"account_takeover_reported": True},
+    )
+    said = ["Me robaron el teléfono ayer", "Le di el código a quien me llamó"]
+    packet = build(
+        req,
+        customer_claims=said,
+        evidence_claims={
+            "account_takeover_reported": [said[0]],
+            "shared_credentials": [said[1]],
+        },
+    )
+    (reason,) = packet.escalation_reasons
+    by_name = {e.name: e.claims for e in reason.evidence}
+    assert by_name == {"account_takeover_reported": [said[0]], "shared_credentials": [said[1]]}
+
+
+def test_evidence_links_only_to_slots_and_flags() -> None:
+    req = request(slots=CONFIRMED, transaction_candidates=[txn(fraud_score=91.5)])
+    packet = build(req, customer_claims=["x"], evidence_claims={"fraud_score": ["x"]})
+    assert all(e.claims == [] for r in packet.escalation_reasons for e in r.evidence)
+
+
+def test_evidence_claims_must_be_customer_claims() -> None:
+    with pytest.raises(ValueError, match="not among customer_claims"):
+        build(
+            request(flags={"human_requested": True}),
+            customer_claims=["Quiero un humano"],
+            evidence_claims={"human_requested": ["texto inventado"]},
+        )
+
+
+@pytest.mark.parametrize("reason", list(ReasonCode))
+def test_missing_required_slots_become_questions(reason: ReasonCode) -> None:
+    from app.handoff.builder import SLOT_QUESTIONS
+    from app.policy.rules import REQUIRED_SLOTS
+
+    empty = {slot.value: None for slot in REQUIRED_SLOTS[reason]}
+    req = request(slots=slots(reason_code=reason, **empty), flags={"human_requested": True})
+    questions = build(req).open_questions
+    for slot in REQUIRED_SLOTS[reason]:
+        assert SLOT_QUESTIONS[slot] in questions, slot
+    filled = request(
+        slots=slots(
+            reason_code=reason,
+            card_in_possession=True,
+            shared_credentials=False,
+            duplicate_ref="TXN-0",
+            expected_amount=Decimal("10"),
+            expected_delivery_date=date(2026, 6, 1),
+            merchant_contacted=True,
+        ),
+        flags={"human_requested": True},
+    )
+    assert not set(SLOT_QUESTIONS.values()) & set(build(filled).open_questions)
+
+
+def test_every_required_slot_has_a_question() -> None:
+    from app.handoff.builder import SLOT_QUESTIONS
+    from app.policy.rules import REQUIRED_SLOTS
+
+    assert {s for slots in REQUIRED_SLOTS.values() for s in slots} == set(SLOT_QUESTIONS)
+
+
+def test_disputes_example_asks_for_the_delivery_date() -> None:
+    from app.contracts import SlotName
+    from app.handoff.builder import SLOT_QUESTIONS
+    from app.handoff.examples import example_packets
+
+    questions = example_packets()["disputes"].open_questions
+    assert SLOT_QUESTIONS[SlotName.EXPECTED_DELIVERY_DATE] in questions
+    assert SLOT_QUESTIONS[SlotName.MERCHANT_CONTACTED] not in questions
+
+
+def test_fraud_example_evidence_points_to_the_stolen_phone() -> None:
+    from app.handoff.examples import example_packets
+
+    packet = example_packets()["fraud"]
+    (reason,) = packet.escalation_reasons
+    assert reason.evidence[0].claims == ["O celular foi roubado no dia 9 de junho"]
+    assert set(reason.evidence[0].claims) <= set(packet.customer_claims)
+
+
+def test_security_example_names_a_real_pattern() -> None:
+    from app.handoff.examples import example_packets
+    from app.input_guard.patterns import PATTERNS
+
+    (reason,) = example_packets()["security_review"].escalation_reasons
+    pattern = next(e for e in reason.evidence if e.name == "pattern_id")
+    assert pattern.value in {p.pattern_id for p in PATTERNS}
 
 
 def test_business_date_and_transaction_age() -> None:
