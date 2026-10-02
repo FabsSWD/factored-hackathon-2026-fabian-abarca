@@ -13,6 +13,9 @@ Composition rules for the Orchestrator (M12):
   template is followed by ``offer_transfer``.
 - ``handoff_unauthenticated`` is the only handoff text allowed before GATE-02 passes
   (ESC-05 or ESC-06 without a session); it mentions no account data.
+- ``side_unsupported`` (a side question outside disputes) is followed by ``offer_transfer``,
+  or by a handoff when the turn hands off anyway. ``SIDE_TEMPLATES`` maps each side question
+  to its answer; the answer goes before the rest of the turn's reply.
 - ``ask_rephrase`` answers a message flagged by the Input Guard: it asks the customer to
   rephrase and reveals nothing about the detection (see ``app.interfaces.InputGuard``).
 - One confirmation turn covers exactly one action (COM-03): ``CONFIRMATION_TEMPLATES`` maps
@@ -38,6 +41,7 @@ from app.contracts import (
     InformReason,
     Language,
     ReasonCode,
+    SideQuestion,
     SlotName,
 )
 from app.templates.formatting import FormattedAmount, is_masked
@@ -55,6 +59,7 @@ FORMATTED_AMOUNT_VALUES = frozenset({"amount"})
 
 REQUIRED_FOLLOW_UPS: dict[str, frozenset[str]] = {
     "tool_failure": frozenset({"handoff", "offer_transfer"}),
+    "side_unsupported": frozenset({"offer_transfer"}),
 }
 """Template -> templates one of which must follow it in the same reply."""
 
@@ -79,6 +84,14 @@ INFORM_TEMPLATES: dict[InformReason, str] = {
     InformReason.MERCHANT_NOT_CONTACTED: "merchant_not_contacted",
     InformReason.DISPUTE_WITHDRAWN: "dispute_withdrawn",
 }
+SIDE_TEMPLATES: dict[SideQuestion, str] = {
+    SideQuestion.REFUND: "side_refund",
+    SideQuestion.TIMELINE: "side_timeline",
+    SideQuestion.BLOCK_CONSEQUENCES: "side_block_consequences",
+    SideQuestion.CASE_STATUS: "side_case_status",  # or side_no_cases / side_case_not_found
+    SideQuestion.OTHER: "side_unsupported",
+}
+"""The answer to each side question (the Orchestrator fills case_status from the records)."""
 CLARIFY_TEMPLATES: dict[SlotName, str] = {slot: f"clarify_{slot.value}" for slot in SlotName}
 CLARIFY_TEMPLATES[SlotName.CONFIRMATION] = "clarify_confirmation"
 CLARIFY_TARGET_TEMPLATES: dict[ClarifyTarget, str] = {
@@ -246,6 +259,8 @@ class TemplateService:
             | {follow_up for options in REQUIRED_FOLLOW_UPS.values() for follow_up in options}
             | {"handoff_unauthenticated", "session_expired_reconfirm", "ask_rephrase"}
             | set(CONFIRMATION_TEMPLATES)
+            | set(SIDE_TEMPLATES.values())
+            | {"side_no_cases", "side_case_not_found", "identified_transaction", "block_not_done"}
         )
         missing = required - set(templates)
         if missing:

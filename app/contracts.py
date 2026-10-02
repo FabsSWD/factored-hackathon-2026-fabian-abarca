@@ -183,6 +183,17 @@ class Confirmation(StrEnum):
     WITHDRAWN = "withdrawn"  # "no, ya no quiero", "deixa pra lá": no case
 
 
+class SideQuestion(StrEnum):
+    """A question the customer asks instead of (or besides) answering. The Orchestrator answers
+    it with a template and then goes on with the flow; it is not a clarification."""
+
+    REFUND = "refund"  # "¿me devuelven el dinero?"
+    TIMELINE = "timeline"  # "¿cuánto tarda?"
+    BLOCK_CONSEQUENCES = "block_consequences"  # "¿qué pasa si la bloquean?"
+    CASE_STATUS = "case_status"  # "¿cómo va mi disputa?"
+    OTHER = "other"  # anything unrelated to disputing a transaction
+
+
 class ModelSource(StrEnum):
     """Where decision-layer signals came from (architecture §3, §8)."""
 
@@ -422,6 +433,10 @@ class ExtractionResult(Contract):
     slots: Slots = Field(default_factory=Slots)
     flags: ConversationFlags = Field(default_factory=ConversationFlags)
     customer_claims: list[NonEmptyStr] = Field(default_factory=list)
+    side_question: SideQuestion | None = None
+    # The customer says the transaction just shown is not the one they mean ("ese no es").
+    wrong_transaction: bool = False
+    block_card_requested: bool = False  # "bloquéela": honored only after an ACT-03 offer
 
 
 class LLMTransaction(Contract):
@@ -856,6 +871,9 @@ class TraceRecord(Contract):
     decisions: list[PolicyDecision] = Field(default_factory=list)
     tool_calls: list[ToolResult] = Field(default_factory=list)
     outcome: Outcome | None = None
+    # What the reply did: "block_offer", "clarify:<target>", "summary", "side:other", ...
+    reply_kind: NonEmptyStr | None = None
+    side_question: SideQuestion | None = None  # answered with a template this turn
     handoff_id: NonEmptyStr | None = None
     stage_latencies_ms: dict[NonEmptyStr, NonNegativeFloat] = Field(default_factory=dict)
     total_latency_ms: NonNegativeFloat | None = None
@@ -912,6 +930,7 @@ __all__ = [
     "ReasonCode",
     "RuleEvidence",
     "SessionContext",
+    "SideQuestion",
     "SlotName",
     "Slots",
     "Tier",

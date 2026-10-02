@@ -15,9 +15,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.contracts import Confirmation, ReasonCode
+from app.contracts import Confirmation, ReasonCode, SideQuestion
 
-EXTRACT_PROMPT_VERSION = "extract@1.6.0"
+EXTRACT_PROMPT_VERSION = "extract@1.7.0"
 CONNECT_PROMPT_VERSION = "connect@1.0.0"
 
 EXTRACT_SYSTEM = """\
@@ -65,6 +65,13 @@ who pretended to be the bank).
   - legal_or_vulnerability: mentions legal action, a lawyer, a regulator, the media, or \
 serious hardship or distress caused by the charge.
   - authentication_declined: refuses to verify their identity.
+- side_question: a question the customer asks instead of, or besides, answering: "refund" \
+(whether they get their money back), "timeline" (how long it takes), "block_consequences" \
+(what blocking the card implies), "case_status" (the status of a dispute already filed), \
+"other" (anything unrelated to disputing a transaction); null otherwise.
+- wrong_transaction: the customer says the transaction just shown to them is not the one \
+they mean ("ese no es", "esse não é").
+- block_card_requested: the customer asks to block their card.
 - customer_claims: up to 5 short statements of what the customer asserts, always in the \
 third person and in the conversation's language ("El cliente indica que...", "O cliente \
 informa que...").
@@ -152,6 +159,12 @@ EXTRACT_SCHEMA: dict[str, Any] = _object(
             }
         ),
         "customer_claims": {"type": "array", "items": {"type": "string"}},
+        "side_question": {
+            "type": ["string", "null"],
+            "enum": [*(question.value for question in SideQuestion), None],
+        },
+        "wrong_transaction": {"type": "boolean"},
+        "block_card_requested": {"type": "boolean"},
     }
 )
 

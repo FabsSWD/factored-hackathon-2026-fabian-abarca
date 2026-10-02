@@ -1,8 +1,8 @@
 """Customer replies built only from versioned templates (COM-02), with the composition rules of
 ``app.templates.service``:
 
-- ``tool_failure`` is always followed by ``handoff`` (or ``handoff_unauthenticated``) or by
-  ``offer_transfer``;
+- ``tool_failure`` and ``side_unsupported`` are always followed by ``handoff`` (or
+  ``handoff_unauthenticated``) or by ``offer_transfer``;
 - every INFORM template is followed by ``offer_transfer``;
 - before GATE-02 passes, the only handoff text is ``handoff_unauthenticated``, and no template
   that shows account data is used.
@@ -39,8 +39,13 @@ ACCOUNT_IDS = frozenset(
         "candidate_line",
         "clarify_duplicate_ref",
         "handoff",
+        "identified_transaction",
+        "side_case_status",
+        "side_no_cases",
+        "side_case_not_found",
     }
 )
+TRANSFER_REQUIRED = frozenset({"tool_failure", "side_unsupported"})
 
 
 class CompositionError(ValueError):
@@ -112,11 +117,11 @@ class Reply:
     def check(self, authenticated: bool) -> None:
         for index, template_id in enumerate(self.ids):
             following = self.ids[index + 1 :]
-            if template_id == "tool_failure" and not (
+            if template_id in TRANSFER_REQUIRED and not (
                 set(following) & (HANDOFF_IDS | {"offer_transfer"})
             ):
                 raise CompositionError(
-                    "tool_failure must be followed by a handoff or a transfer offer"
+                    f"{template_id} must be followed by a handoff or a transfer offer"
                 )
             if template_id in INFORM_IDS and "offer_transfer" not in following:
                 raise CompositionError(f"{template_id} must be followed by offer_transfer")

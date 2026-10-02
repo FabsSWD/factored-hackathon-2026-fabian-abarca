@@ -29,11 +29,26 @@ Contracts it keeps (each has a test):
     that confirmation no longer counts.
 12. Exactly one trace per turn.
 13. The builder receives ``slot_turns``, ``transaction_ref_said`` and ``picked_candidate``.
+14. A side question (``SideQuestion``) is answered with a template before the rest of the
+    reply. It is neither a clarification nor an unclear answer: a side question alone repeats
+    the pending question without counting it (the card block offer too, without spending
+    ``BLOCK_REASKS``). ``other`` with nothing pending and nothing else said gets
+    ``side_unsupported`` + ``offer_transfer`` and does not push into the dispute flow.
+15. The block offer shows the charge it is about. "Ese no es" (``wrong_transaction``) corrects
+    the transaction: GATE-05 runs again and nothing is blocked. An offer without a clear
+    answer is never dropped in silence (``block_not_done``) and stays available until the case
+    is created: a later ``block_card_requested`` offers it again, with its confirmation.
+16. Every trace records an outcome and a ``reply_kind``, also when the engine is not called
+    (block offer and ``ask_rephrase``: CLARIFY; side question ``other``: INFORM).
+17. Without a session Kev is not called (no rule before GATE-02 uses its signals), and
+    ``connect`` is not called when the reply asks to log in. ``extract`` still runs (language,
+    interrupts), and its slots are kept for after the login.
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 import uuid
 from collections.abc import Callable, Iterator
@@ -48,6 +63,8 @@ from app.config import PolicyParameters
 from app.contracts import (
     AccessDeniedError,
     ActionId,
+    CaseRecord,
+    CaseStatus,
     ClarifyTarget,
     Confirmation,
     ConversationFlags,
@@ -70,6 +87,7 @@ from app.contracts import (
     ReasonCode,
     RuleEvidence,
     SessionContext,
+    SideQuestion,
     SlotName,
     Slots,
     ToolResult,
@@ -95,7 +113,7 @@ from app.llm_adapter.language import guess_language
 from app.llm_adapter.signals import RuleBasedSignalDetector
 from app.orchestrator.calls import collect_calls
 from app.orchestrator.corrections import apply_declined_correction
-from app.orchestrator.replies import Reply
+from app.orchestrator.replies import HANDOFF_IDS, Reply
 from app.orchestrator.state import (
     BlockOffer,
     ConversationState,
@@ -105,7 +123,7 @@ from app.orchestrator.state import (
 from app.policy.clock import business_date
 from app.pseudonym import UNAUTHENTICATED_REF, customer_ref
 from app.templates.formatting import Locale, format_date, locale_for
-from app.templates.service import INFORM_TEMPLATES, TemplateService
+from app.templates.service import INFORM_TEMPLATES, SIDE_TEMPLATES, TemplateService
 
 T = TypeVar("T")
 Clock = Callable[[], datetime]
@@ -116,6 +134,10 @@ NOT_COUNTED = frozenset({ClarifyTarget.LANGUAGE, ClarifyTarget.AUTHENTICATION})
 SUMMARY_TARGETS = frozenset({ClarifyTarget.CONFIRMATION, ClarifyTarget.CORRECTION})
 BLOCK_REASKS = 1  # an unclear answer to the block offer is asked once more (policy §8)
 MIN_GUESS_WORDS = 3  # the rule-based language guess needs a few words
+LOGIN_IDS = frozenset({"ask_authentication", "session_expired_reconfirm"})
+CASE_REF = re.compile(r"\bDSP-\d{8}-\d{6,}\b", re.IGNORECASE)
+MAX_CASES_SHOWN = 3  # side question case_status: the most recent cases
+Prefix = list[tuple[str, dict[str, object]]]
 
 
 class ConversationAccessError(Exception):
@@ -174,7 +196,10 @@ class _Turn:
     decisions: list[PolicyDecision] = field(default_factory=list)
     tool_calls: list[ToolResult] = field(default_factory=list)
     stages: dict[str, float] = field(default_factory=dict)
-    prefix: list[tuple[str, dict[str, object]]] = field(default_factory=list)
+    prefix: Prefix = field(default_factory=list)
+    side_question: SideQuestion | None = None
+    side_only: bool = False  # a side question and no answer to anything (contract 14)
+    asked_before: ClarifyTarget | None = None  # the CLARIFY target this message answers
     reply: Reply | None = None
     reply_kind: str = ""
     outcome: Outcome | None = None
@@ -290,7 +315,7 @@ class Orchestrator:
         if guard.flagged and not guard.escalate_security:
             # Contract 2: nothing reaches the models; not a clarification.
             self._new_reply(turn).add("ask_rephrase")
-            turn.reply_kind = "ask_rephrase"
+            turn.reply_kind, turn.outcome = "ask_rephrase", Outcome.CLARIFY
             return
 
         if session is not None:
@@ -387,6 +412,8 @@ class Orchestrator:
 
     async def _kev(self, turn: _Turn, deadline: Deadline | None) -> ModelSignals:
         assert turn.context is not None
+        if turn.session is None:  # contract 17
+            return ModelSignals(source=ModelSource.UNAVAILABLE)
         try:
             return await self._decision.signals(turn.message, turn.context, deadline)
         except Exception:
@@ -435,8 +462,51 @@ class Orchestrator:
         pending, target = state.pending, state.pending_target
         state.pending, state.pending_target = Pending.NONE, None
         urgent = state.flags.human_requested or state.flags.legal_or_vulnerability
+        question = extraction.side_question
+        answered = new.model_copy(update={"confirmation": None}) != Slots() or answer not in (
+            None,
+            Confirmation.HEDGED,
+        )
+        turn.side_only = (
+            question is not None
+            and not answered
+            and not extraction.wrong_transaction
+            and not extraction.block_card_requested
+        )
+        turn.asked_before = target if pending is Pending.CLARIFY else None
+        if question is not None:
+            await self._answer_side_question(turn, question)
+            if (
+                question is SideQuestion.OTHER
+                and pending is Pending.NONE
+                and turn.side_only
+                and extraction.flags == ConversationFlags()
+            ):
+                # Contract 14: nothing pending, nothing else said: no push into the dispute flow.
+                self._new_reply(turn)
+                turn.reply_kind, turn.outcome = "side:other", Outcome.INFORM
+                return True
+
+        if (
+            extraction.block_card_requested
+            and pending is not Pending.BLOCK_OFFER
+            and state.block_offer is BlockOffer.DECLINED
+            and state.block_product_id is not None
+            and not urgent
+        ):
+            # Contract 15: the offer stands until the case is created; asked again, confirmed.
+            self._apply_slots(
+                turn, new.model_copy(update={"confirmation": None}), extraction.customer_claims
+            )
+            state.block_offer, state.block_reasks = BlockOffer.OFFERED, 0
+            state.pending = Pending.BLOCK_OFFER
+            self._offer_block(turn)
+            return True
 
         if pending is Pending.BLOCK_OFFER:
+            if extraction.wrong_transaction:
+                self._reject_identified(turn, new, extraction.customer_claims)
+                return False
             # Whatever else the customer said is kept, even when the block is asked again.
             self._apply_slots(
                 turn, new.model_copy(update={"confirmation": None}), extraction.customer_claims
@@ -447,13 +517,20 @@ class Orchestrator:
                 state.block_offer = BlockOffer.DECLINED  # the dispute goes on (COM-03)
             elif urgent:
                 pass  # still offered and unconfirmed: the handoff tells the agent (contract 7)
-            elif self._asked(state, ClarifyTarget.CONFIRMATION) < BLOCK_REASKS:
+            elif turn.side_only:
+                state.pending = Pending.BLOCK_OFFER  # contract 14: no BLOCK_REASKS spent
+                self._offer_block(turn)
+                return True
+            elif state.block_reasks < BLOCK_REASKS:
+                state.block_reasks += 1
                 self._count(state, ClarifyTarget.CONFIRMATION)
                 state.pending = Pending.BLOCK_OFFER
-                self._offer_block(turn, reask=True)
+                self._offer_block(turn)
                 return True
             else:
-                state.block_offer = BlockOffer.DECLINED  # no clear yes: nothing is blocked
+                # No clear yes: nothing is blocked, and the customer is told (contract 15).
+                state.block_offer = BlockOffer.DECLINED
+                turn.prefix.append(("block_not_done", {}))
             return False
 
         summary_reply = pending is Pending.SUMMARY or (
@@ -483,6 +560,69 @@ class Orchestrator:
 
         self._apply_slots(turn, new, extraction.customer_claims)
         return False
+
+    def _reject_identified(self, turn: _Turn, new: Slots, claims: list[str]) -> None:
+        """Contract 15: "ese no es" at the block offer replaces the transaction (GATE-05 runs
+        again on what the customer says now) and withdraws the offer for that card."""
+        state = turn.state
+        others = new.model_copy(update={"confirmation": None, "transaction_ref": None})
+        self._apply_slots(turn, others, claims)
+        ref = new.transaction_ref
+        state.slots = state.slots.model_copy(update={"transaction_ref": ref, "confirmation": None})
+        state.transaction_ref_said, state.picked_candidate = None, None
+        state.shown_candidates = []
+        if ref is not None:
+            self._remember_said(state, ref, picked=None)
+            self._mark(turn, SlotName.TRANSACTION_REF, claims)
+        else:
+            state.slot_turns.pop(SlotName.TRANSACTION_REF, None)
+        state.block_offer, state.block_product_id = BlockOffer.NOT_OFFERED, None
+        state.block_reasks = 0
+
+    async def _answer_side_question(self, turn: _Turn, question: SideQuestion) -> None:
+        """Contract 14: the answer goes first in the reply; the turn goes on after it."""
+        answer: Prefix
+        if question is SideQuestion.CASE_STATUS:
+            answer = await self._case_status(turn)
+        elif question is SideQuestion.OTHER:
+            answer = [(SIDE_TEMPLATES[question], {}), ("offer_transfer", {})]
+        else:
+            answer = [(SIDE_TEMPLATES[question], {})]
+        turn.side_question = question
+        turn.prefix[0:0] = answer
+
+    async def _case_status(self, turn: _Turn) -> Prefix:
+        """The customer's own cases: the one whose reference they typed (``get_case``), else the
+        most recent ones. Nothing is read without a session: the answer is to log in."""
+        if turn.session is None:
+            return [("ask_authentication", {})]
+        assert turn.tools is not None
+        typed = CASE_REF.search(turn.message)
+        cases: list[CaseRecord]
+        if typed is not None:
+            try:
+                case = await self._io(turn.tools.get_case, typed.group(0).upper())
+            except AccessDeniedError:  # GATE-04: someone else's or none, the same answer
+                return [("side_case_not_found", {})]
+            if case.status is CaseStatus.DRAFT:  # never shown to a customer
+                return [("side_case_not_found", {})]
+            cases = [case]
+        else:
+            shown = [c for c in turn.records.cases if c.status is not CaseStatus.DRAFT]
+            cases = sorted(shown, key=lambda c: c.created_at, reverse=True)[:MAX_CASES_SHOWN]
+        if not cases:
+            return [("side_no_cases", {})]
+        language = self._language(turn)
+        return [
+            (
+                "side_case_status",
+                {
+                    "case_ref": case.case_id,
+                    "status": self._templates.label("case_status", case.status.value, language),
+                },
+            )
+            for case in cases
+        ]
 
     def _correct(self, turn: _Turn, new: Slots, claims: list[str]) -> bool:
         """Contract 6: a declined summary is a proposed correction (corrections.py)."""
@@ -658,7 +798,7 @@ class Orchestrator:
             # Contracts 5 and 8: the block is confirmed first, on its own; not a clarification.
             state.block_offer, state.block_product_id = BlockOffer.OFFERED, decision.card_product_id
             state.pending = Pending.BLOCK_OFFER
-            self._offer_block(turn, reask=False)
+            self._offer_block(turn)
             return
         if decision.outcome is Outcome.CLARIFY:
             self._clarify(turn, request, decision)
@@ -683,6 +823,7 @@ class Orchestrator:
         turn.reply_kind = f"clarify:{target.value}"
         state.pending, state.pending_target = Pending.CLARIFY, target
         first_summary = target is ClarifyTarget.CONFIRMATION and request.slots.confirmation is None
+        repeated = turn.side_only and target is turn.asked_before  # contract 14
         if target is ClarifyTarget.AUTHENTICATION:
             reconfirm = (
                 state.slots.confirmation is not None or state.block_offer is BlockOffer.OFFERED
@@ -691,9 +832,10 @@ class Orchestrator:
             # Contract 11: a confirmation from before the expiry no longer counts.
             reply.add("session_expired_reconfirm" if reconfirm else "ask_authentication")
             state.slots = state.slots.model_copy(update={"confirmation": None})
-            state.counters = state.counters.model_copy(
-                update={"authentication_attempts": state.counters.authentication_attempts + 1}
-            )
+            if not repeated:
+                state.counters = state.counters.model_copy(
+                    update={"authentication_attempts": state.counters.authentication_attempts + 1}
+                )
         elif target is ClarifyTarget.LANGUAGE:
             reply.add("ask_language")
             state.counters = state.counters.model_copy(
@@ -732,7 +874,7 @@ class Orchestrator:
             reply.add("clarify_expected_amount", currency=txn.currency if txn else "USD")
         else:
             reply.add(f"clarify_{target.value}")
-        if target not in NOT_COUNTED and not first_summary:
+        if target not in NOT_COUNTED and not first_summary and not repeated:
             self._count(state, target)
         if decision.duplicate_reason_reask:
             state.counters = state.counters.model_copy(update={"duplicate_reason_reasked": True})
@@ -843,11 +985,22 @@ class Orchestrator:
             if masked:
                 turn.prefix.append(("card_blocked", {"product": masked}))
 
-    def _offer_block(self, turn: _Turn, *, reask: bool) -> None:
-        product = self._product_by_id(turn, turn.state.block_product_id)
+    def _offer_block(self, turn: _Turn) -> None:
+        """ACT-03 confirmation (contracts 5, 15): the charge it is about, then the offer."""
+        state = turn.state
+        product = self._product_by_id(turn, state.block_product_id)
         assert product is not None
-        self._new_reply(turn).add("confirm_block_card", product=product.product_number_masked)
-        turn.reply_kind = "block_offer"
+        reply = self._new_reply(turn)
+        txn = self._find(turn.records.pool, state.last_transaction_id)
+        if txn is not None:
+            reply.add(
+                "identified_transaction",
+                transaction_date=format_date(txn.transaction_date),
+                merchant=reply.merchant(txn),
+                amount=reply.amount(txn),
+            )
+        reply.add("confirm_block_card", product=product.product_number_masked)
+        turn.reply_kind, turn.outcome = "block_offer", Outcome.CLARIFY
 
     def _record_tool(self, turn: _Turn, result: ToolResult) -> None:
         turn.tool_calls.append(result)
@@ -924,7 +1077,8 @@ class Orchestrator:
             ids, texts = list(reply.ids), list(reply.texts)
             reply.ids, reply.texts = [], []
             for template_id, values in turn.prefix:
-                reply.add(template_id, **values)
+                if not self._redundant(template_id, ids):
+                    reply.add(template_id, **values)
             reply.ids += ids
             reply.texts += texts
         try:
@@ -941,6 +1095,7 @@ class Orchestrator:
             and turn.context is not None
             and state.language is not None
             and "ask_language" not in reply.ids
+            and not set(reply.ids) & LOGIN_IDS  # contract 17
         ):
             context = turn.context.model_copy(update={"language": state.language})
             try:
@@ -972,6 +1127,8 @@ class Orchestrator:
             decisions=list(turn.decisions),
             tool_calls=list(turn.tool_calls),
             outcome=turn.outcome,
+            reply_kind=turn.reply_kind or None,
+            side_question=turn.side_question,
             handoff_id=turn.handoff_id,
             stage_latencies_ms=dict(turn.stages),
             total_latency_ms=total_ms,
@@ -987,13 +1144,25 @@ class Orchestrator:
     # ------------------------------------------------------------------ helpers
 
     def _new_reply(self, turn: _Turn) -> Reply:
-        language = turn.state.language or guess_language(turn.message) or Language.ES
-        turn.reply = Reply(self._templates, language, self._locale(turn))
+        turn.reply = Reply(self._templates, self._language(turn), self._locale(turn))
         return turn.reply
 
+    @staticmethod
+    def _language(turn: _Turn) -> Language:
+        return turn.state.language or guess_language(turn.message) or Language.ES
+
     def _locale(self, turn: _Turn) -> Locale:
-        language = turn.state.language or guess_language(turn.message) or Language.ES
-        return locale_for(language, turn.records.country)
+        return locale_for(self._language(turn), turn.records.country)
+
+    @staticmethod
+    def _redundant(template_id: str, reply_ids: list[str]) -> bool:
+        """A side answer the rest of the reply already covers: the same template, a login
+        request next to another one, or a transfer offer next to a handoff."""
+        if template_id in reply_ids:
+            return True
+        if template_id == "ask_authentication":
+            return bool(set(reply_ids) & (LOGIN_IDS | HANDOFF_IDS))
+        return template_id == "offer_transfer" and bool(set(reply_ids) & HANDOFF_IDS)
 
     def _authenticated(self, turn: _Turn) -> bool:
         return any(
@@ -1014,10 +1183,6 @@ class Orchestrator:
     def _product_of(self, turn: _Turn, transaction_id: str | None) -> ProductRecord | None:
         txn = self._find(turn.records.pool, transaction_id)
         return self._product_by_id(turn, txn.product_id) if txn else None
-
-    @staticmethod
-    def _asked(state: ConversationState, target: ClarifyTarget) -> int:
-        return state.counters.clarifications_by_slot.get(target, 0)
 
     @staticmethod
     def _count(state: ConversationState, target: ClarifyTarget) -> None:

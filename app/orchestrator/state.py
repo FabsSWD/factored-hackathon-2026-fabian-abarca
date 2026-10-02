@@ -63,6 +63,7 @@ class ConversationState:
     picked_candidate: int | None = None
     block_offer: BlockOffer = BlockOffer.NOT_OFFERED
     block_product_id: str | None = None
+    block_reasks: int = 0  # unclear answers to the offer asked again (side questions excluded)
     card_already_blocked_told: bool = False
     claims: list[str] = field(default_factory=list)
     evidence_claims: dict[str, list[str]] = field(default_factory=dict)
@@ -87,6 +88,7 @@ class ConversationState:
         self.picked_candidate = None
         self.block_offer = BlockOffer.NOT_OFFERED
         self.block_product_id = None
+        self.block_reasks = 0
         self.card_already_blocked_told = False
         self.counters = self.counters.model_copy(
             update={

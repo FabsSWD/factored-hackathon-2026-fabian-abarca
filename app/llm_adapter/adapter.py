@@ -235,6 +235,7 @@ def parse_extraction(
     flags = data.get("flags") or {}
     booleans = [slots.get(name) for name in _BOOLEAN_SLOTS]
     booleans += [data.get("language_ambiguous", False), *flags.values()]
+    booleans += [data.get("wrong_transaction", False), data.get("block_card_requested", False)]
     if any(value is not None and not isinstance(value, bool) for value in booleans):
         raise ValueError("extraction outside the schema: booleans must be true, false or null")
     ref = slots.get("transaction_ref")
@@ -266,6 +267,9 @@ def parse_extraction(
             slots=Slots.model_validate(slots),
             flags=ConversationFlags.model_validate(flags),
             customer_claims=[claim for claim in claims if claim][:MAX_CLAIMS],
+            side_question=data.get("side_question"),
+            wrong_transaction=data.get("wrong_transaction", False),
+            block_card_requested=data.get("block_card_requested", False),
         )
         return result, adjustments
     except ValidationError as exc:
