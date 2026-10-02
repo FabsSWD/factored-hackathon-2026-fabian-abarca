@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.4.9 |
+| Version | 0.4.10 |
 | Last updated | 2026-10-01 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -128,7 +128,7 @@ Gates `GATE-01` to `GATE-09` are evaluated in the order listed, then `GATE-11`, 
 | `GATE-10` | Reason-specific preconditions | See the table below. | See the table below. |
 | `GATE-11` | No duplicate case | No case exists for the same `transaction_id`, whatever its status (open or closed). A `Draft` case exists only inside a conversation and never counts. | `INFORM` with the existing case reference and status, and an offer to transfer. A dispute that was rejected or closed is never reopened automatically; reopening it is a human decision. A `Draft` status is never shown to the customer. |
 
-**Authentication attempts (`GATE-02`).** Every turn in which the system asks the customer to authenticate and the customer does not end up authenticated counts as one attempt, including a wrong OTP. When the attempts exceed `AUTH_MAX_ATTEMPTS`, the outcome is `INFORM` with an offer to transfer. An explicit refusal to authenticate gives `INFORM` immediately. Authentication is not a slot of [§10](#10-required-information-and-clarification), so attempts do not count toward `MAX_CLARIFICATION_TURNS` or `MAX_TOTAL_CLARIFICATIONS`. Every failed OTP is recorded as a security event in the audit record.
+**Authentication attempts (`GATE-02`).** Every turn in which the system asks the customer to authenticate and the customer does not end up authenticated counts as one attempt, including a wrong OTP. `AUTH_MAX_ATTEMPTS` is the number of authentication requests: after that many, a turn in which the customer is still not authenticated gives `INFORM` with an offer to transfer (with 3, the third request is a `CLARIFY` and the fourth turn without a session is the `INFORM`). An explicit refusal to authenticate gives `INFORM` immediately. Authentication is not a slot of [§10](#10-required-information-and-clarification), so attempts do not count toward `MAX_CLARIFICATION_TURNS` or `MAX_TOTAL_CLARIFICATIONS`. Every failed OTP is recorded as a security event in the audit record.
 
 **Values outside the data contract.** Every value a rule reads (transaction type and status, product and customer status) belongs to a set fixed when the data is loaded. A value outside it stops the evaluation with an error instead of being guessed. The system then answers safely: a handoff with the tool-failure notice and an audit event, never an error page with technical details.
 
@@ -557,3 +557,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.4.7 | 2026-10-01 | `GATE-05`: merchant matched by words without generic words, approximate amounts with tolerance (`AMOUNT_TOLERANCE_PCT`, `AMOUNT_TOLERANCE_USD`), relaxed search in steps whose results the customer picks, the most useful detail asked for. §10: a clarification answered with new information does not count toward `ESC-09`; no clarification text twice in a row. |
 | 0.4.8 | 2026-10-01 | `GATE-05`: a merchant named only with generic words is searched by category, or left out when it has none; periods of days match the business days in them; a last relaxed step without the merchant, when an amount or a date remains. |
 | 0.4.9 | 2026-10-02 | Handoff packet (§13): `post_handoff_messages`, the customer's messages after the transfer, masked; the transfer text is sent once and later messages get a neutral notice. |
+| 0.4.10 | 2026-10-02 | `GATE-02`: `AUTH_MAX_ATTEMPTS` counts authentication requests; the turn after the last one without a session gives `INFORM`. |

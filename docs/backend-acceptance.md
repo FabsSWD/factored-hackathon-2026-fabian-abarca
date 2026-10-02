@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Status | Draft, pending the decision on finding D1 |
-| Version | 0.1.0 |
+| Status | Accepted, pending the `backend-v1` tag |
+| Version | 0.2.0 |
 | Last updated | 2026-10-02 |
 | Milestone | M13, exit gate of phase 1 |
-| Scope | Policy v0.4.9, templates 1.12.0, `extract@1.9.0`, `connect@1.2.0` |
+| Scope | Policy v0.4.10, templates 1.12.0, `extract@1.9.0`, `connect@1.2.0` |
 | Related | [Dispute policy](dispute-policy.md), [Software architecture](software-architecture.md) |
 
 ## Contents
@@ -24,13 +24,14 @@
 
 ## 1. Verdict
 
-The backend meets the acceptance criteria except for one defect of medium severity (D1).
+The backend meets the acceptance criteria. The one defect found (D1, medium) was fixed in this milestone, and the reading of `GATE-02` (O1) was settled in policy 0.4.10.
 
 - Every gate (`GATE-01` to `GATE-11`) and every trigger (`ESC-01` to `ESC-14`) was exercised at least once as a whole conversation through the HTTP API.
 - There are zero false negatives on the hard rules: all 13 hard triggers escalate, to the queue and with the priority of policy §7, and none of them also creates a case.
 - The security review found no leak of other customers' data, no accepted forged token, no internal error shown to a customer and no prohibited data in replies, packets or traces.
 - Coverage is 99% overall, with the Policy Engine and the Tool Layer at 100%.
-- **D1:** `ESC-11` never fires when both model services are down. One end-to-end test shows it and stays red until it is decided whether to fix it in this branch.
+- The whole suite is green: 2529 tests.
+- Two findings of low severity (O2, O3) go to M20.
 
 ## 2. How the backend was tested
 
@@ -54,10 +55,10 @@ Every reply of every end-to-end turn passes a common check: no rule identifier, 
 
 | Suite | Tests | Result |
 |---|---|---|
-| Whole project (`pytest`) | 2528 | 2527 passed, 1 failed (D1) |
-| End to end (`tests/e2e/`) | 65 | 64 passed, 1 failed (D1) |
+| Whole project (`pytest`) | 2529 | Passed |
+| End to end (`tests/e2e/`) | 65 | Passed |
 | Gates | 26 | Passed |
-| Escalation triggers | 17 | 16 passed, 1 failed (D1) |
+| Escalation triggers | 17 | Passed |
 | Conversation behaviors | 8 | Passed |
 | Security review | 12 | Passed |
 | Light load (fast doubles) | 2 | Passed |
@@ -71,7 +72,7 @@ Coverage of `app/` is 99% (5520 statements). The Policy Engine (`engine.py`, `ma
 | Gate | Scenario through the API | Result |
 |---|---|---|
 | `GATE-01` | A message in English is asked once for a language, then escalates | `ESC-12` |
-| `GATE-02` | Without a session nothing is read; an explicit refusal; four login requests without a login; the reason given before the login is kept after it | `CLARIFY`; `INFORM`; `INFORM` on the fifth turn; kept |
+| `GATE-02` | Without a session nothing is read; an explicit refusal; three login requests without a login; the reason given before the login is kept after it | `CLARIFY`; `INFORM`; `INFORM` on the fourth turn (policy 0.4.10); kept |
 | `GATE-03` | A suspended customer | `ESC-08` |
 | `GATE-04` | Another customer's transaction, and one that does not exist | The same `REFUSE`; a security event |
 | `GATE-05` | Several matches listed and one picked; nothing found; an approximate amount | List; "Busqué … y no encontré ninguna"; a candidate confirmed with yes |
@@ -98,7 +99,7 @@ The whole automated path is also covered: a card block offer that names the char
 | `ESC-08` | A suspended customer | Disputes, normal |
 | `ESC-09` | Two answers without information | Disputes, normal |
 | `ESC-10` | `ACT-02` fails after its retries | Disputes, normal |
-| `ESC-11` | Both model services down | **Does not fire (D1)** |
+| `ESC-11` | Both model services down (soft trigger) | Disputes, normal |
 | `ESC-12` | English twice | Disputes, normal |
 | `ESC-13` | An injection quoted as "the text of the transaction", then a second attempt | Security review, normal |
 | `ESC-14` | An unrecognized transfer | Fraud, normal |
@@ -151,12 +152,17 @@ Raw results: `reports/m13_load_results.json`.
 
 ## 8. Findings
 
-| ID | Severity | Finding | Proposal |
+| ID | Severity | Finding | Resolution |
 |---|---|---|---|
-| D1 | Medium | When `extract` fails and Kev is unavailable, the Orchestrator derives `llm_fallback` signals from the empty rule-only extraction instead of leaving them `unavailable`. This contradicts architecture §8 ("If the extraction failed too, the signals stay unavailable and count as uncertainty"). With the thresholds null, `ESC-11` then never fires. The conversation keeps asking until `ESC-09` instead of escalating at once. No automated resolution is possible meanwhile, because nothing fills the slots or the confirmation. | Fix in this branch: when `extract` failed and Kev did not answer, the turn's signals are `unavailable`. One line in `Orchestrator._understand`; the red test then passes. |
-| O1 | Low | `GATE-02` informs on the fifth turn, after four login requests (`attempts > AUTH_MAX_ATTEMPTS` with 3). The policy says "when the attempts exceed", which also reads as the fourth turn. | Decide the reading in the policy (M20). |
-| O2 | Low | The last relaxation step leaves the merchant out even when the customer named a concrete one that does not exist. "Zapatería Inventada, unos 70" lists a USD 75 purchase at Tienda Remota. The customer must pick it, so it is safe, but it can confuse. | Keep the step for categories and absent merchants only (M20). |
-| O3 | Low | With the measured latencies, p95 with connecting sentences is 6.9 s. | Decide whether `connect` stays on for the demo, or runs only on the first turn and on bad news (M20). |
+| D1 | Medium | When `extract` fails and Kev is unavailable, the Orchestrator derives `llm_fallback` signals from the empty rule-only extraction instead of leaving them `unavailable`. This contradicts architecture §8 ("If the extraction failed too, the signals stay unavailable and count as uncertainty"). With the thresholds null, `ESC-11` then never fires. The conversation keeps asking until `ESC-09` instead of escalating at once. No automated resolution is possible meanwhile, because nothing fills the slots or the confirmation. | **Fixed in M13.** When `extract` failed (or the token cap skipped it) and Kev did not answer, the turn's signals are `unavailable` and `ESC-11` fires; the rule detector's interrupts still arrive. Tested end to end and in the Orchestrator. |
+| O1 | Low | `GATE-02` informed on the fifth turn, after four login requests. The policy's "when the attempts exceed" also read as the fourth turn, and the reading changes the labels of M17. | **Decided in M13 (policy 0.4.10).** `AUTH_MAX_ATTEMPTS` is the number of authentication requests: with 3, the third request is a `CLARIFY` and the fourth turn without a session is the `INFORM`. Engine and tests changed. |
+| O2 | Low | The last relaxation step leaves the merchant out even when the customer named a concrete one that does not exist. "Zapatería Inventada, unos 70" lists a USD 75 purchase at Tienda Remota. The customer must pick it, so it is safe, but it can confuse. | **M20:** keep the step for categories and absent merchants only. |
+| O3 | Low | With the measured latencies, p95 with connecting sentences is 6.9 s. | **M20:** decide whether `connect` stays on for the demo, or runs only on the first turn and on bad news. |
+
+### Carried to M20
+
+- **O2:** limit the last relaxation step of `GATE-05` (without the merchant) to merchants given as a category or left out, not to a concrete name that matches nothing.
+- **O3:** decide the use of connecting sentences for the demo (on, off, or only on the first turn and on bad news), against p95 6.9 s with them and 4.6 s without them.
 
 ## 9. Known limitations
 

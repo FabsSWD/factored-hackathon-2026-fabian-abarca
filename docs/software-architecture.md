@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.12 |
+| Version | 0.1.13 |
 | Last updated | 2026-10-01 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -181,7 +181,7 @@ The data and ML pipelines will be documented separately.
 - Capacity limits of the deployment have not been measured yet; they will be reported with the evaluation results.
 - The audit API has no identity per agent: a single service token grants the agent role, so audit reads are recorded but not attributed to a person.
 - Conversation state (accumulated slots, counters, the question pending) is kept in memory by the Orchestrator, in one process. The API therefore runs with exactly one worker (`python scripts/serve.py`); M19 must keep a single worker until the state moves to a shared store behind the same `ConversationStore` interface. A restart loses open conversations.
-- Once a conversation reaches `LLM_MAX_TOKENS_PER_CONVERSATION`, the LLM is not called again and each turn behaves exactly as when `extract` is unavailable: empty slots and the rule-based signals only (a request for a human or a legal signal is still honored). The conversation then ends in a handoff or `ESC-09`. No policy rule is added for the cap.
+- Once a conversation reaches `LLM_MAX_TOKENS_PER_CONVERSATION`, the LLM is not called again and each turn behaves exactly as when `extract` is unavailable: empty slots, the rule-based interrupts (a request for a human or a legal signal is still honored), and Kev's signals, or unavailable signals when Kev does not answer either, which escalate under `ESC-11`. No policy rule is added for the cap.
 - Kev's serving details (run and release date) are read from `GET /v1/models` after its first successful answer, not at startup, and cached; until then, or if that read fails (recorded as a `model_info` call), traces name the alias `kev-latest`.
 - Two clocks: transaction-age rules use a simulated business date (`BUSINESS_DATE`, because the supplied data ends on 2026-06-17), while session age uses real time ([policy §15](dispute-policy.md#15-parameters)).
 
@@ -202,3 +202,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.10 | 2026-10-01 | M12 manual test 3: generic merchants by category, periods of days (`extract@1.9.0`), `flow_help` only when the message brings no detail, connecting sentences never retried after the filter. |
 | 0.1.11 | 2026-10-01 | M12 manual test 3, last fixes: the "card already blocked" notice only for a card blocked before the conversation; after RESOLVE or INFORM, a message with nothing to act on ("gracias") gets a closing reply instead of a new question. |
 | 0.1.12 | 2026-10-02 | Injection test: after a handoff, a neutral `already_transferred` notice instead of the transfer text again; later messages added masked to the packet without any model. |
+| 0.1.13 | 2026-10-02 | M13: with `extract` failed (or skipped by the token cap) and no Kev, the signals are unavailable (`ESC-11`), as §8 states; `GATE-02` informs on the turn after the last authentication request (policy 0.4.10). |
