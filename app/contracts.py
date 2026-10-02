@@ -280,6 +280,8 @@ class TransactionRecord(Contract):
     # The Tool Layer resolves it; None means it could not be established.
     amount_usd: NonNegativeAmount | None = None
     merchant_name: str | None = None
+    # Food, Health, Transport, Entertainment, Services, Other, or None (GATE-05 by category).
+    merchant_category: str | None = None
     fraud_score: Annotated[float, Field(ge=0, le=100, allow_inf_nan=False)] | None = None
 
 
@@ -327,6 +329,10 @@ class TransactionRef(Contract):
 
     transaction_id: NonEmptyStr | None = None
     transaction_date: date | None = None
+    # A period instead of one day ("entre el 15 y el 19 de junio", "la semana pasada"): GATE-05
+    # matches the business days in it, ±1 day; a period of more than 31 days does not filter.
+    date_from: date | None = None
+    date_to: date | None = None
     amount: PositiveAmount | None = None
     merchant: NonEmptyStr | None = None
     # The customer qualified the amount ("como de 40", "uns 40"): GATE-05 matches it with
@@ -341,10 +347,15 @@ class TransactionRef(Contract):
         if (
             self.transaction_id is None
             and self.transaction_date is None
+            and self.date_from is None
             and self.amount is None
             and self.merchant is None
         ):
             raise ValueError("a transaction reference needs at least one field")
+        if (self.date_from is None) != (self.date_to is None):
+            raise ValueError("a date range needs both date_from and date_to")
+        if self.date_from and self.date_to and self.date_from > self.date_to:
+            raise ValueError("date_from must not be after date_to")
         return self
 
 

@@ -8,6 +8,7 @@ parameter, or a value of the wrong type stops the application at startup.
 from __future__ import annotations
 
 import os
+import unicodedata
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
@@ -25,6 +26,7 @@ from pydantic import (
 )
 
 DEFAULT_POLICY_PATH = Path(__file__).resolve().parent.parent / "config" / "policy.yaml"
+DEFAULT_MERCHANT_CATEGORIES_PATH = DEFAULT_POLICY_PATH.parent / "merchant_categories.yaml"
 POLICY_PATH_ENV = "POLICY_CONFIG_PATH"
 
 
@@ -129,6 +131,32 @@ def load_policy_config(path: Path | str | None = None) -> PolicyConfig:
             for err in exc.errors()
         )
         raise PolicyConfigError(f"Invalid policy file {resolved}: {problems}") from exc
+
+
+def load_merchant_categories(path: Path | str | None = None) -> dict[str, str]:
+    """Word -> merchant category for GATE-05 (config/merchant_categories.yaml). Words are
+    folded (lower case, no accents); a word in two categories is an error."""
+    resolved = Path(path) if path is not None else DEFAULT_MERCHANT_CATEGORIES_PATH
+    try:
+        raw = yaml.safe_load(resolved.read_text(encoding="utf-8"))
+    except (FileNotFoundError, yaml.YAMLError) as exc:
+        raise PolicyConfigError(f"Merchant categories not readable: {resolved}: {exc}") from exc
+    categories = raw.get("categories") if isinstance(raw, dict) else None
+    if not isinstance(categories, dict) or not categories:
+        raise PolicyConfigError(f"Merchant categories need a 'categories' mapping: {resolved}")
+    words: dict[str, str] = {}
+    for category, entries in categories.items():
+        if not isinstance(entries, list) or not entries:
+            raise PolicyConfigError(f"Merchant category {category} needs a list of words")
+        for entry in entries:
+            decomposed = unicodedata.normalize("NFKD", str(entry).strip().casefold())
+            word = "".join(char for char in decomposed if not unicodedata.combining(char))
+            if not word.isalnum():
+                raise PolicyConfigError(f"Merchant category word must be one word: {entry!r}")
+            if word in words and words[word] != category:
+                raise PolicyConfigError(f"{word!r} is in {words[word]} and {category}")
+            words[word] = str(category)
+    return words
 
 
 def _default_path() -> Path:

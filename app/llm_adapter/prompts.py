@@ -17,7 +17,7 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode, SideQuestion
 
-EXTRACT_PROMPT_VERSION = "extract@1.8.0"
+EXTRACT_PROMPT_VERSION = "extract@1.9.0"
 CONNECT_PROMPT_VERSION = "connect@1.2.0"
 
 EXTRACT_SYSTEM = """\
@@ -36,8 +36,11 @@ with what the customer says in this message, whether or not the context lists ca
 transaction_date is {day, month, year}: copy the day and month the customer gives and set \
 year only if the customer says it (never guess the year; the code completes it). For a \
 relative day ("ayer", "anteayer", "el lunes pasado", "ontem"), resolve it against \
-context.business_date and give the full date. Transactions in the context are identified \
-only by an alias (C1, C2, ...). \
+context.business_date and give the full date. For a period instead of one day ("entre el \
+15 y el 19 de junio", "a mediados de junio" = 11 to 20, "la semana pasada" = Monday to Sunday \
+of the previous week, "foi entre 10 e 12 de junho"), fill date_from and date_to with the same \
+rule and leave transaction_date null. Transactions in the context are identified only by an \
+alias (C1, C2, ...). \
 Fill transaction_id only with the alias of a transaction in context.shown_candidates that \
 the customer picks ("la segunda", "la de Streaming Plus"), or with a transaction ID the \
 customer types literally. Any other value is discarded by a deterministic check.
@@ -142,6 +145,8 @@ EXTRACT_SCHEMA: dict[str, Any] = _object(
                             {
                                 "transaction_id": _NULLABLE_STRING,
                                 "transaction_date": _PARTIAL_DATE,
+                                "date_from": _PARTIAL_DATE,
+                                "date_to": _PARTIAL_DATE,
                                 "amount": _NULLABLE_NUMBER,
                                 "merchant": _NULLABLE_STRING,
                             }

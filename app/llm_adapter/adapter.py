@@ -55,7 +55,12 @@ from app.contracts import (
 from app.deadline import Deadline
 from app.llm_adapter import prompts
 from app.llm_adapter.client import MIN_ATTEMPT_SECONDS, Adjusted, LLMError, OpenAIJsonClient
-from app.llm_adapter.dates import parse_date_parts, resolve_date, resolve_delivery_date
+from app.llm_adapter.dates import (
+    parse_date_parts,
+    resolve_date,
+    resolve_delivery_date,
+    resolve_range,
+)
 from app.llm_adapter.language import guess_language
 from app.llm_adapter.minimization import (
     ALIAS_PREFIX,
@@ -69,6 +74,7 @@ from app.templates.promises import find_promises
 EXTRACT_PURPOSE = "extract_slots"
 TRANSACTION_ID_DISCARDED = "transaction_id_discarded"
 TRANSACTION_DATE_DISCARDED = "transaction_date_discarded"
+DATE_RANGE_DISCARDED = "date_range_discarded"
 DELIVERY_DATE_DISCARDED = "expected_delivery_date_discarded"
 CONNECT_PURPOSE = "connect_sentences"
 MAX_CLAIMS = 5
@@ -294,7 +300,9 @@ def parse_extraction(
 
     Returns the result and the deterministic corrections applied: a transaction date is
     completed and checked in code (``app.llm_adapter.dates``), and set to null with
-    ``transaction_date_discarded`` when it cannot be resolved or falls outside the window. The
+    ``transaction_date_discarded`` when it cannot be resolved or falls outside the window. A
+    period (``date_from``, ``date_to``) is resolved together and dropped as a whole with
+    ``date_range_discarded``. The
     expected delivery date follows its own rule (closest occurrence, past or future) and is
     discarded with ``expected_delivery_date_discarded``.
     """
@@ -317,6 +325,14 @@ def parse_extraction(
             if resolved is None:
                 adjustments = (TRANSACTION_DATE_DISCARDED,)
             ref["transaction_date"] = resolved
+        start, end = parse_date_parts(ref.get("date_from")), parse_date_parts(ref.get("date_to"))
+        ref["date_from"] = ref["date_to"] = None
+        if start is not None or end is not None:
+            period = resolve_range(start, end, business_date) if start and end else None
+            if period is None:
+                adjustments += (DATE_RANGE_DISCARDED,)
+            else:
+                ref["date_from"], ref["date_to"] = period
         cleaned = {key: value for key, value in ref.items() if value not in (None, "")}
         slots["transaction_ref"] = (
             TransactionRef.model_validate(_decimals(cleaned)) if cleaned else None

@@ -10,6 +10,10 @@ business date in the context. Here:
 - any resulting date after the business date, or more than MAX_PAST_DAYS before it, is
   discarded (``transaction_date_discarded``), as is an impossible date (31 February).
 
+A period ("entre el 15 y el 19 de junio") follows ``resolve_range``: its start as a single
+date; its end in the start's year (or the next, when it is earlier in the calendar), cut at
+the business date, so a period that runs into the future ends on the business date.
+
 Expected delivery dates follow another rule (``resolve_delivery_date``): the closest
 occurrence to the business date, before or after it, within MAX_DELIVERY_DISTANCE_DAYS
 (``expected_delivery_date_discarded`` otherwise).
@@ -83,6 +87,27 @@ def _latest_occurrence(day: int, month: int, business_date: date) -> date | None
         if candidate <= business_date:
             return candidate
     return None
+
+
+def resolve_range(
+    start: tuple[int, int, int | None],
+    end: tuple[int, int, int | None],
+    business_date: date | None,
+) -> tuple[date, date] | None:
+    """A period of transaction dates, or ``None`` when it cannot be resolved."""
+    first = resolve_date(*start, business_date)
+    if first is None:
+        return None
+    day, month, year = end
+    try:
+        last = date(year if year is not None else first.year, month, day)
+        if year is None and last < first:
+            last = date(first.year + 1, month, day)
+    except ValueError:
+        return None
+    if business_date is not None and last > business_date:
+        last = business_date
+    return (first, last) if first <= last else None
 
 
 MAX_DELIVERY_DISTANCE_DAYS = 365
