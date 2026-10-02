@@ -60,9 +60,41 @@ def locale_for(language: Language | str, country: str | None) -> Locale:
     return _SPANISH_BY_COUNTRY.get(_fold(country or ""), DEFAULT_SPANISH_LOCALE)
 
 
-def format_number(amount: Decimal, locale: Locale) -> str:
-    """``1,250.00`` for es-MX; ``1.250,00`` for es-CO, es-AR and pt-BR. Without a currency:
-    only for an amount the customer gave, whose currency they did not say."""
+_PESOS_BY_COUNTRY = {"mexico": "MXN", "colombia": "COP", "argentina": "ARS"}
+_CURRENCY_WORDS = (
+    (re.compile(r"\b(usd|brl|cop|mxn|ars)\b"), None),
+    (re.compile(r"\b(?:dolar|dolares|dollar|dollars)\b|\bus\$|\bu\$s"), "USD"),
+    (re.compile(r"\b(?:reais|reales)\b|\br\$"), "BRL"),
+    (re.compile(r"\bpesos?\b"), "PESOS"),
+)
+
+
+def currency_said(message: str, country: str | None) -> str | None:
+    """The currency the customer named in a message ("dólares", "reais", "pesos", "USD"), or
+    None when they named none or several. "Pesos" is the peso of the customer's country
+    (DATA-02: presentation only); "$" alone is ambiguous and names none."""
+    folded = _fold(message)
+    found: set[str] = set()
+    for pattern, code in _CURRENCY_WORDS:
+        for match in pattern.finditer(folded):
+            named = code or match.group(1).upper()
+            if named == "PESOS":
+                named = _PESOS_BY_COUNTRY.get(_fold(country or ""), "")
+            if named:
+                found.add(named)
+    return found.pop() if len(found) == 1 else None
+
+
+def plain_number(amount: Decimal, locale: Locale) -> str:
+    """An amount the customer gave without a currency, as a plain number: ``40``, ``18,9``.
+    Never formatted like an amount, which always carries its currency code (COM-08)."""
+    text = f"{amount.normalize():f}"
+    return text if locale in _DECIMAL_POINT else text.replace(".", ",")
+
+
+def _number(amount: Decimal, locale: Locale) -> str:
+    """``1,250.00`` for es-MX; ``1.250,00`` for es-CO, es-AR and pt-BR: the number part of
+    ``format_amount``, never shown without its currency code."""
     quantized = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     text = f"{quantized:,.2f}"
     if locale not in _DECIMAL_POINT:
@@ -75,7 +107,7 @@ def format_amount(amount: Decimal, currency: str, locale: Locale) -> FormattedAm
     code = currency.strip().upper()
     if not re.fullmatch(r"[A-Z]{3}", code):
         raise ValueError(f"invalid currency code {currency!r}")
-    return FormattedAmount(f"{code} {format_number(amount, locale)}")
+    return FormattedAmount(f"{code} {_number(amount, locale)}")
 
 
 def mask_product_number(number: str) -> str:

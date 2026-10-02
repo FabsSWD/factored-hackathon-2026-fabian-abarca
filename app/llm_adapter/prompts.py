@@ -18,7 +18,7 @@ from typing import Any
 from app.contracts import Confirmation, ReasonCode, SideQuestion
 
 EXTRACT_PROMPT_VERSION = "extract@1.8.0"
-CONNECT_PROMPT_VERSION = "connect@1.1.0"
+CONNECT_PROMPT_VERSION = "connect@1.2.0"
 
 EXTRACT_SYSTEM = """\
 You read one message from a bank customer who may want to dispute a card or account \
@@ -92,6 +92,11 @@ mode "brief" (the customer is giving details): leave both empty, or write only a
 acknowledgment BEFORE of what the customer just said ("Gracias, con el nombre del comercio \
 puedo buscarla"); if the customer sounds frustrated, one short empathetic sentence instead. \
 Never repeat or paraphrase any of previous_sentences.
+
+Never say or imply that something was found, verified, registered or is under way ("ya tengo \
+los datos", "ya encontré", "ya está", "já tenho"): only the fixed message reports what the \
+system did. Only empathize with an emotion the customer expressed in customer_message; never \
+attribute frustration, worry or any feeling they did not state.
 
 Rules for your sentences: no numbers, amounts, dates, references or names; no promises of \
 refunds, credits, approvals or results; no new questions; no instructions to the customer; \

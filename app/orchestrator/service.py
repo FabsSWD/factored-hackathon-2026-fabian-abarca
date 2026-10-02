@@ -52,7 +52,8 @@ Contracts it keeps (each has a test):
     conversation.
 21. ``connect`` writes full sentences only on the first turn, bad news (INFORM, ESCALATE,
     REFUSE, ``no_match``); otherwise a brief acknowledgment at most. It receives the sentences
-    already sent, so none is repeated.
+    already sent, so none is repeated. A turn that answers a side question ``other`` gets no
+    connecting sentence: nothing may sound like accepting the request.
 """
 
 from __future__ import annotations
@@ -135,7 +136,14 @@ from app.orchestrator.state import (
 from app.policy.clock import business_date
 from app.policy.matching import given_details
 from app.pseudonym import UNAUTHENTICATED_REF, customer_ref
-from app.templates.formatting import Locale, format_date, format_number, locale_for
+from app.templates.formatting import (
+    Locale,
+    currency_said,
+    format_amount,
+    format_date,
+    locale_for,
+    plain_number,
+)
 from app.templates.service import (
     INFORM_TEMPLATES,
     SIDE_TEMPLATES,
@@ -492,7 +500,7 @@ class Orchestrator:
         claims = [c for c in extraction.customer_claims if c not in state.claims]
         state.claims.extend(claims)
         self._merge_flags(state, extraction.flags, extraction.customer_claims)
-        new = extraction.slots
+        new = self._with_currency(turn, extraction.slots)
         answer = new.confirmation
         pending, target = state.pending, state.pending_target
         state.pending, state.pending_target = Pending.NONE, None
@@ -763,9 +771,26 @@ class Orchestrator:
         if ref.transaction_id is not None:
             return ref
         current = state.slots.transaction_ref
-        base = current.model_dump(exclude={"transaction_id"}, exclude_none=True) if current else {}
+        replaced = {"transaction_id"}
+        if ref.amount is not None:  # a new amount brings its own qualifier and currency
+            replaced |= {"amount_approximate", "amount_currency"}
+        base = current.model_dump(exclude=replaced, exclude_none=True) if current else {}
         base.update(ref.model_dump(exclude_none=True))
         return TransactionRef.model_validate(base)
+
+    @staticmethod
+    def _with_currency(turn: _Turn, slots: Slots) -> Slots:
+        """The currency the customer named with an amount in this message, for display only
+        (COM-08); "pesos" is the peso of the customer's country."""
+        ref = slots.transaction_ref
+        if ref is None or ref.amount is None:
+            return slots
+        currency = currency_said(turn.message, turn.records.country)
+        if currency is None:
+            return slots
+        return slots.model_copy(
+            update={"transaction_ref": ref.model_copy(update={"amount_currency": currency})}
+        )
 
     def _informative(self, state: ConversationState, new: Slots) -> bool:
         """Contract 19: the message answers the question or adds or changes a detail."""
@@ -1041,14 +1066,14 @@ class Orchestrator:
 
     def _searched(self, turn: _Turn, ref: TransactionRef | None) -> str:
         """What GATE-05 searched with, in the customer's own details: "en El Buen Sabor por
-        unos 40,00 del 16/06/2026"."""
+        unos USD 40,00 del 16/06/2026", or "por unos 40" when no currency was named."""
         return " ".join(
             f"{self._templates.label('search', name.value, self._language(turn))} {value}"
             for name, value in self._details(turn, ref)
         )
 
     def _known(self, turn: _Turn, ref: TransactionRef | None) -> str:
-        """The customer's details as a list: "El Buen Sabor, unos 40,00"."""
+        """The customer's details as a list: "El Buen Sabor, unos USD 40,00"."""
         return ", ".join(value for _, value in self._details(turn, ref))
 
     def _details(
@@ -1061,7 +1086,12 @@ class Orchestrator:
         if ref.merchant:
             details.append((TransactionField.MERCHANT, ref.merchant))
         if ref.amount is not None:
-            number = format_number(ref.amount, self._locale(turn))
+            locale = self._locale(turn)
+            number: str = (
+                format_amount(ref.amount, ref.amount_currency, locale)
+                if ref.amount_currency
+                else plain_number(ref.amount, locale)  # never formatted without its code
+            )
             if ref.amount_approximate:
                 language = self._language(turn)
                 number = f"{self._templates.label('search', 'approximately', language)} {number}"
@@ -1285,6 +1315,7 @@ class Orchestrator:
             and state.language is not None
             and "ask_language" not in reply.ids
             and not set(reply.ids) & LOGIN_IDS  # contract 17
+            and turn.side_question is not SideQuestion.OTHER  # nothing to accept (contract 21)
         ):
             context = turn.context.model_copy(update={"language": state.language})
             # Contract 21: full sentences only where they add something.

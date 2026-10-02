@@ -53,9 +53,9 @@ from app.templates.promises import find_promises
 DEFAULT_TEMPLATES_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "templates.yaml"
 
 LANGUAGES = tuple(language.value for language in Language)
-POLICY_VALUES = frozenset({"days", "window_days"})
-"""Filled from the policy, never by the caller: {days} = RESOLUTION_TARGET_BUSINESS_DAYS,
-{window_days} = LATE_WINDOW_DAYS (the window GATE-05 searches)."""
+POLICY_VALUES = frozenset({"days"})
+"""Filled from the policy, never by the caller: {days} = RESOLUTION_TARGET_BUSINESS_DAYS, the
+only policy value a customer sees (a commitment of §11); windows and thresholds never are."""
 MASKED_VALUES = frozenset({"product"})
 """Must receive a masked product number (COM-06)."""
 FORMATTED_AMOUNT_VALUES = frozenset({"amount"})
@@ -182,16 +182,9 @@ def _texts(where: str, raw: Any) -> dict[str, str]:
 
 
 class TemplateService:
-    def __init__(
-        self,
-        resolution_days: int,
-        path: Path | str | None = None,
-        *,
-        window_days: int | None = None,
-    ) -> None:
+    def __init__(self, resolution_days: int, path: Path | str | None = None) -> None:
         self._path = Path(path) if path is not None else DEFAULT_TEMPLATES_PATH
         self._days = resolution_days
-        self._window_days = window_days
         raw = self._read()
         self.version: str = self._version(raw)
         self._templates = self._load_templates(raw.get("templates"))
@@ -202,11 +195,8 @@ class TemplateService:
     def from_policy(
         cls, policy: PolicyParameters, path: Path | str | None = None
     ) -> TemplateService:
-        """{days} comes from RESOLUTION_TARGET_BUSINESS_DAYS (COM-05) and {window_days} from
-        LATE_WINDOW_DAYS."""
-        return cls(
-            policy.RESOLUTION_TARGET_BUSINESS_DAYS, path, window_days=policy.LATE_WINDOW_DAYS
-        )
+        """{days} comes from RESOLUTION_TARGET_BUSINESS_DAYS (COM-05)."""
+        return cls(policy.RESOLUTION_TARGET_BUSINESS_DAYS, path)
 
     # --- Public API -------------------------------------------------------------
 
@@ -223,11 +213,8 @@ class TemplateService:
         overridden = POLICY_VALUES & set(values)
         if overridden:
             raise TemplateError(f"{template_id}: {sorted(overridden)} come from the policy")
-        policy = {"days": self._days, "window_days": self._window_days}
-        for name in POLICY_VALUES & template.placeholders:
-            if policy[name] is None:
-                raise TemplateError(f"{template_id}: {{{name}}} needs the policy (from_policy)")
-            values = {**values, name: policy[name]}
+        if "days" in template.placeholders:
+            values = {**values, "days": self._days}
         missing = template.placeholders - set(values)
         if missing:
             raise TemplateError(f"{template_id}: missing values {sorted(missing)}")

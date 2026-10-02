@@ -24,6 +24,9 @@
   Spanish is always "usted": a sentence with a "tú" form is dropped (in Portuguese, a "tu"
   form). ``brief`` (turns that collect details) allows at most a short acknowledgment before
   the template; ``previous`` are the sentences already sent, and a repeated one is dropped.
+  A sentence that claims a state the system did not verify ("ya tengo los datos", "ya
+  encontré", "já tenho") is dropped like a claimed action, and so is one that names an
+  emotion the customer's message does not express.
 
 Both calls share the turn deadline passed by the Orchestrator. Every attempt is recorded as a
 ModelCall through the injected recorder (M11 stores them).
@@ -83,7 +86,20 @@ _ACTION_CLAIM = re.compile(
     r"|cree el caso|creamos el caso|abri (?:un|el|su) caso|abrimos (?:un|el|su) caso"
     r"|registrei|bloqueei|criei o caso|criamos o caso|abri um caso|abrimos um caso"
     r"|(?:ya|ja) (?:quedo|esta|fue|foi|esta|ficou) (?:registrad|bloquead|transferid|cread"
-    r"|criad|abiert|abert)\w*)\b"
+    r"|criad|abiert|abert)\w*"
+    # A state or progress nobody verified: "ya tengo los datos", "ya encontré", "já tenho".
+    r"|(?:ya|ja) (?:lo |la |los |las |o |a )?(?:tengo|tenemos|tenho|temos|encontre|encontramos"
+    r"|encontrei|localice|localizamos|localizei|esta|estan|estamos|quedo|ficou))\b"
+)
+# Emotions a connecting sentence may only mirror when the customer expressed one.
+_EMOTION = re.compile(
+    r"\b(?:frustra\w*|molest\w*|preocup\w*|angusti\w*|enoj\w*|enfad\w*|estres\w*"
+    r"|irrit\w*|incomod\w*|chatead\w*|chateacao|aborrec\w*|nervios\w*|ansios\w*|triste\w*"
+    r"|desesper\w*)"
+)
+_EMOTION_CUE = re.compile(
+    _EMOTION.pattern + r"|\b(?:harto|harta|cansad\w*|terrible|pesimo|horrible|indignad\w*"
+    r"|no puede ser|absurdo|ridicul\w*|raiva|pessimo)\b|!{2,}"
 )
 
 
@@ -211,10 +227,11 @@ class OpenAILLMAdapter:
         if brief:
             after = ""  # an acknowledgment of what the customer said goes before, at most
         said = {_fold(sentence) for sentence in previous}
+        felt = _EMOTION_CUE.search(_fold(message)) is not None
         parts = [
-            _safe_sentence(before, language, said),
+            _safe_sentence(before, language, said, felt=felt),
             templated_text,
-            _safe_sentence(after, language, said),
+            _safe_sentence(after, language, said, felt=felt),
         ]
         return " ".join(part for part in parts if part)
 
@@ -352,8 +369,11 @@ def _fold(text: str) -> str:
     return "".join(char for char in decomposed if not unicodedata.combining(char))
 
 
-def _safe_sentence(sentence: str, language: Language, said: set[str] | None = None) -> str:
-    """Fail closed: a doubtful connecting sentence is dropped, never repaired."""
+def _safe_sentence(
+    sentence: str, language: Language, said: set[str] | None = None, *, felt: bool = True
+) -> str:
+    """Fail closed: a doubtful connecting sentence is dropped, never repaired. ``felt``: the
+    customer's message expresses an emotion the sentence may mirror."""
     if not sentence:
         return ""
     sentence_language = guess_language(sentence)
@@ -361,6 +381,7 @@ def _safe_sentence(sentence: str, language: Language, said: set[str] | None = No
     if (
         folded in (said or set())
         or _INFORMAL[language].search(folded)
+        or (not felt and _EMOTION.search(folded))
         or len(sentence) > MAX_CONNECTING_CHARS
         or any(char.isdigit() for char in sentence)
         or _RULE_ID.search(sentence)

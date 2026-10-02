@@ -332,6 +332,9 @@ class TransactionRef(Contract):
     # The customer qualified the amount ("como de 40", "uns 40"): GATE-05 matches it with
     # tolerance. None when no amount was given in that message (a merge keeps the earlier value).
     amount_approximate: bool | None = None
+    # The currency the customer named with the amount ("40 dólares"), for display only (COM-08):
+    # GATE-05 matches in the transaction currency. None when not named.
+    amount_currency: CurrencyCode | None = None
 
     @model_validator(mode="after")
     def _not_empty(self) -> Self:
