@@ -3,9 +3,9 @@
 GATE-05 (policy §5, "Transaction matching"): the details the customer gave are compared with
 their transactions; details that find nothing are relaxed in steps (amount with tolerance,
 without amount, without amount and date, and last without the merchant), and what a relaxed
-step finds is only a list of candidates for the customer to pick from. A merchant named only with generic words is a
-category ("un restaurante" -> Food) or, without one, no detail at all; a period of days
-("entre el 15 y el 19 de junio") matches the business days in it, ±1 day.
+step finds is only a list of candidates for the customer to pick from. A merchant named only
+with generic words is a category ("un restaurante" -> Food) or, without one, no detail at
+all; a period of days ("entre el 15 y el 19 de junio") matches its business days, ±1 day.
 """
 
 from __future__ import annotations

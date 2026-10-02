@@ -456,3 +456,38 @@ def test_a_wrong_period_is_relaxed_away() -> None:
     )
     result = match_transaction(ref, SHOPS, AS_OF, 120, TOLERANCE, CATEGORIES)
     assert result.candidates == [CINEMA] and result.relaxed
+
+
+def test_a_last_step_without_the_merchant_finds_a_purchase_without_category() -> None:
+    uncategorized = FOOD.model_copy(update={"merchant_category": None})
+    said = TransactionRef(
+        merchant="un restaurante",
+        amount=Decimal("40"),
+        amount_approximate=True,
+        date_from=date(2026, 6, 15),
+        date_to=date(2026, 6, 17),
+    )
+    result = match_transaction(said, [uncategorized, FOOD_FAR], AS_OF, 120, TOLERANCE, CATEGORIES)
+    assert result.transaction is None and result.relaxed  # only a candidate to pick
+    assert result.candidates == [uncategorized]
+
+
+def test_without_amount_or_date_the_merchant_is_never_dropped() -> None:
+    uncategorized = FOOD.model_copy(update={"merchant_category": None})
+    result = match_transaction(
+        TransactionRef(merchant="un restaurante"),
+        [uncategorized],
+        AS_OF,
+        120,
+        TOLERANCE,
+        CATEGORIES,
+    )
+    assert result.note == "no_matching_transaction"
+
+
+def test_the_last_step_keeps_the_exact_amount_without_a_tolerance() -> None:
+    other = FOOD.model_copy(update={"merchant_category": None})
+    near = TransactionRef(merchant="un restaurante", amount=Decimal("40"))
+    exact = TransactionRef(merchant="un restaurante", amount=Decimal("38.50"))
+    assert match_transaction(near, [other], AS_OF, 120, None, CATEGORIES).candidates == []
+    assert match_transaction(exact, [other], AS_OF, 120, None, CATEGORIES).candidates == [other]
