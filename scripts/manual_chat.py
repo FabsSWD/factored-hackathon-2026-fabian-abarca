@@ -131,17 +131,18 @@ class Chat:
             if decision.get("authorized_actions"):
                 self.print(f"            authorized {', '.join(decision['authorized_actions'])}")
         if not trace.get("decisions"):
-            self.print(f"     engine not called  outcome {trace.get('outcome')}")
+            self.print(
+                f"     engine not called  outcome {trace.get('outcome')}"
+                f"  reply {trace.get('reply_kind') or '-'}"
+            )
+        if trace.get("side_question"):
+            self.print(f"     side question {trace['side_question']}")
         for tool in trace.get("tool_calls", []):
             record = f" {tool['record_id']}" if tool.get("record_id") else ""
             self.print(f"     tool {tool['action']} {tool['status']}{record}")
         calls = trace.get("model_calls", [])
         if calls:
-            models = ", ".join(
-                f"{c['provider']}/{c.get('purpose') or '-'} {c['latency_ms']:.0f} ms"
-                + ("" if c["success"] else " FAILED")
-                for c in calls
-            )
+            models = ", ".join(_model_call(c) for c in calls)
             self.print(f"     models {models}")
         server = trace.get("total_latency_ms")
         if server is not None:
@@ -165,6 +166,14 @@ class Chat:
                     self.turn(line)
             except httpx.HTTPError as error:
                 self.print(f"[server not reachable: {type(error).__name__}]")
+
+
+def _model_call(call: dict[str, Any]) -> str:
+    """Client latency, and the model server's own when it reports it (Kev's latency_ms)."""
+    text = f"{call['provider']}/{call.get('purpose') or '-'} {call['latency_ms']:.0f} ms"
+    if call.get("server_latency_ms") is not None:
+        text += f" (server {call['server_latency_ms']:.0f} ms)"
+    return text + ("" if call["success"] else " FAILED")
 
 
 def _detail(response: httpx.Response) -> str:

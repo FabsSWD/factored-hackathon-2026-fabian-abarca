@@ -83,6 +83,17 @@ MESSAGES: list[tuple[str, Language, str, SlotName | None]] = [
     ("es_confirm_hedged", Language.ES, "creo que sí, aunque no estoy seguro",
      SlotName.CONFIRMATION),
     ("es_duplicate_ref_confirmed", Language.ES, "sí, ese es", SlotName.DUPLICATE_REF),
+    # Side questions, "ese no es" and a block request (extract@1.7.0); the first two are the
+    # customer's words in the manual test of M12.
+    ("es_side_refund", Language.ES, "Existe una posibilidad de reembolso?",
+     SlotName.CARD_IN_POSSESSION),
+    ("es_side_refund_again", Language.ES,
+     "Eso no fue lo que pregunté, puedo pedir un reembolso?", SlotName.CONFIRMATION),
+    ("es_answer_and_refund", Language.ES, "sí, la tengo, ¿y me devuelven el dinero?",
+     SlotName.CARD_IN_POSSESSION),
+    ("es_wrong_transaction", Language.ES, "ese no es", SlotName.CONFIRMATION),
+    ("es_block_requested", Language.ES, "Mejor sí, bloquéela por favor", SlotName.CONFIRMATION),
+    ("pt_side_other", Language.PT, "Vocês oferecem empréstimo pessoal?", None),
 ]  # fmt: skip
 
 
