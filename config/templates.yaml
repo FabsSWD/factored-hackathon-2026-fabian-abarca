@@ -5,7 +5,8 @@
 # - every template has exactly "es" and "pt", with the same {placeholders} in both;
 # - placeholders are plain names: no attributes, indexes or format specs, no literal braces;
 # - no text promises a refund, credit or result (COM-05);
-# - {days} is filled from RESOLUTION_TARGET_BUSINESS_DAYS, never by the caller;
+# - {days} is filled from RESOLUTION_TARGET_BUSINESS_DAYS and {window_days} from
+#   LATE_WINDOW_DAYS, never by the caller;
 # - {product} only accepts a masked product number (COM-06);
 # - {amount} only accepts an amount formatted by app/templates/formatting.py: currency code
 #   first and the customer's locale (es-MX 1,250.00; es-CO, es-AR, pt-BR 1.250,00).
@@ -14,7 +15,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.6.0"
+template_version: "1.7.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -154,7 +155,15 @@ templates:
     es: "No encontré una disputa suya con esa referencia."
     pt: "Não encontrei uma contestação sua com essa referência."
 
-  side_unsupported:  # always followed by offer_transfer
+  side_flow_help_transaction:  # how to go on while the transaction is not identified
+    es: "Sí, puedo buscar la compra con lo que recuerde: el nombre del comercio, la fecha aproximada o el monto. Dígamelo y le muestro lo que encuentre."
+    pt: "Sim, posso procurar a compra com o que você lembrar: o nome do estabelecimento, a data aproximada ou o valor. Me diga e eu mostro o que encontrar."
+
+  side_flow_help:  # how to go on with any other question
+    es: "Responda con lo que sepa; si no recuerda algún dato, dígamelo y vemos cómo seguir."
+    pt: "Responda com o que souber; se não lembrar de algum dado, me diga e vemos como seguir."
+
+  side_unsupported:  # followed by offer_transfer the first time in a conversation
     es: "Por este canal solo puedo ayudarle con disputas de transacciones."
     pt: "Por este canal, só posso ajudar com contestações de transações."
 
@@ -185,6 +194,43 @@ templates:
   candidate_line:
     es: "{index}. {transaction_date} · {product} · {merchant} · {amount}"
     pt: "{index}. {transaction_date} · {product} · {merchant} · {amount}"
+
+  choose_relaxed_one:  # GATE-05 relaxed search found one: listed, the customer confirms it
+    es: "No encontré una coincidencia exacta, pero encontré esta compra parecida. ¿Es esta? Puede responder sí o no."
+    pt: "Não encontrei uma correspondência exata, mas encontrei esta compra parecida. É esta? Pode responder sim ou não."
+
+  choose_relaxed_many:  # GATE-05 relaxed search found 2 to MAX_CANDIDATES_SHOWN
+    es: "No encontré una coincidencia exacta, pero encontré estas compras parecidas. ¿Es alguna de estas?"
+    pt: "Não encontrei uma correspondência exata, mas encontrei estas compras parecidas. É alguma destas?"
+
+  choose_transaction_again:  # the same list two turns in a row
+    es: "¿Es alguna de estas compras? Puede responder con el número de la lista."
+    pt: "É alguma destas compras? Pode responder com o número da lista."
+
+  choose_one_again:
+    es: "¿Es esta la compra que quiere disputar? Puede responder sí o no."
+    pt: "É esta a compra que você quer contestar? Pode responder sim ou não."
+
+  no_match:  # GATE-05 found nothing, not even relaxed: what was searched ({known}: the
+             # customer's own details), always followed by ask_transaction_detail
+    es: "Busqué compras {known} en los últimos {window_days} días y no encontré ninguna."
+    pt: "Procurei compras {known} nos últimos {window_days} dias e não encontrei nenhuma."
+
+  ask_transaction_detail:  # {detail}: labels.detail
+    es: "¿Recuerda {detail}? Con ese dato puedo buscar de nuevo."
+    pt: "Você lembra {detail}? Com essa informação posso procurar de novo."
+
+  ask_many_detail:  # GATE-05 found more than MAX_CANDIDATES_SHOWN
+    es: "Encontré muchas compras con esos datos. ¿Recuerda {detail}? Así le muestro solo las que correspondan."
+    pt: "Encontrei muitas compras com esses dados. Você lembra {detail}? Assim mostro só as que batem."
+
+  clarify_transaction_ref_known:  # second ask in a row: what is already known ({known}: values)
+    es: "Tengo estos datos de la compra: {known}. ¿Recuerda {missing}? Con eso puedo buscarla mejor."
+    pt: "Tenho estes dados da compra: {known}. Você lembra {missing}? Com isso posso procurá-la melhor."
+
+  clarify_transaction_ref_again:
+    es: "Para encontrar la compra necesito al menos uno de estos datos: el nombre del comercio, la fecha aproximada o el monto. ¿Qué recuerda?"
+    pt: "Para encontrar a compra preciso de pelo menos um destes dados: o nome do estabelecimento, a data aproximada ou o valor. Do que você lembra?"
 
   clarify_reason_code:
     es: "¿Qué problema tiene con esta transacción? Por ejemplo: no la reconoce, se cobró dos veces, el monto es incorrecto, no recibió lo que compró o es un cargo del banco que no corresponde."
@@ -225,6 +271,47 @@ templates:
   clarify_confirmation:  # hedged reply to COM-03: ask once more (policy §8)
     es: "Para continuar necesito una confirmación clara. Si los datos son correctos, responda “sí, confirmo”; si no, dígame qué debo corregir."
     pt: "Para continuar, preciso de uma confirmação clara. Se os dados estiverem certos, responda “sim, confirmo”; se não, me diga o que devo corrigir."
+
+  # Second wording of each clarification, used when the first one was sent the turn before.
+  clarify_reason_code_again:
+    es: "Para registrar la disputa necesito saber qué pasó con el cargo: ¿no lo reconoce, se cobró dos veces, el monto no es el acordado, no recibió lo que compró, o es un cargo del banco?"
+    pt: "Para registrar a contestação preciso saber o que aconteceu com a cobrança: você não a reconhece, foi cobrada duas vezes, o valor não é o combinado, não recebeu o que comprou, ou é uma tarifa do banco?"
+
+  clarify_card_in_possession_again:
+    es: "Para proteger su cuenta necesito saberlo: ¿la tarjeta está ahora en su poder? Puede responder sí o no."
+    pt: "Para proteger sua conta preciso saber: o cartão está com você agora? Pode responder sim ou não."
+
+  clarify_shared_credentials_again:
+    es: "Es importante para su seguridad: ¿alguien más conoce los datos de su tarjeta, sus claves o algún código? Puede responder sí o no."
+    pt: "É importante para a sua segurança: mais alguém conhece os dados do seu cartão, suas senhas ou algum código? Pode responder sim ou não."
+
+  clarify_duplicate_ref_again:
+    es: "Para confirmar el cargo duplicado: ¿el cargo del {transaction_date} por {amount} es el mismo que usted menciona? Puede responder sí o no."
+    pt: "Para confirmar a cobrança duplicada: a cobrança do dia {transaction_date}, no valor de {amount}, é a mesma que você mencionou? Pode responder sim ou não."
+
+  clarify_expected_amount_again:
+    es: "¿Qué monto había acordado pagar, en {currency}? Con ese dato puedo comparar el cobro."
+    pt: "Qual valor você tinha combinado pagar, em {currency}? Com essa informação posso comparar a cobrança."
+
+  clarify_expected_delivery_date_again:
+    es: "¿Recuerda la fecha en que debían entregarle el producto o servicio, aunque sea aproximada?"
+    pt: "Você lembra a data em que deveriam entregar o produto ou serviço, mesmo que aproximada?"
+
+  clarify_merchant_contacted_again:
+    es: "¿Ha intentado comunicarse con el comercio por la entrega? Puede responder sí o no."
+    pt: "Você tentou entrar em contato com o estabelecimento sobre a entrega? Pode responder sim ou não."
+
+  clarify_fee_ref_again:
+    es: "¿Puede indicarme el cargo del banco que quiere disputar, por ejemplo la fecha o el monto que aparece en su estado de cuenta?"
+    pt: "Pode me indicar a tarifa do banco que você quer contestar, por exemplo a data ou o valor que aparece no seu extrato?"
+
+  clarify_confirmation_again:
+    es: "Necesito una confirmación explícita para continuar: responda “sí, confirmo” si los datos son correctos, o dígame qué debo cambiar."
+    pt: "Preciso de uma confirmação explícita para continuar: responda “sim, confirmo” se os dados estiverem certos, ou me diga o que devo mudar."
+
+  ask_correction_again:
+    es: "¿Cuál de los datos del resumen debo cambiar: la transacción, el producto o el motivo? Si prefiere no seguir con la disputa, dígamelo."
+    pt: "Qual dos dados do resumo devo mudar: a transação, o produto ou o motivo? Se preferir não seguir com a contestação, é só me dizer."
 
 # Labels inserted into templates. Same keys in both languages.
 labels:
@@ -275,3 +362,32 @@ labels:
     no_merchant:
       es: "sin comercio"
       pt: "sem estabelecimento"
+    or:
+      es: "o"
+      pt: "ou"
+  detail:  # what ask_transaction_detail, ask_many_detail and the known variant ask for
+    merchant:
+      es: "el nombre del comercio"
+      pt: "o nome do estabelecimento"
+    transaction_date:
+      es: "la fecha aproximada de la compra"
+      pt: "a data aproximada da compra"
+    amount:
+      es: "el monto aproximado"
+      pt: "o valor aproximado"
+    merchant_statement:  # nothing found although the customer gave all three details
+      es: "el nombre del comercio tal como aparece en su estado de cuenta"
+      pt: "o nome do estabelecimento como aparece no seu extrato"
+  search:  # the pieces of {known} in no_match: "en El Buen Sabor por unos 40,00 del 16/06/2026"
+    merchant:
+      es: "en"
+      pt: "em"
+    amount:
+      es: "por"
+      pt: "de"
+    approximately:
+      es: "unos"
+      pt: "cerca de"
+    transaction_date:
+      es: "del"
+      pt: "do dia"

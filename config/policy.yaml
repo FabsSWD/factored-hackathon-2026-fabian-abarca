@@ -2,7 +2,7 @@
 # Every value here must match that table. Change the policy document first, then this file,
 # and bump policy_version together with the policy's own version.
 
-policy_version: "0.4.6"
+policy_version: "0.4.7"
 
 parameters:
   # GATE-02
@@ -36,6 +36,10 @@ parameters:
   MAX_CLARIFICATION_TURNS: 2           # turns per slot · Fixed
   MAX_TOTAL_CLARIFICATIONS: 4          # turns per conversation · Fixed
   MAX_CANDIDATES_SHOWN: 3              # transactions · Fixed
+
+  # GATE-05: tolerance for an approximate amount, the larger of the two
+  AMOUNT_TOLERANCE_PCT: 10             # percent of the amount given · Fixed
+  AMOUNT_TOLERANCE_USD: 5              # USD, converted to the transaction currency · Fixed
 
   # ESC-10
   TOOL_MAX_RETRIES: 2                  # retries · Fixed

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.4.6 |
+| Version | 0.4.7 |
 | Last updated | 2026-10-01 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -120,7 +120,7 @@ Gates `GATE-01` to `GATE-09` are evaluated in the order listed, then `GATE-11`, 
 | `GATE-02` | Authenticated session | Session was issued by the identity service, is younger than `SESSION_MAX_AGE_MIN`, and has been idle less than `SESSION_IDLE_TIMEOUT_MIN`. | The system MUST NOT read or disclose account data. It asks the customer to authenticate (a `CLARIFY` turn targeting authentication). An explicit refusal gives `INFORM` at once; exceeding `AUTH_MAX_ATTEMPTS` gives `INFORM` with an offer to transfer. See the authentication attempts rule below. |
 | `GATE-03` | Customer status | `customers.customer_status = 'Active'`. It decides on the customer's own records. | [ESC-08](#7-mandatory-escalation-triggers). |
 | `GATE-04` | Ownership | Every transaction or product the customer references has `customer_id` equal to the session customer. Enforced in the tool layer, which returns `access_denied` for other customers' records. Evaluated per record and independently of `GATE-03`. | `REFUSE` for that record, even when the customer is not active; the customer's own records are evaluated separately (an inactive customer's own record still gives `ESC-08`). The system MUST NOT confirm or deny that the record exists. The attempt is logged as a security event. |
-| `GATE-05` | Transaction identified | Exactly one transaction of the session customer matches the reference given (see the matching rule below). | `CLARIFY` (see [§10](#10-required-information-and-clarification)): with 2 to `MAX_CANDIDATES_SHOWN` matches the candidates are listed; with more, the customer is asked for more details without a list. |
+| `GATE-05` | Transaction identified | Exactly one transaction of the session customer matches the reference given (see the matching rule below). | `CLARIFY` (see [§10](#10-required-information-and-clarification)): with 2 to `MAX_CANDIDATES_SHOWN` matches, or 1 to `MAX_CANDIDATES_SHOWN` found by a relaxed search, the candidates are listed; with more, the customer is asked for the missing detail that best narrows them; with none, the customer is told what was searched. |
 | `GATE-06` | Transaction status | `transactions.transaction_status = 'Approved'`. | `Pending`: `INFORM` (wait until posted). `Declined`: `INFORM` (nothing was charged). `Reversed`: `INFORM` (already reversed). |
 | `GATE-07` | Disputable combination | The transaction type and reason code are marked **A** in [§4](#4-disputable-transactions). | **H**: [ESC-14](#7-mandatory-escalation-triggers). **N**: `INFORM` with an offer to transfer. |
 | `GATE-08` | Filing window | Transaction age at filing is at most `DISPUTE_WINDOW_DAYS`. The age is the number of calendar days between `BUSINESS_DATE` and the business day of the transaction (its `transaction_date` minus `BUSINESS_DAY_CUTOFF`); the same function serves `DISPUTE_WINDOW_DAYS` and `LATE_WINDOW_DAYS`. | Age up to `LATE_WINDOW_DAYS`: [ESC-07](#7-mandatory-escalation-triggers). Older: `INFORM` (outside the filing window) with an offer to transfer. |
@@ -132,7 +132,13 @@ Gates `GATE-01` to `GATE-09` are evaluated in the order listed, then `GATE-11`, 
 
 **Values outside the data contract.** Every value a rule reads (transaction type and status, product and customer status) belongs to a set fixed when the data is loaded. A value outside it stops the evaluation with an error instead of being guessed. The system then answers safely: a handoff with the tool-failure notice and an audit event, never an error page with technical details.
 
-**Transaction matching (`GATE-05`).** A `transaction_id` matches only if the customer gave it, or picked it among candidates shown to them, and it is consistent with any date, amount, or merchant they also gave; otherwise the reference is ambiguous. Without an ID, any combination of date (±1 business day), amount (exact, in the transaction currency), and merchant (case- and accent-insensitive; one name contained in the other) is valid if it resolves to exactly one of the customer's transactions within `LATE_WINDOW_DAYS`. The `COM-03` confirmation protects against a wrong match.
+**Transaction matching (`GATE-05`).** A `transaction_id` matches only if the customer gave it, or picked it among candidates shown to them, and it is consistent with any date, amount, or merchant they also gave; otherwise the reference is ambiguous. Without an ID, the details are compared with the customer's transactions within `LATE_WINDOW_DAYS`:
+
+- Date: ±1 business day.
+- Amount: exact, in the transaction currency. When the customer qualifies it ("como de", "unos", "más o menos", "cerca de", "uns"), it matches within a tolerance: `AMOUNT_TOLERANCE_PCT` of the amount given or `AMOUNT_TOLERANCE_USD` converted to the transaction currency, whichever is larger.
+- Merchant: case- and accent-insensitive and by words, ignoring generic words ("restaurante", "tienda", "loja", "el", "la", ...): the customer's words are all in the merchant name, or the other way round. "el buen sabor" matches "Restaurante El Buen Sabor".
+
+Details that resolve to exactly one transaction identify it. Details that resolve to none are relaxed in steps: the amount with tolerance, then without the amount, then without the amount and the date; a step needs at least one detail left. What a relaxed step finds, or what a qualified amount finds, is listed as candidates even when there is only one: it is identified only when the customer picks it. With more than `MAX_CANDIDATES_SHOWN` matches, the customer is asked for the detail they did not give that best narrows the matches (merchant, date, amount on a tie). When nothing is found, the customer is told what was searched and asked for a detail they did not give (merchant, date, amount, in that order), or for the merchant as it appears on the statement when they gave all three. The `COM-03` confirmation protects against a wrong match.
 
 Reason-specific preconditions (`GATE-10`):
 
@@ -280,7 +286,8 @@ Clarification rules:
 
 - The system asks for one slot per turn, starting with `transaction_ref`, then `reason_code`, then reason-specific slots.
 - When several transactions match, the system lists at most `MAX_CANDIDATES_SHOWN` candidates with date, masked product, merchant, and amount, and asks the customer to choose.
-- Limits: `MAX_CLARIFICATION_TURNS` per slot and `MAX_TOTAL_CLARIFICATIONS` per conversation. Exceeding either fires [ESC-09](#7-mandatory-escalation-triggers).
+- Limits: `MAX_CLARIFICATION_TURNS` per slot and `MAX_TOTAL_CLARIFICATIONS` per conversation. Exceeding either fires [ESC-09](#7-mandatory-escalation-triggers). A clarification counts toward the limits only when the customer's answer brings no new information (no new or changed detail and no answer to the question asked); a customer who keeps adding details is not escalated for it.
+- The same clarification text is never sent two turns in a row for the same slot: the second time, a variant names what is already known.
 
 ## 11. Customer communication
 
@@ -453,6 +460,8 @@ All parameters live in one versioned configuration file in the codebase; this ta
 | `MAX_CLARIFICATION_TURNS` | 2 | turns per slot | §10, `ESC-09` | Fixed | Avoids looping on the same question. |
 | `MAX_TOTAL_CLARIFICATIONS` | 4 | turns per conversation | §10, `ESC-09` | Fixed | Bounds customer effort before a human takes over. |
 | `MAX_CANDIDATES_SHOWN` | 3 | transactions | §10 | Fixed | Keeps the choice readable and limits disclosure. |
+| `AMOUNT_TOLERANCE_PCT` | 10 | percent | §5 | Fixed | A customer who says "como de 40" for a charge of 38.50 still finds it. |
+| `AMOUNT_TOLERANCE_USD` | 5 | USD | §5 | Fixed | The same for small amounts, where 10% is less than a rounding. |
 | `TOOL_MAX_RETRIES` | 2 | retries | `ESC-10` | Fixed | Bounded retries with idempotency keys. |
 | `INJECTION_STRIKES_MAX` | 2 | attempts | `ESC-13` | Fixed | One attempt can be accidental; two show intent. |
 | `DECISION_CONFIDENCE_MIN` | TBD | probability | `ESC-11` | Calibrated | Chosen on the validation split by the calibration objective below. |
@@ -541,3 +550,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.4.4 | 2026-10-01 | Evaluation order (§5): `GATE-11` and the record-dependent triggers (`ESC-01`, `ESC-02`, `ESC-04`) before the reason-specific slots (`GATE-10`), so a case that will escalate is not asked questions that cannot change its outcome. |
 | 0.4.5 | 2026-10-01 | Handoff packet (§13): a collected `duplicate_ref` says the customer confirmed the charge the system found, instead of showing its ID. |
 | 0.4.6 | 2026-10-01 | `COM-03`: the card block offer names the charge ("that is not the one" identifies the transaction again); an offer without a clear answer is told and stays available until the case is created; a side question is not an unclear answer. |
+| 0.4.7 | 2026-10-01 | `GATE-05`: merchant matched by words without generic words, approximate amounts with tolerance (`AMOUNT_TOLERANCE_PCT`, `AMOUNT_TOLERANCE_USD`), relaxed search in steps whose results the customer picks, the most useful detail asked for. §10: a clarification answered with new information does not count toward `ESC-09`; no clarification text twice in a row. |
