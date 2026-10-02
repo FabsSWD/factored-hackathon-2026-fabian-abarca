@@ -5,14 +5,18 @@ from decimal import Decimal
 
 import pytest
 
+from app.config import load_merchant_categories
 from app.contracts import TransactionField, TransactionRef
 from app.policy.clock import business_date, business_day, transaction_within, within_window
 from app.policy.matching import (
+    MerchantKind,
     Tolerance,
     amount_matches,
     disputed_of,
     duplicate_twins,
+    given_details,
     match_transaction,
+    merchant_criterion,
     merchant_matches,
     missing_detail,
     most_useful_detail,
@@ -354,3 +358,101 @@ def test_nearest_twin_prefers_an_earlier_charge() -> None:
     named = txn("TXN-X", when=TXN_DATE)
     assert nearest_twin(named, [a, b, c]) == b
     assert nearest_twin(named, [c]) == c  # the customer named the original
+
+
+# --- GATE-05: merchant categories and periods (policy 0.4.8) --------------------------------
+
+CATEGORIES = load_merchant_categories()
+FOOD = txn(
+    "TXN-F", when=datetime(2026, 6, 16, 13), amount="38.50", amount_usd="38.50",
+    merchant="Restaurante El Buen Sabor",
+)  # fmt: skip
+FOOD = FOOD.model_copy(update={"merchant_category": "Food"})
+FOOD_FAR = txn("TXN-FF", when=datetime(2026, 6, 16, 9), amount="120", merchant="Super Ahorro")
+FOOD_FAR = FOOD_FAR.model_copy(update={"merchant_category": "Food"})
+CINEMA = txn("TXN-C", when=datetime(2026, 6, 16, 20), amount="39", merchant="Cine Premium")
+CINEMA = CINEMA.model_copy(update={"merchant_category": "Entertainment"})
+SHOPS = [FOOD, FOOD_FAR, CINEMA]
+
+
+def by_category(ref: TransactionRef):  # type: ignore[no-untyped-def]
+    return match_transaction(ref, SHOPS, AS_OF, 120, TOLERANCE, CATEGORIES)
+
+
+@pytest.mark.parametrize(
+    ("given", "kind", "category"),
+    [
+        ("el buen sabor", MerchantKind.NAME, None),
+        ("un restaurante", MerchantKind.CATEGORY, "Food"),
+        ("Restaurante", MerchantKind.CATEGORY, "Food"),
+        ("una farmacia", MerchantKind.CATEGORY, "Health"),
+        ("uma farmácia", MerchantKind.CATEGORY, "Health"),
+        ("una tienda", MerchantKind.ABSENT, None),  # Food and Other in the data: no category
+        ("uma loja", MerchantKind.ABSENT, None),
+        ("un lugar", MerchantKind.ABSENT, None),
+        ("un restaurante o una farmacia", MerchantKind.ABSENT, None),  # two categories
+        ("Restaurante El Buen Sabor", MerchantKind.NAME, None),
+    ],
+)
+def test_what_a_merchant_is_compared_with(
+    given: str, kind: MerchantKind, category: str | None
+) -> None:
+    merchant = merchant_criterion(given, CATEGORIES)
+    assert merchant.kind is kind and merchant.category == category
+
+
+def test_the_manual_test_3_restaurant_of_about_40() -> None:
+    said = TransactionRef(merchant="un restaurante", amount=Decimal("40"), amount_approximate=True)
+    result = by_category(said)
+    assert result.candidates == [FOOD] and result.relaxed  # the cinema of 39 is not Food
+
+
+def test_a_merchant_without_category_is_left_out_of_the_search() -> None:
+    said = TransactionRef(merchant="una tienda", amount=Decimal("39"))
+    assert by_category(said).transaction == CINEMA  # searched by the amount alone
+    assert TransactionField.MERCHANT not in given_details(said, CATEGORIES)
+    assert TransactionField.MERCHANT in given_details(
+        TransactionRef(merchant="un restaurante"), CATEGORIES
+    )
+
+
+def test_a_purchase_without_category_is_not_found_by_category() -> None:
+    uncategorized = FOOD.model_copy(update={"merchant_category": None})
+    ref = TransactionRef(merchant="restaurante", amount=Decimal("38.50"))
+    result = match_transaction(ref, [uncategorized], AS_OF, 120, TOLERANCE, CATEGORIES)
+    assert result.transaction is None
+
+
+def test_category_words_are_generic_when_a_name_is_compared() -> None:
+    ref = TransactionRef(merchant="restaurante el buen sabor")
+    assert by_category(ref).transaction == FOOD
+
+
+@pytest.mark.parametrize(
+    ("first", "last", "found"),
+    [
+        (date(2026, 6, 15), date(2026, 6, 17), True),  # the cinema on 06-16 is in it
+        (date(2026, 6, 17), date(2026, 6, 17), True),  # 06-16 is within ±1 day
+        (date(2026, 6, 1), date(2026, 6, 14), False),  # then relaxed: only a candidate
+        (date(2026, 5, 1), date(2026, 6, 10), True),  # more than 31 days: no date filter
+    ],
+)
+def test_a_period_matches_its_business_days(first: date, last: date, found: bool) -> None:
+    ref = TransactionRef(date_from=first, date_to=last, merchant="Cine Premium")
+    result = match_transaction(ref, SHOPS, AS_OF, 120, TOLERANCE, CATEGORIES)
+    assert (result.transaction == CINEMA) is found
+
+
+def test_a_short_period_is_a_date_detail_and_a_long_one_is_not() -> None:
+    short = TransactionRef(date_from=date(2026, 6, 15), date_to=date(2026, 6, 19))
+    long = TransactionRef(date_from=date(2026, 5, 1), date_to=date(2026, 6, 10))
+    assert TransactionField.DATE in given_details(short)
+    assert TransactionField.DATE not in given_details(long)
+
+
+def test_a_wrong_period_is_relaxed_away() -> None:
+    ref = TransactionRef(
+        merchant="Cine Premium", date_from=date(2026, 6, 1), date_to=date(2026, 6, 5)
+    )
+    result = match_transaction(ref, SHOPS, AS_OF, 120, TOLERANCE, CATEGORIES)
+    assert result.candidates == [CINEMA] and result.relaxed

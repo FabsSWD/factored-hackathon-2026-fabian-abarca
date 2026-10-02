@@ -13,7 +13,7 @@ def test_health_returns_200_with_policy_version() -> None:
     with TestClient(create_app()) as client:
         response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "policy_version": "0.4.7"}
+    assert response.json() == {"status": "ok", "policy_version": "0.4.8"}
 
 
 def test_injected_config_is_used() -> None:

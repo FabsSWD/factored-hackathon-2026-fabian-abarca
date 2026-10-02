@@ -46,7 +46,7 @@ def test_short_sentences(text: str, language: Language | None) -> None:
 
 
 def test_extract_prompt_rules() -> None:
-    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.8.0"
+    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.9.0"
     text = " ".join(prompts.EXTRACT_SYSTEM.split())
     assert "Always fill transaction_date, amount" in text
     assert "transaction_date is {day, month, year}" in text
@@ -63,5 +63,7 @@ def test_extract_prompt_rules() -> None:
     assert "block_card_requested: the customer asks to block their card" in text
     assert '"flow_help" (how to go on' in text
     assert "when unsure between flow_help and other, flow_help" in text
+    assert "fill date_from and date_to with the same rule" in text
+    assert '"a mediados de junio" = 11 to 20' in text
     assert '"El cliente indica que..."' in text
     assert '"O cliente informa que..."' in text

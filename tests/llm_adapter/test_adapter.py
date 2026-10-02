@@ -28,6 +28,7 @@ from app.deadline import Deadline
 from app.llm_adapter import prompts
 from app.llm_adapter.adapter import (
     CONNECT_PURPOSE,
+    DATE_RANGE_DISCARDED,
     EXTRACT_PURPOSE,
     ExtractionUnavailableError,
     OpenAILLMAdapter,
@@ -1118,3 +1119,97 @@ def test_connect_prompt_forbids_unverified_states_and_unstated_emotions() -> Non
     assert prompts.CONNECT_PROMPT_VERSION == "connect@1.2.0"
     assert "Never say or imply that something was found, verified, registered" in text
     assert "Only empathize with an emotion the customer expressed in customer_message" in text
+
+
+# --- Periods of days (extract@1.9.0) ---------------------------------------------------------
+
+
+def period(start: Any, end: Any) -> dict[str, Any]:
+    ref = {
+        "transaction_id": None,
+        "transaction_date": None,
+        "date_from": start,
+        "date_to": end,
+        "amount": None,
+        "merchant": None,
+    }
+    return extraction(slots={"transaction_ref": ref})
+
+
+def day(day: int, month: int, year: int | None = None) -> dict[str, Any]:
+    return {"day": day, "month": month, "year": year}
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "expected"),
+    [
+        (
+            day(15, 6),
+            day(19, 6),
+            (date(2026, 6, 15), date(2026, 6, 17)),
+        ),  # cut at the business date
+        (day(11, 6), day(20, 6), (date(2026, 6, 11), date(2026, 6, 17))),  # "a mediados de junio"
+        (day(8, 6), day(14, 6), (date(2026, 6, 8), date(2026, 6, 14))),  # "la semana pasada"
+        (day(10, 6, 2026), day(12, 6, 2026), (date(2026, 6, 10), date(2026, 6, 12))),
+        (day(28, 12), day(3, 1), (date(2025, 12, 28), date(2026, 1, 3))),  # across the new year
+    ],
+)
+def test_a_period_is_resolved_in_code(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, start: Any, end: Any, expected: Any
+) -> None:
+    fake.responses = [completion(period(start, end))]
+    result = extract(adapter, "fue entre el 15 y el 19 de junio", with_business_date())
+    ref = result.slots.transaction_ref
+    assert ref is not None and (ref.date_from, ref.date_to) == expected
+    assert ref.transaction_date is None
+
+
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        (day(15, 6), None),  # half a period
+        (None, day(19, 6)),
+        (day(31, 2), day(3, 3)),  # an impossible start
+        (day(15, 6, 2026), day(30, 2, 2026)),  # an impossible end
+        (day(15, 6, 2026), day(10, 6, 2026)),  # the end before the start
+    ],
+)
+def test_a_period_that_cannot_be_resolved_is_dropped_as_a_whole(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, calls: list[ModelCall], start: Any, end: Any
+) -> None:
+    answer = period(start, end)
+    answer["slots"]["transaction_ref"]["merchant"] = "Cafe Sintetico"
+    fake.responses = [completion(answer)]
+    result = extract(adapter, "entre el 15 y el 19", with_business_date())
+    ref = result.slots.transaction_ref
+    assert ref is not None and ref.date_from is None and ref.date_to is None
+    assert ref.merchant == "Cafe Sintetico"
+    assert DATE_RANGE_DISCARDED in (calls[-1].adjustments or [])
+
+
+def test_a_period_needs_both_ends_in_order() -> None:
+    with pytest.raises(ValueError, match="needs both"):
+        TransactionRef(date_from=date(2026, 6, 15))
+    with pytest.raises(ValueError, match="must not be after"):
+        TransactionRef(date_from=date(2026, 6, 19), date_to=date(2026, 6, 15))
+    assert TransactionRef(date_from=date(2026, 6, 15), date_to=date(2026, 6, 15))
+
+
+def test_extract_schema_has_the_period() -> None:
+    ref = prompts.EXTRACT_SCHEMA["properties"]["slots"]["properties"]["transaction_ref"]
+    fields = ref["anyOf"][0]["properties"]
+    assert {"date_from", "date_to"} <= set(fields)
+
+
+# --- connect: a filtered sentence is never retried -------------------------------------------
+
+
+def test_a_filtered_sentence_is_dropped_without_calling_the_model_again(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [
+        completion({"before": "Perfecto, ya tengo los datos de la transacción.", "after": ""}),
+        completion({"before": "Gracias.", "after": ""}),
+    ]
+    assert connect(adapter) == TEMPLATE
+    assert len(fake.requests) == 1  # one call: the template alone, no second attempt

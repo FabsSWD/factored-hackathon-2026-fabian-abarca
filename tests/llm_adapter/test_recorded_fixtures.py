@@ -263,3 +263,43 @@ def test_the_approximate_amount_of_the_manual_test() -> None:
     assert ref is not None and ref.amount == Decimal("40")
     assert ref.merchant is not None and "buen sabor" in ref.merchant.lower()
     assert ref.amount_approximate is True  # marked by the code, not by the model
+
+
+# --- Periods of days and a generic merchant (extract@1.9.0) ----------------------------------
+
+PERIOD_CASES = {
+    "es_period_15_19": (date(2026, 6, 15), date(2026, 6, 17)),  # cut at the business date
+    "es_period_mid_june": (date(2026, 6, 11), date(2026, 6, 17)),  # 11 to 20, cut
+    "es_period_last_week": (date(2026, 6, 8), date(2026, 6, 14)),  # Monday to Sunday
+    "pt_period_10_12": (date(2026, 6, 10), date(2026, 6, 12)),
+}
+
+
+@pytest.mark.parametrize(("name", "expected"), PERIOD_CASES.items())
+def test_periods_of_days(name: str, expected: tuple[date, date]) -> None:
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    pending = SlotName(recorded["pending_slot"])
+    result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
+    ref = result.slots.transaction_ref
+    assert ref is not None and (ref.date_from, ref.date_to) == expected
+    assert ref.transaction_date is None
+
+
+def test_the_generic_restaurant_of_the_manual_test_3() -> None:
+    name = "es_generic_restaurant"
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    pending = SlotName(recorded["pending_slot"])
+    result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
+    ref = result.slots.transaction_ref
+    assert ref is not None and ref.amount == Decimal("40") and ref.amount_approximate is True
+    assert ref.merchant is not None and "restaurante" in ref.merchant.lower()
+    # Whether the model also marks flow_help does not matter: the Orchestrator processes the
+    # details and sends no help text (tests/orchestrator/test_manual_3.py).

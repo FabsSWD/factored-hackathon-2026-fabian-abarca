@@ -14,6 +14,7 @@ from app.config import (
     PolicyConfig,
     PolicyConfigError,
     get_policy_config,
+    load_merchant_categories,
     load_policy_config,
 )
 
@@ -69,7 +70,7 @@ def _with_parameter(tmp_path: Path, name: str, value: object) -> Path:
 def test_repository_policy_file_loads() -> None:
     config = load_policy_config(DEFAULT_POLICY_PATH)
     assert isinstance(config, PolicyConfig)
-    assert config.policy_version == "0.4.7"
+    assert config.policy_version == "0.4.8"
 
 
 def test_policy_version_matches_the_policy_document() -> None:
@@ -126,7 +127,7 @@ def test_env_variable_selects_the_file(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_default_path_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(POLICY_PATH_ENV, raising=False)
-    assert load_policy_config().policy_version == "0.4.7"
+    assert load_policy_config().policy_version == "0.4.8"
 
 
 def test_get_policy_config_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -242,3 +243,39 @@ def test_non_mapping_file_fails(tmp_path: Path, content: str) -> None:
 def test_missing_parameters_section_fails(tmp_path: Path) -> None:
     with pytest.raises(PolicyConfigError, match=r"parameters: Field required"):
         load_policy_config(_write(tmp_path, {"policy_version": "0.1.0"}))
+
+
+# --- Merchant categories (GATE-05) -----------------------------------------------------------
+
+
+def test_merchant_categories_are_folded_and_unique() -> None:
+    words = load_merchant_categories()
+    assert words["restaurante"] == "Food" and words["farmacia"] == "Health"
+    assert words["otica"] == "Health"
+    assert set(words.values()) <= {
+        "Food",
+        "Health",
+        "Transport",
+        "Entertainment",
+        "Services",
+        "Other",
+    }
+
+
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        ("categories:\n  Food: [cafe]\n  Other: [CAFÉ]\n", "is in Food and Other"),
+        ("categories:\n  Food: [comida rapida]\n", "must be one word"),
+        ("categories:\n  Food: []\n", "needs a list of words"),
+        ("other: 1\n", "need a 'categories' mapping"),
+        ("categories: [\n", "not readable"),
+    ],
+)
+def test_broken_merchant_categories_fail_clearly(
+    tmp_path: Path, content: str, message: str
+) -> None:
+    path = tmp_path / "categories.yaml"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(PolicyConfigError, match=message):
+        load_merchant_categories(path)

@@ -2,8 +2,8 @@
 
 GATE-05 (policy §5, "Transaction matching"): the details the customer gave are compared with
 their transactions; details that find nothing are relaxed in steps (amount with tolerance,
-without amount, without amount and date), and what a relaxed step finds is only a list of
-candidates for the customer to pick from. A merchant named only with generic words is a
+without amount, without amount and date, and last without the merchant), and what a relaxed
+step finds is only a list of candidates for the customer to pick from. A merchant named only with generic words is a
 category ("un restaurante" -> Food) or, without one, no detail at all; a period of days
 ("entre el 15 y el 19 de junio") matches the business days in it, ±1 day.
 """
@@ -150,6 +150,7 @@ def consistent(
     *,
     use_amount: bool = True,
     use_date: bool = True,
+    use_merchant: bool = True,
     categories: dict[str, str] | None = None,
 ) -> bool:
     """Whether the date, amount and merchant the customer gave (if any) fit the transaction."""
@@ -157,7 +158,7 @@ def consistent(
         return False
     if use_amount and ref.amount is not None and not amount_matches(txn, ref.amount, tolerance):
         return False
-    if ref.merchant is None:
+    if ref.merchant is None or not use_merchant:
         return True
     words = categories or {}
     merchant = merchant_criterion(ref.merchant, words)
@@ -189,6 +190,7 @@ class _Step:
     use_amount: bool
     tolerant: bool
     use_date: bool
+    use_merchant: bool = True
 
 
 def match_transaction(
@@ -226,6 +228,7 @@ def match_transaction(
                 allowed,
                 use_amount=step.use_amount,
                 use_date=step.use_date,
+                use_merchant=step.use_merchant,
                 categories=categories,
             )
         )
@@ -247,8 +250,9 @@ def match_transaction(
 def _relaxations(
     given: set[TransactionField], approximate: bool, tolerance: Tolerance | None
 ) -> list[_Step]:
-    """Amount with tolerance, without amount, without amount and date; each step keeps at
-    least one detail."""
+    """Amount with tolerance, without amount, without amount and date, and last without the
+    merchant (name or category, which may be missing in the data) but with the amount, with
+    tolerance, and the date; each step keeps at least one detail."""
     has_merchant, has_date = TransactionField.MERCHANT in given, TransactionField.DATE in given
     steps: list[_Step] = []
     if TransactionField.AMOUNT in given:
@@ -258,6 +262,11 @@ def _relaxations(
             steps.append(_Step(use_amount=False, tolerant=False, use_date=True))
     if (TransactionField.AMOUNT in given or has_date) and has_merchant:
         steps.append(_Step(use_amount=False, tolerant=False, use_date=False))
+        steps.append(
+            _Step(
+                use_amount=True, tolerant=tolerance is not None, use_date=True, use_merchant=False
+            )
+        )
     return steps
 
 
