@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.8.0",
+  "prompt_version": "extract@1.9.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": null,
@@ -15,6 +15,8 @@
           "month": 6,
           "year": null
         },
+        "date_from": null,
+        "date_to": null,
         "amount": 50,
         "merchant": "Cafe Sintetico"
       },
@@ -35,7 +37,7 @@
     },
     "customer_claims": [
       "El cliente indica que no reconoce un cargo de 50 dólares en Cafe Sintetico del 16 de junio.",
-      "El cliente informa que tiene su tarjeta consigo.",
+      "El cliente indica que tiene su tarjeta consigo.",
       "El cliente indica que no le ha dado sus claves a nadie."
     ],
     "side_question": null,

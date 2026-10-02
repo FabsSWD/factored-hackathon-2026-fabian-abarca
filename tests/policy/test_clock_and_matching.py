@@ -458,7 +458,8 @@ def test_a_wrong_period_is_relaxed_away() -> None:
     assert result.candidates == [CINEMA] and result.relaxed
 
 
-def test_a_last_step_without_the_merchant_finds_a_purchase_without_category() -> None:
+def test_a_category_is_dropped_before_the_amount() -> None:
+    # "un restaurante" + "como de 40" + a period: El Buen Sabor has no category in the data.
     uncategorized = FOOD.model_copy(update={"merchant_category": None})
     said = TransactionRef(
         merchant="un restaurante",
@@ -469,7 +470,21 @@ def test_a_last_step_without_the_merchant_finds_a_purchase_without_category() ->
     )
     result = match_transaction(said, [uncategorized, FOOD_FAR], AS_OF, 120, TOLERANCE, CATEGORIES)
     assert result.transaction is None and result.relaxed  # only a candidate to pick
-    assert result.candidates == [uncategorized]
+    assert result.candidates == [uncategorized]  # not Super Ahorro (Food, 120)
+
+
+def test_a_merchant_name_is_dropped_after_the_amount() -> None:
+    # A concrete name is a strong detail: "without amount" comes first and finds it.
+    renamed = FOOD.model_copy(update={"merchant_name": "Restaurante Otro", "amount": Decimal("90")})
+    said = TransactionRef(
+        merchant="Restaurante Otro",
+        amount=Decimal("40"),
+        amount_approximate=True,
+        date_from=date(2026, 6, 15),
+        date_to=date(2026, 6, 17),
+    )
+    result = match_transaction(said, [renamed, CINEMA], AS_OF, 120, TOLERANCE, CATEGORIES)
+    assert result.candidates == [renamed]  # by name and period, not the cinema of 39
 
 
 def test_without_amount_or_date_the_merchant_is_never_dropped() -> None:

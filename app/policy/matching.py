@@ -240,7 +240,9 @@ def match_transaction(
     if matches:
         return Match(candidates=matches, relaxed=approximate)
     given = given_details(ref, categories)
-    for step in _relaxations(given, approximate, tolerance):
+    merchant = merchant_criterion(ref.merchant, categories or {}) if ref.merchant else None
+    weak = merchant is not None and merchant.kind is MerchantKind.CATEGORY
+    for step in _relaxations(given, approximate, tolerance, weak_merchant=weak):
         matches = search(step)
         if matches:
             return Match(candidates=matches, note="relaxed_search", relaxed=True)
@@ -248,25 +250,33 @@ def match_transaction(
 
 
 def _relaxations(
-    given: set[TransactionField], approximate: bool, tolerance: Tolerance | None
+    given: set[TransactionField],
+    approximate: bool,
+    tolerance: Tolerance | None,
+    *,
+    weak_merchant: bool = False,
 ) -> list[_Step]:
     """Amount with tolerance, without amount, without amount and date, and last without the
     merchant (name or category, which may be missing in the data) but with the amount, with
-    tolerance, and the date; each step keeps at least one detail."""
+    tolerance, and the date; each step keeps at least one detail. A merchant that is only a
+    category is the weakest detail: then the step without it goes right after the tolerance."""
     has_merchant, has_date = TransactionField.MERCHANT in given, TransactionField.DATE in given
+    has_amount = TransactionField.AMOUNT in given
+    no_merchant = _Step(
+        use_amount=True, tolerant=tolerance is not None, use_date=True, use_merchant=False
+    )
+    drop_merchant = has_merchant and (has_amount or has_date)
     steps: list[_Step] = []
-    if TransactionField.AMOUNT in given:
-        if not approximate and tolerance is not None:
-            steps.append(_Step(use_amount=True, tolerant=True, use_date=True))
-        if has_date or has_merchant:
-            steps.append(_Step(use_amount=False, tolerant=False, use_date=True))
-    if (TransactionField.AMOUNT in given or has_date) and has_merchant:
+    if has_amount and not approximate and tolerance is not None:
+        steps.append(_Step(use_amount=True, tolerant=True, use_date=True))
+    if drop_merchant and weak_merchant:
+        steps.append(no_merchant)
+    if has_amount and (has_date or has_merchant):
+        steps.append(_Step(use_amount=False, tolerant=False, use_date=True))
+    if drop_merchant:
         steps.append(_Step(use_amount=False, tolerant=False, use_date=False))
-        steps.append(
-            _Step(
-                use_amount=True, tolerant=tolerance is not None, use_date=True, use_merchant=False
-            )
-        )
+        if not weak_merchant:
+            steps.append(no_merchant)
     return steps
 
 

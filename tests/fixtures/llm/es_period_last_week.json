@@ -1,14 +1,29 @@
 {
   "prompt_version": "extract@1.9.0",
   "response_model": "gpt-6-luna",
-  "language": "pt",
-  "pending_slot": null,
-  "message": "Vocês oferecem empréstimo pessoal?",
+  "language": "es",
+  "pending_slot": "transaction_ref",
+  "message": "fue la semana pasada",
   "raw": {
-    "detected_language": "pt",
+    "detected_language": "es",
     "language_ambiguous": false,
     "slots": {
-      "transaction_ref": null,
+      "transaction_ref": {
+        "transaction_id": null,
+        "transaction_date": null,
+        "date_from": {
+          "day": 8,
+          "month": 6,
+          "year": 2026
+        },
+        "date_to": {
+          "day": 14,
+          "month": 6,
+          "year": 2026
+        },
+        "amount": null,
+        "merchant": null
+      },
       "reason_code": null,
       "card_in_possession": null,
       "shared_credentials": null,
@@ -24,8 +39,10 @@
       "legal_or_vulnerability": false,
       "authentication_declined": false
     },
-    "customer_claims": [],
-    "side_question": "other",
+    "customer_claims": [
+      "El cliente indica que la transacción fue la semana pasada."
+    ],
+    "side_question": null,
     "wrong_transaction": false,
     "block_card_requested": false
   }

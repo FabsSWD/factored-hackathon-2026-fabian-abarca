@@ -21,8 +21,9 @@
   with a promise (COM-05), a claim that an action happened (COM-04), a digit, a rule
   identifier, braces, the other language, or excessive length is dropped, and any model
   failure, a spent deadline, or ``LLM_CONNECT_ENABLED=false`` returns the template alone.
-  Spanish is always "usted": a sentence with a "tú" form is dropped (in Portuguese, a "tu"
-  form). ``brief`` (turns that collect details) allows at most a short acknowledgment before
+  It is never retried: on any failure (network, schema, filter, deadline) the template goes
+  alone. Spanish is always "usted": a sentence with a "tú" form is dropped (in Portuguese, a
+  "tu" form). ``brief`` (turns that collect details) allows at most a short acknowledgment before
   the template; ``previous`` are the sentences already sent, and a repeated one is dropped.
   A sentence that claims a state the system did not verify ("ya tengo los datos", "ya
   encontré", "já tenho") is dropped like a claimed action, and so is one that names an
@@ -81,7 +82,7 @@ MAX_CLAIMS = 5
 MAX_CLAIM_CHARS = 200
 MAX_CONNECTING_CHARS = 160
 EXTRACT_MAX_TOKENS = 800
-CONNECT_MAX_TOKENS = 150
+CONNECT_MAX_TOKENS = 300  # 150 cut the JSON short in real runs
 
 _BOOLEAN_SLOTS = ("card_in_possession", "shared_credentials", "merchant_contacted")
 _RULE_ID = re.compile(r"\b(?:GATE|ESC|ACT|COM|DATA)-\d{2}\b|\bRC_[A-Z_]+|\bT[123]\b")
@@ -226,6 +227,7 @@ class OpenAILLMAdapter:
                 max_output_tokens=CONNECT_MAX_TOKENS,
                 validate=_parse_connecting,
                 deadline=deadline,
+                max_retries=0,  # optional text: one attempt, latency matters more
             )
         except LLMError:
             return templated_text

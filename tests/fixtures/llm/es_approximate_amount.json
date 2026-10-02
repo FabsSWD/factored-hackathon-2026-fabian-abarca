@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.8.0",
+  "prompt_version": "extract@1.9.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": "transaction_ref",
@@ -11,8 +11,10 @@
       "transaction_ref": {
         "transaction_id": null,
         "transaction_date": null,
+        "date_from": null,
+        "date_to": null,
         "amount": 40,
-        "merchant": "el buen sabor"
+        "merchant": "restaurante El Buen Sabor"
       },
       "reason_code": null,
       "card_in_possession": null,
@@ -30,7 +32,7 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente indica que se refiere a una transacción del restaurante El Buen Sabor por aproximadamente 40 dólares."
+      "El cliente indica que la transacción fue en el restaurante El Buen Sabor y fue de unos 40 dólares."
     ],
     "side_question": null,
     "wrong_transaction": false,

@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.8.0",
+  "prompt_version": "extract@1.9.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": "transaction_ref",
@@ -25,7 +25,7 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente indica que solo sabe el nombre del lugar."
+      "El cliente indica que solo conoce el nombre del lugar."
     ],
     "side_question": "flow_help",
     "wrong_transaction": false,

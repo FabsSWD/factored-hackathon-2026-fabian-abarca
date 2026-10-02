@@ -2,13 +2,28 @@
   "prompt_version": "extract@1.9.0",
   "response_model": "gpt-6-luna",
   "language": "pt",
-  "pending_slot": null,
-  "message": "Vocês oferecem empréstimo pessoal?",
+  "pending_slot": "transaction_ref",
+  "message": "foi entre 10 e 12 de junho",
   "raw": {
     "detected_language": "pt",
     "language_ambiguous": false,
     "slots": {
-      "transaction_ref": null,
+      "transaction_ref": {
+        "transaction_id": null,
+        "transaction_date": null,
+        "date_from": {
+          "day": 10,
+          "month": 6,
+          "year": null
+        },
+        "date_to": {
+          "day": 12,
+          "month": 6,
+          "year": null
+        },
+        "amount": null,
+        "merchant": null
+      },
       "reason_code": null,
       "card_in_possession": null,
       "shared_credentials": null,
@@ -24,8 +39,10 @@
       "legal_or_vulnerability": false,
       "authentication_declined": false
     },
-    "customer_claims": [],
-    "side_question": "other",
+    "customer_claims": [
+      "O cliente informa que a transação foi entre 10 e 12 de junho."
+    ],
+    "side_question": null,
     "wrong_transaction": false,
     "block_card_requested": false
   }

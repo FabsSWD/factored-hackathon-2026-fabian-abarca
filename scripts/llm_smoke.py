@@ -30,6 +30,7 @@ from app.contracts import (  # noqa: E402
     LLMContext,
     LLMTransaction,
     ModelCall,
+    SideQuestion,
     SlotName,
 )
 from app.llm_adapter import prompts  # noqa: E402
@@ -154,10 +155,14 @@ async def main(record: bool) -> None:
         detected = Language(result.detected_language) if result.detected_language in ("es", "pt") else language
         reply_context = context.model_copy(update={"language": detected})
         template = templates.render("handoff", detected)
-        # connect@1.1.0: full sentences on a first message, brief on a reply.
-        brief = pending_slot is not None
-        reply = await adapter.connect(template, message, reply_context, deadline, brief=brief)
-        print(f"reply ({detected.value}, {'brief' if brief else 'full'}):", reply)
+        if result.side_question is SideQuestion.OTHER:
+            # The Orchestrator sends no connecting sentence for a request outside disputes.
+            print(f"reply ({detected.value}): no connect for side question other")
+        else:
+            # connect: full sentences on a first message, brief on a reply.
+            brief = pending_slot is not None
+            reply = await adapter.connect(template, message, reply_context, deadline, brief=brief)
+            print(f"reply ({detected.value}, {'brief' if brief else 'full'}):", reply)
         if record:
             FIXTURES.mkdir(parents=True, exist_ok=True)
             fixture = {

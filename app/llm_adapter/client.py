@@ -163,7 +163,10 @@ class OpenAIJsonClient:
         max_output_tokens: int,
         validate: Validator | None = None,
         deadline: Deadline | None = None,
+        max_retries: int | None = None,
     ) -> JsonCompletion:
+        """``max_retries`` overrides the configured retries for this call (0: one attempt)."""
+        retries = self._config.max_retries if max_retries is None else max_retries
         budget = deadline or self.new_deadline()
         if budget.remaining() < MIN_ATTEMPT_SECONDS:
             raise LLMError(f"{purpose}: no time left in the turn deadline")
@@ -183,7 +186,7 @@ class OpenAIJsonClient:
 
         # tenacity computes the wait first (upcoming_sleep), then asks whether to stop.
         def stop(state: RetryCallState) -> bool:
-            if state.attempt_number > self._config.max_retries:
+            if state.attempt_number > retries:
                 return True
             return budget.remaining() - state.upcoming_sleep < MIN_ATTEMPT_SECONDS
 

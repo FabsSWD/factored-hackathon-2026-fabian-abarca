@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.8.0",
+  "prompt_version": "extract@1.9.0",
   "response_model": "gpt-6-luna",
   "language": "pt",
   "pending_slot": null,
@@ -11,6 +11,8 @@
       "transaction_ref": {
         "transaction_id": null,
         "transaction_date": null,
+        "date_from": null,
+        "date_to": null,
         "amount": 18.9,
         "merchant": "Streaming Plus"
       },
@@ -30,8 +32,9 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "O cliente informa que foi cobrado duas vezes pela Streaming Plus por 18,90 dólares.",
-      "O cliente pede para falar com um atendente."
+      "O cliente informa que foi cobrado duas vezes pela Streaming Plus.",
+      "O cliente informa que a cobrança foi de 18,90 dólares.",
+      "O cliente quer falar com um atendente."
     ],
     "side_question": null,
     "wrong_transaction": false,

@@ -2,13 +2,20 @@
   "prompt_version": "extract@1.9.0",
   "response_model": "gpt-6-luna",
   "language": "es",
-  "pending_slot": "confirmation",
-  "message": "Mejor sí, bloquéela por favor",
+  "pending_slot": "transaction_ref",
+  "message": "el monto era como de 40 dólares, la compra fue en un restaurante pero no recuerdo bien su nombre",
   "raw": {
     "detected_language": "es",
     "language_ambiguous": false,
     "slots": {
-      "transaction_ref": null,
+      "transaction_ref": {
+        "transaction_id": null,
+        "transaction_date": null,
+        "date_from": null,
+        "date_to": null,
+        "amount": 40,
+        "merchant": "un restaurante"
+      },
       "reason_code": null,
       "card_in_possession": null,
       "shared_credentials": null,
@@ -16,7 +23,7 @@
       "expected_delivery_date": null,
       "merchant_contacted": null,
       "fee_ref": null,
-      "confirmation": "confirmed"
+      "confirmation": null
     },
     "flags": {
       "human_requested": false,
@@ -25,10 +32,11 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente solicita que bloqueen la tarjeta."
+      "El cliente indica que el monto era como de 40 dólares.",
+      "El cliente informa que la compra fue en un restaurante, pero no recuerda bien el nombre."
     ],
-    "side_question": null,
+    "side_question": "flow_help",
     "wrong_transaction": false,
-    "block_card_requested": true
+    "block_card_requested": false
   }
 }

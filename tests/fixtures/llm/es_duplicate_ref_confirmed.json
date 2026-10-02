@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.8.0",
+  "prompt_version": "extract@1.9.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": "duplicate_ref",
@@ -25,7 +25,7 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente confirma que esa es."
+      "El cliente confirma que ese es."
     ],
     "side_question": null,
     "wrong_transaction": false,

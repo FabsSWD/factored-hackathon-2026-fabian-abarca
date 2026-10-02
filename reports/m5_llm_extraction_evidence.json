@@ -62,6 +62,13 @@
       "transaction_id_invented": 0,
       "cases": 20,
       "notes": "All 20 recorded fixtures classified as expected, including the five new phrases of M12 manual test 2: flow_help x3, other ('abrir una cuenta de ahorros') and 'el buen sabor, como de 40 dólares' (amount 40, amount_approximate true, marked by code). One connect@1.1.0 call returned invalid output; the retry succeeded."
+    },
+    {
+      "prompt_version": "extract@1.9.0",
+      "date": "2026-10-01",
+      "transaction_id_invented": 0,
+      "cases": 25,
+      "notes": "All 25 recorded fixtures as expected, including four periods of days (15-19 June cut at the business date, mid-June, last week Monday to Sunday, 10-12 June in pt) and the generic restaurant of M12 manual test 3. Two connect@1.2.0 calls failed three times in a row with out=150 (the cap): the JSON was cut short. From here connect has a 300-token cap and no retries."
     }
   ],
   "latency_seconds": {
@@ -109,6 +116,23 @@
       "input_tokens": [
         310,
         350
+      ]
+    },
+    "extract@1.9.0": {
+      "input_tokens": [
+        1688,
+        1728
+      ],
+      "extract_latency_seconds": [
+        2.0,
+        4.9
+      ],
+      "calls": 25
+    },
+    "connect@1.2.0": {
+      "input_tokens": [
+        380,
+        420
       ]
     }
   },

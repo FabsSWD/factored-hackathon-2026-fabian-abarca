@@ -27,6 +27,7 @@ from app.contracts import (
 from app.deadline import Deadline
 from app.llm_adapter import prompts
 from app.llm_adapter.adapter import (
+    CONNECT_MAX_TOKENS,
     CONNECT_PURPOSE,
     DATE_RANGE_DISCARDED,
     EXTRACT_PURPOSE,
@@ -1213,3 +1214,25 @@ def test_a_filtered_sentence_is_dropped_without_calling_the_model_again(
     ]
     assert connect(adapter) == TEMPLATE
     assert len(fake.requests) == 1  # one call: the template alone, no second attempt
+
+
+def test_connect_is_one_attempt_even_on_a_schema_failure(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, calls: list[ModelCall]
+) -> None:
+    fake.responses = [
+        completion({"before": 1, "after": ""}),  # not a string: out of the schema
+        completion({"before": "Gracias.", "after": ""}),
+    ]
+    assert connect(adapter) == TEMPLATE
+    assert len(fake.requests) == 1
+    assert [call.purpose for call in calls] == [CONNECT_PURPOSE]
+
+
+def test_connect_has_room_for_its_json() -> None:
+    assert CONNECT_MAX_TOKENS == 300  # 150 cut the JSON short in recorded runs
+
+
+def test_extract_still_retries(adapter: OpenAILLMAdapter, fake: FakeOpenAI) -> None:
+    fake.responses = [completion({"slots": "broken"}), completion(extraction())]
+    extract(adapter, "Hola")
+    assert len(fake.requests) == 2  # connect is the only call without retries
