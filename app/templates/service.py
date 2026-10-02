@@ -13,9 +13,12 @@ Composition rules for the Orchestrator (M12):
   template is followed by ``offer_transfer``.
 - ``handoff_unauthenticated`` is the only handoff text allowed before GATE-02 passes
   (ESC-05 or ESC-06 without a session); it mentions no account data.
-- ``side_unsupported`` (a side question outside disputes) is followed by ``offer_transfer``,
-  or by a handoff when the turn hands off anyway. ``SIDE_TEMPLATES`` maps each side question
-  to its answer; the answer goes before the rest of the turn's reply.
+- ``side_unsupported`` (a side question outside disputes) is followed by ``offer_transfer``
+  the first time in a conversation only. ``SIDE_TEMPLATES`` maps each side question to its
+  answer; the answer goes before the rest of the turn's reply.
+- ``no_match`` (GATE-05 found nothing) says what was searched and is followed by
+  ``ask_transaction_detail``. ``VARIANT_TEMPLATES`` gives each clarification a second wording:
+  the same clarification text is never sent two turns in a row (policy §10).
 - ``ask_rephrase`` answers a message flagged by the Input Guard: it asks the customer to
   rephrase and reveals nothing about the detection (see ``app.interfaces.InputGuard``).
 - One confirmation turn covers exactly one action (COM-03): ``CONFIRMATION_TEMPLATES`` maps
@@ -50,8 +53,9 @@ from app.templates.promises import find_promises
 DEFAULT_TEMPLATES_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "templates.yaml"
 
 LANGUAGES = tuple(language.value for language in Language)
-POLICY_VALUES = frozenset({"days"})
-"""Filled from the policy, never by the caller: {days} = RESOLUTION_TARGET_BUSINESS_DAYS."""
+POLICY_VALUES = frozenset({"days", "window_days"})
+"""Filled from the policy, never by the caller: {days} = RESOLUTION_TARGET_BUSINESS_DAYS,
+{window_days} = LATE_WINDOW_DAYS (the window GATE-05 searches)."""
 MASKED_VALUES = frozenset({"product"})
 """Must receive a masked product number (COM-06)."""
 FORMATTED_AMOUNT_VALUES = frozenset({"amount"})
@@ -59,7 +63,7 @@ FORMATTED_AMOUNT_VALUES = frozenset({"amount"})
 
 REQUIRED_FOLLOW_UPS: dict[str, frozenset[str]] = {
     "tool_failure": frozenset({"handoff", "offer_transfer"}),
-    "side_unsupported": frozenset({"offer_transfer"}),
+    "no_match": frozenset({"ask_transaction_detail"}),
 }
 """Template -> templates one of which must follow it in the same reply."""
 
@@ -89,6 +93,7 @@ SIDE_TEMPLATES: dict[SideQuestion, str] = {
     SideQuestion.TIMELINE: "side_timeline",
     SideQuestion.BLOCK_CONSEQUENCES: "side_block_consequences",
     SideQuestion.CASE_STATUS: "side_case_status",  # or side_no_cases / side_case_not_found
+    SideQuestion.FLOW_HELP: "side_flow_help_transaction",  # or side_flow_help
     SideQuestion.OTHER: "side_unsupported",
 }
 """The answer to each side question (the Orchestrator fills case_status from the records)."""
@@ -101,13 +106,39 @@ CLARIFY_TARGET_TEMPLATES: dict[ClarifyTarget, str] = {
     ClarifyTarget.CORRECTION: "ask_correction",
 }
 """The template for each CLARIFY target of a PolicyDecision."""
+VARIANT_TEMPLATES: dict[str, str] = {
+    **{
+        template: f"{template}_again"
+        for template in CLARIFY_TEMPLATES.values()
+        if template != "clarify_transaction_ref"
+    },
+    "ask_correction": "ask_correction_again",
+    "choose_transaction": "choose_transaction_again",
+    "choose_relaxed_many": "choose_transaction_again",
+    "choose_relaxed_one": "choose_one_again",
+}
+"""The second wording of a clarification (clarify_transaction_ref has two, chosen by what is
+already known: clarify_transaction_ref_known or clarify_transaction_ref_again)."""
+SEARCH_TEMPLATES = frozenset(
+    {
+        "no_match",
+        "ask_transaction_detail",
+        "ask_many_detail",
+        "clarify_transaction_ref_known",
+        "clarify_transaction_ref_again",
+        "choose_one_again",
+        "side_flow_help",
+    }
+)
 
 LABEL_KINDS: dict[str, frozenset[str]] = {
     "reason_code": frozenset(code.value for code in ReasonCode),
     "action": frozenset({ActionId.CREATE_CASE.value, ActionId.BLOCK_CARD.value}),
     # Draft exists only inside a conversation and is never shown to a customer.
     "case_status": frozenset(s.value for s in CaseStatus if s is not CaseStatus.DRAFT),
-    "misc": frozenset({"no_merchant"}),
+    "misc": frozenset({"no_merchant", "or"}),
+    "detail": frozenset({"merchant", "transaction_date", "amount", "merchant_statement"}),
+    "search": frozenset({"merchant", "amount", "approximately", "transaction_date"}),
 }
 
 
@@ -151,9 +182,16 @@ def _texts(where: str, raw: Any) -> dict[str, str]:
 
 
 class TemplateService:
-    def __init__(self, resolution_days: int, path: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        resolution_days: int,
+        path: Path | str | None = None,
+        *,
+        window_days: int | None = None,
+    ) -> None:
         self._path = Path(path) if path is not None else DEFAULT_TEMPLATES_PATH
         self._days = resolution_days
+        self._window_days = window_days
         raw = self._read()
         self.version: str = self._version(raw)
         self._templates = self._load_templates(raw.get("templates"))
@@ -164,8 +202,11 @@ class TemplateService:
     def from_policy(
         cls, policy: PolicyParameters, path: Path | str | None = None
     ) -> TemplateService:
-        """{days} comes from RESOLUTION_TARGET_BUSINESS_DAYS (COM-05)."""
-        return cls(policy.RESOLUTION_TARGET_BUSINESS_DAYS, path)
+        """{days} comes from RESOLUTION_TARGET_BUSINESS_DAYS (COM-05) and {window_days} from
+        LATE_WINDOW_DAYS."""
+        return cls(
+            policy.RESOLUTION_TARGET_BUSINESS_DAYS, path, window_days=policy.LATE_WINDOW_DAYS
+        )
 
     # --- Public API -------------------------------------------------------------
 
@@ -182,7 +223,11 @@ class TemplateService:
         overridden = POLICY_VALUES & set(values)
         if overridden:
             raise TemplateError(f"{template_id}: {sorted(overridden)} come from the policy")
-        values = {**values, **{"days": self._days}} if "days" in template.placeholders else values
+        policy = {"days": self._days, "window_days": self._window_days}
+        for name in POLICY_VALUES & template.placeholders:
+            if policy[name] is None:
+                raise TemplateError(f"{template_id}: {{{name}}} needs the policy (from_policy)")
+            values = {**values, name: policy[name]}
         missing = template.placeholders - set(values)
         if missing:
             raise TemplateError(f"{template_id}: missing values {sorted(missing)}")
@@ -261,6 +306,9 @@ class TemplateService:
             | set(CONFIRMATION_TEMPLATES)
             | set(SIDE_TEMPLATES.values())
             | {"side_no_cases", "side_case_not_found", "identified_transaction", "block_not_done"}
+            | set(VARIANT_TEMPLATES) - {"ask_correction"}
+            | set(VARIANT_TEMPLATES.values())
+            | SEARCH_TEMPLATES
         )
         missing = required - set(templates)
         if missing:

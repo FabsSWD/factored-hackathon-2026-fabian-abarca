@@ -43,6 +43,16 @@ Contracts it keeps (each has a test):
 17. Without a session Kev is not called (no rule before GATE-02 uses its signals), and
     ``connect`` is not called when the reply asks to log in. ``extract`` still runs (language,
     interrupts), and its slots are kept for after the login.
+18. GATE-05 results are told (policy 0.4.7): candidates from a relaxed search are listed even
+    alone (one is confirmed with yes/no), ``no_match`` says what was searched and asks for a
+    missing detail, too many matches ask for the most useful one. The same clarification text
+    is never sent two turns in a row (``VARIANT_TEMPLATES``).
+19. A clarification answered with new information is not counted toward ESC-09.
+20. ``flow_help`` is answered with how to go on; ``offer_transfer`` after ``other`` once per
+    conversation.
+21. ``connect`` writes full sentences only on the first turn, bad news (INFORM, ESCALATE,
+    REFUSE, ``no_match``); otherwise a brief acknowledgment at most. It receives the sentences
+    already sent, so none is repeated.
 """
 
 from __future__ import annotations
@@ -93,8 +103,10 @@ from app.contracts import (
     ToolResult,
     ToolStatus,
     TraceRecord,
+    TransactionField,
     TransactionRecord,
     TransactionRef,
+    TransactionSearch,
 )
 from app.deadline import Deadline
 from app.decision.fallback import resolve_signals
@@ -121,9 +133,15 @@ from app.orchestrator.state import (
     Pending,
 )
 from app.policy.clock import business_date
+from app.policy.matching import given_details
 from app.pseudonym import UNAUTHENTICATED_REF, customer_ref
-from app.templates.formatting import Locale, format_date, locale_for
-from app.templates.service import INFORM_TEMPLATES, SIDE_TEMPLATES, TemplateService
+from app.templates.formatting import Locale, format_date, format_number, locale_for
+from app.templates.service import (
+    INFORM_TEMPLATES,
+    SIDE_TEMPLATES,
+    VARIANT_TEMPLATES,
+    TemplateService,
+)
 
 T = TypeVar("T")
 Clock = Callable[[], datetime]
@@ -137,6 +155,17 @@ MIN_GUESS_WORDS = 3  # the rule-based language guess needs a few words
 LOGIN_IDS = frozenset({"ask_authentication", "session_expired_reconfirm"})
 CASE_REF = re.compile(r"\bDSP-\d{8}-\d{6,}\b", re.IGNORECASE)
 MAX_CASES_SHOWN = 3  # side question case_status: the most recent cases
+MAX_PREVIOUS_SENTENCES = 6  # connecting sentences passed back to connect (contract 21)
+TRANSACTION_ASKS = frozenset(
+    {
+        "clarify_transaction_ref",
+        "clarify_transaction_ref_again",
+        "clarify_transaction_ref_known",
+        "ask_transaction_detail",
+    }
+)
+SEARCH_ASKS = frozenset({"clarify_transaction_ref", "no_match", "ask_many_detail"})
+BAD_NEWS = frozenset({Outcome.INFORM, Outcome.ESCALATE, Outcome.REFUSE})
 Prefix = list[tuple[str, dict[str, object]]]
 
 
@@ -200,6 +229,10 @@ class _Turn:
     side_question: SideQuestion | None = None
     side_only: bool = False  # a side question and no answer to anything (contract 14)
     asked_before: ClarifyTarget | None = None  # the CLARIFY target this message answers
+    clarify_key: tuple[ClarifyTarget, str] | None = None  # the clarification sent (contract 18)
+    # The pending clarification counted and was not answered: a side question that repeats it
+    # keeps it so, and the next answer with new information takes it back (contract 19).
+    still_counted: bool = False
     reply: Reply | None = None
     reply_kind: str = ""
     outcome: Outcome | None = None
@@ -378,6 +411,8 @@ class Orchestrator:
             return None
         if target is ClarifyTarget.CORRECTION:
             return SlotName.CONFIRMATION  # "mejor no" withdraws, details correct
+        if target is ClarifyTarget.TRANSACTION_REF and len(state.shown_candidates) == 1:
+            return SlotName.CONFIRMATION  # "¿Es esta?" (contract 18)
         if target in NOT_COUNTED:
             return None
         return SlotName(target.value)
@@ -462,6 +497,13 @@ class Orchestrator:
         pending, target = state.pending, state.pending_target
         state.pending, state.pending_target = Pending.NONE, None
         urgent = state.flags.human_requested or state.flags.legal_or_vulnerability
+        if pending is Pending.CLARIFY and state.pending_counted:
+            if self._informative(state, new):
+                assert target is not None
+                self._uncount(state, target)  # contract 19: answered with new information
+            else:
+                turn.still_counted = True
+        state.pending_counted = False
         question = extraction.side_question
         answered = new.model_copy(update={"confirmation": None}) != Slots() or answer not in (
             None,
@@ -558,6 +600,20 @@ class Orchestrator:
                 state.slots = state.slots.model_copy(update={"confirmation": answer})
                 return False
 
+        if (
+            pending is Pending.CLARIFY
+            and target is ClarifyTarget.TRANSACTION_REF
+            and len(state.shown_candidates) == 1
+            and new.transaction_ref is None
+        ):
+            # "¿Es esta?" about one candidate of a relaxed search (contract 18).
+            if answer is Confirmation.CONFIRMED:
+                picked = TransactionRef(transaction_id=state.shown_candidates[0])
+                new = new.model_copy(update={"transaction_ref": picked, "confirmation": None})
+            elif answer is Confirmation.DECLINED:
+                state.slots = state.slots.model_copy(update={"transaction_ref": None})
+                state.transaction_ref_said, state.picked_candidate = None, None
+                state.slot_turns.pop(SlotName.TRANSACTION_REF, None)
         self._apply_slots(turn, new, extraction.customer_claims)
         return False
 
@@ -582,10 +638,20 @@ class Orchestrator:
     async def _answer_side_question(self, turn: _Turn, question: SideQuestion) -> None:
         """Contract 14: the answer goes first in the reply; the turn goes on after it."""
         answer: Prefix
+        state = turn.state
         if question is SideQuestion.CASE_STATUS:
             answer = await self._case_status(turn)
         elif question is SideQuestion.OTHER:
-            answer = [(SIDE_TEMPLATES[question], {}), ("offer_transfer", {})]
+            answer = [(SIDE_TEMPLATES[question], {})]
+            if not state.unsupported_offered:  # contract 20: once per conversation
+                answer.append(("offer_transfer", {}))
+                state.unsupported_offered = True
+        elif question is SideQuestion.FLOW_HELP:
+            searching = (
+                turn.asked_before is ClarifyTarget.TRANSACTION_REF
+                or state.last_transaction_id is None
+            )
+            answer = [(SIDE_TEMPLATES[question] if searching else "side_flow_help", {})]
         else:
             answer = [(SIDE_TEMPLATES[question], {})]
         turn.side_question = question
@@ -689,11 +755,34 @@ class Orchestrator:
             )
             self._remember_said(state, ref, picked)
             return ref
+        self._remember_said(state, ref, picked=None)
+        return self._merged_reference(state, ref)
+
+    @staticmethod
+    def _merged_reference(state: ConversationState, ref: TransactionRef) -> TransactionRef:
+        if ref.transaction_id is not None:
+            return ref
         current = state.slots.transaction_ref
         base = current.model_dump(exclude={"transaction_id"}, exclude_none=True) if current else {}
         base.update(ref.model_dump(exclude_none=True))
-        self._remember_said(state, ref, picked=None)
         return TransactionRef.model_validate(base)
+
+    def _informative(self, state: ConversationState, new: Slots) -> bool:
+        """Contract 19: the message answers the question or adds or changes a detail."""
+        if new.confirmation in (
+            Confirmation.CONFIRMED,
+            Confirmation.DECLINED,
+            Confirmation.WITHDRAWN,
+        ):
+            return True
+        for name in SlotName:
+            if name in (SlotName.CONFIRMATION, SlotName.TRANSACTION_REF):
+                continue
+            value = getattr(new, name.value)
+            if value is not None and value != getattr(state.slots, name.value):
+                return True
+        ref = new.transaction_ref
+        return ref is not None and self._merged_reference(state, ref) != state.slots.transaction_ref
 
     @staticmethod
     def _remember_said(state: ConversationState, ref: TransactionRef, picked: int | None) -> None:
@@ -824,6 +913,7 @@ class Orchestrator:
         state.pending, state.pending_target = Pending.CLARIFY, target
         first_summary = target is ClarifyTarget.CONFIRMATION and request.slots.confirmation is None
         repeated = turn.side_only and target is turn.asked_before  # contract 14
+        shown: list[str] = []
         if target is ClarifyTarget.AUTHENTICATION:
             reconfirm = (
                 state.slots.confirmation is not None or state.block_offer is BlockOffer.OFFERED
@@ -848,40 +938,137 @@ class Orchestrator:
             reply.summary(txn, product, decision.reason_code)
             state.pending, state.pending_target = Pending.SUMMARY, None
             turn.reply_kind = "summary"
-        elif target is ClarifyTarget.CONFIRMATION:
-            reply.add("clarify_confirmation")
-        elif target is ClarifyTarget.CORRECTION:
-            reply.add("ask_correction")
-        elif target is ClarifyTarget.TRANSACTION_REF and decision.candidate_transaction_ids:
+        else:
+            items, shown = self._clarification(turn, request, decision, target)
+            text = self._render(reply, items)
+            if state.last_clarify == (target, text):  # contract 18: never twice in a row
+                items = self._variant(turn, items)
+                text = self._render(reply, items)
+            for template_id, values in items:
+                reply.add(template_id, **values)
+            turn.clarify_key = (target, text)
+        counted = target not in NOT_COUNTED and not first_summary and not repeated
+        if counted:
+            self._count(state, target)
+        state.pending_counted = counted or (repeated and turn.still_counted)
+        if decision.duplicate_reason_reask:
+            state.counters = state.counters.model_copy(update={"duplicate_reason_reasked": True})
+        state.shown_candidates = shown
+        if target in SUMMARY_TARGETS or decision.duplicate_reason_reask or first_summary:
+            state.slots = state.slots.model_copy(update={"confirmation": None})  # used
+
+    def _clarification(
+        self, turn: _Turn, request: PolicyRequest, decision: PolicyDecision, target: ClarifyTarget
+    ) -> tuple[Prefix, list[str]]:
+        """The templates of a clarification, and the candidates it shows."""
+        reply = turn.reply
+        assert reply is not None
+        if target is ClarifyTarget.CONFIRMATION:
+            return [("clarify_confirmation", {})], []
+        if target is ClarifyTarget.CORRECTION:
+            return [("ask_correction", {})], []
+        if target is ClarifyTarget.TRANSACTION_REF and decision.candidate_transaction_ids:
             candidates = [
                 txn
                 for tid in decision.candidate_transaction_ids
                 if (txn := self._find(request.transaction_candidates, tid)) is not None
             ]
-            reply.candidates(candidates, {p.product_id: p for p in turn.records.products})
-            state.shown_candidates = [t.transaction_id for t in candidates]
-        elif target is ClarifyTarget.DUPLICATE_REF:
+            header = "choose_transaction"
+            if decision.transaction_search is TransactionSearch.RELAXED:
+                header = "choose_relaxed_one" if len(candidates) == 1 else "choose_relaxed_many"
+            products = {p.product_id: p for p in turn.records.products}
+            items: Prefix = [(header, {}), *reply.candidate_lines(candidates, products)]
+            return items, [t.transaction_id for t in candidates]
+        if target is ClarifyTarget.TRANSACTION_REF:
+            return self._search_clarification(turn, decision), []
+        if target is ClarifyTarget.DUPLICATE_REF:
             twin = self._find(request.transaction_candidates, decision.duplicate_transaction_id)
             assert twin is not None
-            reply.add(
-                "clarify_duplicate_ref",
-                transaction_date=format_date(twin.transaction_date),
-                amount=reply.amount(twin),
-            )
-            state.pending_duplicate_id = twin.transaction_id
-        elif target is ClarifyTarget.EXPECTED_AMOUNT:
+            turn.state.pending_duplicate_id = twin.transaction_id
+            values = {
+                "transaction_date": format_date(twin.transaction_date),
+                "amount": reply.amount(twin),
+            }
+            return [("clarify_duplicate_ref", values)], []
+        if target is ClarifyTarget.EXPECTED_AMOUNT:
             txn = self._find(request.transaction_candidates, decision.transaction_id)
-            reply.add("clarify_expected_amount", currency=txn.currency if txn else "USD")
-        else:
-            reply.add(f"clarify_{target.value}")
-        if target not in NOT_COUNTED and not first_summary and not repeated:
-            self._count(state, target)
-        if decision.duplicate_reason_reask:
-            state.counters = state.counters.model_copy(update={"duplicate_reason_reasked": True})
-        if target is not ClarifyTarget.TRANSACTION_REF or not decision.candidate_transaction_ids:
-            state.shown_candidates = []
-        if target in SUMMARY_TARGETS or decision.duplicate_reason_reask or first_summary:
-            state.slots = state.slots.model_copy(update={"confirmation": None})  # used
+            return [("clarify_expected_amount", {"currency": txn.currency if txn else "USD"})], []
+        return [(f"clarify_{target.value}", {})], []
+
+    def _search_clarification(self, turn: _Turn, decision: PolicyDecision) -> Prefix:
+        """GATE-05 without candidates to show (contract 18)."""
+        ref = turn.state.slots.transaction_ref
+        ask_for = decision.ask_for
+        if decision.transaction_search is TransactionSearch.NO_MATCH and ask_for is not None:
+            # The engine reports no match only on details the customer gave: never empty.
+            return [
+                ("no_match", {"known": self._searched(turn, ref)}),
+                ("ask_transaction_detail", {"detail": self._detail(turn, ref, ask_for)}),
+            ]
+        if decision.transaction_search is TransactionSearch.TOO_MANY and ask_for is not None:
+            return [("ask_many_detail", {"detail": self._detail(turn, ref, ask_for)})]
+        return [("clarify_transaction_ref", {})]
+
+    def _variant(self, turn: _Turn, items: Prefix) -> Prefix:
+        """The second wording of the clarification sent the turn before (contract 18)."""
+        first, values = items[0]
+        if first in SEARCH_ASKS or first == "ask_transaction_detail":
+            ref = turn.state.slots.transaction_ref
+            known = self._known(turn, ref)
+            if not known:
+                return [("clarify_transaction_ref_again", {})]
+            missing = [name for name in TransactionField if name not in given_details(ref)]
+            language = self._language(turn)
+            labels = [self._templates.label("detail", name.value, language) for name in missing]
+            joiner = f" {self._templates.label('misc', 'or', language)} "
+            wanted = joiner.join(labels) or self._templates.label(
+                "detail", "merchant_statement", language
+            )
+            return [("clarify_transaction_ref_known", {"known": known, "missing": wanted})]
+        variant = VARIANT_TEMPLATES.get(first)
+        return [(variant, values), *items[1:]] if variant else items
+
+    def _render(self, reply: Reply, items: Prefix) -> str:
+        return "\n\n".join(
+            self._templates.render(template_id, reply.language, **values)
+            for template_id, values in items
+        )
+
+    def _detail(self, turn: _Turn, ref: TransactionRef | None, ask_for: TransactionField) -> str:
+        everything = len(given_details(ref)) == len(TransactionField)
+        key = "merchant_statement" if everything else ask_for.value
+        return self._templates.label("detail", key, self._language(turn))
+
+    def _searched(self, turn: _Turn, ref: TransactionRef | None) -> str:
+        """What GATE-05 searched with, in the customer's own details: "en El Buen Sabor por
+        unos 40,00 del 16/06/2026"."""
+        return " ".join(
+            f"{self._templates.label('search', name.value, self._language(turn))} {value}"
+            for name, value in self._details(turn, ref)
+        )
+
+    def _known(self, turn: _Turn, ref: TransactionRef | None) -> str:
+        """The customer's details as a list: "El Buen Sabor, unos 40,00"."""
+        return ", ".join(value for _, value in self._details(turn, ref))
+
+    def _details(
+        self, turn: _Turn, ref: TransactionRef | None
+    ) -> list[tuple[TransactionField, str]]:
+        """The details the customer gave, formatted for the customer's locale."""
+        if ref is None:
+            return []
+        details: list[tuple[TransactionField, str]] = []
+        if ref.merchant:
+            details.append((TransactionField.MERCHANT, ref.merchant))
+        if ref.amount is not None:
+            number = format_number(ref.amount, self._locale(turn))
+            if ref.amount_approximate:
+                language = self._language(turn)
+                number = f"{self._templates.label('search', 'approximately', language)} {number}"
+            details.append((TransactionField.AMOUNT, number))
+        if ref.transaction_date is not None:
+            details.append((TransactionField.DATE, format_date(ref.transaction_date)))
+        return details
 
     def _inform(self, turn: _Turn, decision: PolicyDecision) -> None:
         reason = decision.inform_reason
@@ -1079,8 +1266,10 @@ class Orchestrator:
             for template_id, values in turn.prefix:
                 if not self._redundant(template_id, ids):
                     reply.add(template_id, **values)
-            reply.ids += ids
-            reply.texts += texts
+            flow_help = turn.side_only and turn.side_question is SideQuestion.FLOW_HELP
+            if not (flow_help and ids and set(ids) <= TRANSACTION_ASKS):
+                reply.ids += ids  # the flow_help answer already asks for the details
+                reply.texts += texts
         try:
             reply.check(self._authenticated(turn) or turn.session is not None)
         except Exception as exc:
@@ -1098,11 +1287,23 @@ class Orchestrator:
             and not set(reply.ids) & LOGIN_IDS  # contract 17
         ):
             context = turn.context.model_copy(update={"language": state.language})
+            # Contract 21: full sentences only where they add something.
+            full = state.turn_index == 0 or turn.outcome in BAD_NEWS or "no_match" in reply.ids
             try:
                 with self._stage(turn, "connect"):
-                    text = await self._llm.connect(text, turn.message, context, turn.deadline)
+                    text = await self._llm.connect(
+                        text,
+                        turn.message,
+                        context,
+                        turn.deadline,
+                        brief=not full,
+                        previous=state.connect_sentences[-MAX_PREVIOUS_SENTENCES:],
+                    )
             except Exception:
                 text = reply.text
+            if reply.text in text:
+                before, after = text.split(reply.text, 1)
+                state.connect_sentences += [s for s in (before.strip(), after.strip()) if s]
         return text
 
     def _trace(self, turn: _Turn, calls: list[Any], total_ms: float) -> None:
@@ -1112,6 +1313,7 @@ class Orchestrator:
         )
         state.tokens_used += tokens
         state.last_reply_kind = turn.reply_kind
+        state.last_clarify = turn.clarify_key
         cost: Decimal | None = estimate_cost(calls, self._config.rates)
         trace = TraceRecord(
             trace_id=turn.trace_id,
@@ -1183,6 +1385,17 @@ class Orchestrator:
     def _product_of(self, turn: _Turn, transaction_id: str | None) -> ProductRecord | None:
         txn = self._find(turn.records.pool, transaction_id)
         return self._product_by_id(turn, txn.product_id) if txn else None
+
+    @staticmethod
+    def _uncount(state: ConversationState, target: ClarifyTarget) -> None:
+        by_slot = dict(state.counters.clarifications_by_slot)
+        by_slot[target] = max(0, by_slot.get(target, 0) - 1)
+        state.counters = state.counters.model_copy(
+            update={
+                "clarifications_by_slot": by_slot,
+                "total_clarifications": max(0, state.counters.total_clarifications - 1),
+            }
+        )
 
     @staticmethod
     def _count(state: ConversationState, target: ClarifyTarget) -> None:

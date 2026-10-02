@@ -76,7 +76,9 @@ from app.contracts import (
     RuleEvidence,
     Tier,
     ToolStatus,
+    TransactionField,
     TransactionRecord,
+    TransactionSearch,
 )
 from app.policy import evidence as ev
 from app.policy.clock import (
@@ -85,7 +87,15 @@ from app.policy.clock import (
     transaction_within,
     within_window,
 )
-from app.policy.matching import disputed_of, duplicate_twins, match_transaction, nearest_twin
+from app.policy.matching import (
+    Tolerance,
+    disputed_of,
+    duplicate_twins,
+    match_transaction,
+    missing_detail,
+    most_useful_detail,
+    nearest_twin,
+)
 from app.policy.rules import (
     ACCOUNT_INITIATED_TYPES,
     ACTION_NAMES,
@@ -126,12 +136,26 @@ class _Verdict:
     existing_case: CaseRecord | None = None
     reask: bool = False  # the RC_DUPLICATE re-ask of the reason code
     evidence: tuple[Evidence, ...] = ()  # why the gate's escalation rule fired
+    search: TransactionSearch | None = None  # GATE-05 on a transaction_ref
+    ask_for: TransactionField | None = None
 
 
 def _clarify(
-    target: ClarifyTarget, *, counts: bool = True, candidates: tuple[str, ...] = ()
+    target: ClarifyTarget,
+    *,
+    counts: bool = True,
+    candidates: tuple[str, ...] = (),
+    search: TransactionSearch | None = None,
+    ask_for: TransactionField | None = None,
 ) -> _Verdict:
-    return _Verdict(Outcome.CLARIFY, clarify_target=target, counts=counts, candidates=candidates)
+    return _Verdict(
+        Outcome.CLARIFY,
+        clarify_target=target,
+        counts=counts,
+        candidates=candidates,
+        search=search,
+        ask_for=ask_for,
+    )
 
 
 def _inform(reason: InformReason, existing_case: CaseRecord | None = None) -> _Verdict:
@@ -330,24 +354,39 @@ class DeterministicPolicyEngine:
 
         # GATE-05
         reason = request.slots.reason_code
+        ref = request.slots.transaction_ref
         match = match_transaction(
-            request.slots.transaction_ref,
+            ref,
             request.transaction_candidates,
             request.as_of,
             p.LATE_WINDOW_DAYS,
+            Tolerance(Decimal(p.AMOUNT_TOLERANCE_PCT), p.AMOUNT_TOLERANCE_USD),
         )
         if match.note is not None:
             state.note(match.note)
         if not state.gate("GATE-05", match.transaction is not None):
-            if 2 <= len(match.candidates) <= p.MAX_CANDIDATES_SHOWN:
+            found = len(match.candidates)
+            if found and (found >= 2 or match.relaxed) and found <= p.MAX_CANDIDATES_SHOWN:
                 ids = tuple(txn.transaction_id for txn in match.candidates)
-                return _clarify(ClarifyTarget.TRANSACTION_REF, candidates=ids)
-            if match.candidates:
+                search = TransactionSearch.RELAXED if match.relaxed else None
+                return _clarify(ClarifyTarget.TRANSACTION_REF, candidates=ids, search=search)
+            if reason is ReasonCode.FEE:
+                return _clarify(ClarifyTarget.FEE_REF)
+            if found:
                 state.note("too_many_matches")
-            target = (
-                ClarifyTarget.FEE_REF if reason is ReasonCode.FEE else ClarifyTarget.TRANSACTION_REF
-            )
-            return _clarify(target)
+                detail = most_useful_detail(ref, match.candidates, request.as_of)
+                return _clarify(
+                    ClarifyTarget.TRANSACTION_REF,
+                    search=TransactionSearch.TOO_MANY,
+                    ask_for=detail,
+                )
+            if match.note == "no_matching_transaction":
+                return _clarify(
+                    ClarifyTarget.TRANSACTION_REF,
+                    search=TransactionSearch.NO_MATCH,
+                    ask_for=missing_detail(ref),
+                )
+            return _clarify(ClarifyTarget.TRANSACTION_REF)
         txn = match.transaction
         assert txn is not None
         state.transaction = state.disputed = txn
@@ -862,6 +901,8 @@ class DeterministicPolicyEngine:
             card_product_id=card.product_id if card else None,
             card_already_blocked=already_blocked,
             duplicate_reason_reask=bool(clarify and verdict and verdict.reask),
+            transaction_search=verdict.search if clarify and verdict else None,
+            ask_for=verdict.ask_for if clarify and verdict else None,
             notes=state.notes,
             evidence=[
                 RuleEvidence(rule_id=rule, evidence=state.evidence[rule])

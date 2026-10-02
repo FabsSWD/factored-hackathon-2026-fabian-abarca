@@ -73,6 +73,11 @@ class ConversationState:
     tokens_used: int = 0
     last_transaction_id: str | None = None  # the transaction of the last decision
     last_reply_kind: str = ""
+    # The clarification sent the turn before (target, text): never the same text twice.
+    last_clarify: tuple[ClarifyTarget, str] | None = None
+    pending_counted: bool = False  # the pending clarification counted toward ESC-09
+    unsupported_offered: bool = False  # offer_transfer after side question "other": once
+    connect_sentences: list[str] = field(default_factory=list)  # connecting sentences sent
     closed: bool = False  # handed off: automation ended
     handoff_id: str | None = None
 

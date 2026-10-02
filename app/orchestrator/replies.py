@@ -1,8 +1,9 @@
 """Customer replies built only from versioned templates (COM-02), with the composition rules of
 ``app.templates.service``:
 
-- ``tool_failure`` and ``side_unsupported`` are always followed by ``handoff`` (or
-  ``handoff_unauthenticated``) or by ``offer_transfer``;
+- ``tool_failure`` is always followed by ``handoff`` (or ``handoff_unauthenticated``) or by
+  ``offer_transfer``;
+- ``no_match`` is always followed by ``ask_transaction_detail``;
 - every INFORM template is followed by ``offer_transfer``;
 - before GATE-02 passes, the only handoff text is ``handoff_unauthenticated``, and no template
   that shows account data is used.
@@ -36,7 +37,12 @@ ACCOUNT_IDS = frozenset(
         "card_already_blocked",
         "duplicate_case",
         "choose_transaction",
+        "choose_relaxed_one",
+        "choose_relaxed_many",
+        "choose_transaction_again",
+        "choose_one_again",
         "candidate_line",
+        "no_match",
         "clarify_duplicate_ref",
         "handoff",
         "identified_transaction",
@@ -45,7 +51,8 @@ ACCOUNT_IDS = frozenset(
         "side_case_not_found",
     }
 )
-TRANSFER_REQUIRED = frozenset({"tool_failure", "side_unsupported"})
+TRANSFER_REQUIRED = frozenset({"tool_failure"})
+Item = tuple[str, dict[str, object]]
 
 
 class CompositionError(ValueError):
@@ -88,21 +95,33 @@ class Reply:
         self, transactions: list[TransactionRecord], products: dict[str, ProductRecord]
     ) -> None:
         self.add("choose_transaction")
+        for template_id, values in self.candidate_lines(transactions, products):
+            self.add(template_id, **values)
+
+    def candidate_lines(
+        self, transactions: list[TransactionRecord], products: dict[str, ProductRecord]
+    ) -> list[Item]:
         days = [txn.transaction_date.date() for txn in transactions]
         same_day = len(set(days)) < len(days)  # then the time tells them apart
+        lines: list[Item] = []
         for index, txn in enumerate(transactions, start=1):
             product = products.get(txn.product_id)
             when = format_date(txn.transaction_date)
             if same_day:
                 when = f"{when} {txn.transaction_date:%H:%M}"
-            self.add(
-                "candidate_line",
-                index=index,
-                transaction_date=when,
-                product=product.product_number_masked if product else "****0000",
-                merchant=self.merchant(txn),
-                amount=self.amount(txn),
+            lines.append(
+                (
+                    "candidate_line",
+                    {
+                        "index": index,
+                        "transaction_date": when,
+                        "product": product.product_number_masked if product else "****0000",
+                        "merchant": self.merchant(txn),
+                        "amount": self.amount(txn),
+                    },
+                )
             )
+        return lines
 
     def duplicate_case(self, case: CaseRecord) -> None:
         self.add(
@@ -125,6 +144,8 @@ class Reply:
                 )
             if template_id in INFORM_IDS and "offer_transfer" not in following:
                 raise CompositionError(f"{template_id} must be followed by offer_transfer")
+            if template_id == "no_match" and "ask_transaction_detail" not in following:
+                raise CompositionError("no_match must be followed by ask_transaction_detail")
         if not authenticated and set(self.ids) & ACCOUNT_IDS:
             raise CompositionError(
                 f"account templates before authentication: {sorted(set(self.ids) & ACCOUNT_IDS)}"

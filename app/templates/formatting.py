@@ -60,16 +60,22 @@ def locale_for(language: Language | str, country: str | None) -> Locale:
     return _SPANISH_BY_COUNTRY.get(_fold(country or ""), DEFAULT_SPANISH_LOCALE)
 
 
+def format_number(amount: Decimal, locale: Locale) -> str:
+    """``1,250.00`` for es-MX; ``1.250,00`` for es-CO, es-AR and pt-BR. Without a currency:
+    only for an amount the customer gave, whose currency they did not say."""
+    quantized = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    text = f"{quantized:,.2f}"
+    if locale not in _DECIMAL_POINT:
+        text = text.replace(",", "_").replace(".", ",").replace("_", ".")
+    return text
+
+
 def format_amount(amount: Decimal, currency: str, locale: Locale) -> FormattedAmount:
     """``USD 1,250.00`` for es-MX; ``USD 1.250,00`` for es-CO, es-AR and pt-BR."""
     code = currency.strip().upper()
     if not re.fullmatch(r"[A-Z]{3}", code):
         raise ValueError(f"invalid currency code {currency!r}")
-    quantized = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    text = f"{quantized:,.2f}"
-    if locale not in _DECIMAL_POINT:
-        text = text.replace(",", "_").replace(".", ",").replace("_", ".")
-    return FormattedAmount(f"{code} {text}")
+    return FormattedAmount(f"{code} {format_number(amount, locale)}")
 
 
 def mask_product_number(number: str) -> str:
