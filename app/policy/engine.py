@@ -326,7 +326,8 @@ class DeterministicPolicyEngine:
         if not state.gate("GATE-02", self._session_valid(request)):
             if request.flags.authentication_declined:
                 return _inform(InformReason.AUTHENTICATION_DECLINED)
-            if request.counters.authentication_attempts > p.AUTH_MAX_ATTEMPTS:
+            # AUTH_MAX_ATTEMPTS requests were made: still no session on the next turn informs.
+            if request.counters.authentication_attempts >= p.AUTH_MAX_ATTEMPTS:
                 return _inform(InformReason.AUTHENTICATION_ATTEMPTS_EXCEEDED)
             return _clarify(ClarifyTarget.AUTHENTICATION, counts=False)
         state.authenticated = True

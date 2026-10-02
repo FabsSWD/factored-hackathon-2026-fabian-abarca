@@ -68,23 +68,43 @@ def test_openai_down_goes_on_with_rule_signals_and_no_exception() -> None:
     assert packet.triggered_rules == ["ESC-05"]
     trace = world.tracer.traces[-1]
     assert trace.error is None and trace.signals is not None
-    assert trace.signals.source is ModelSource.LLM_FALLBACK
+    # Kev did not answer either: unavailable, never a fallback from an empty extraction (D1).
+    assert trace.signals.source is ModelSource.UNAVAILABLE
 
 
-def test_openai_down_without_rule_signals_asks_again() -> None:
+KEV = ModelSignals(source=ModelSource.KEV)
+
+
+def test_openai_down_with_kev_up_asks_again() -> None:
     world = build_world()
     world.llm.fail = True
+    world.say("Hola, tengo un problema con un cargo", signals=KEV)
     result = world.turn("Hola, tengo un problema con un cargo")
     assert result.outcome is Outcome.CLARIFY
     assert result.reply_kind == "clarify:transaction_ref"
+    assert world.tracer.traces[-1].signals.source is ModelSource.KEV  # type: ignore[union-attr]
+
+
+def test_both_models_down_escalate_by_esc11() -> None:
+    # Architecture §8 and policy ESC-11: with the thresholds null, unavailable signals fire it.
+    world = build_world()
+    world.llm.fail = True
+    result = world.turn("Hola, tengo un problema con un cargo")
+    assert result.outcome is Outcome.ESCALATE
+    assert world.bank.packets[-1].triggered_rules == ["ESC-11"]
+    assert world.tracer.traces[-1].signals.source is ModelSource.UNAVAILABLE  # type: ignore[union-attr]
 
 
 def test_unexpected_adapter_error_is_handled_like_a_failed_extraction() -> None:
     world = build_world()
     world.llm.crash = True
+    world.say("Hola, tengo un problema con un cargo", signals=KEV)
     result = world.turn("Hola, tengo un problema con un cargo")
     assert result.outcome is Outcome.CLARIFY
     assert world.tracer.traces[-1].error is None
+    down = build_world()
+    down.llm.crash = True
+    assert down.turn("Hola, tengo un problema con un cargo").outcome is Outcome.ESCALATE
 
 
 def test_kev_down_uses_the_extraction_fallback() -> None:
@@ -478,5 +498,5 @@ def test_past_the_token_cap_the_turn_behaves_like_an_unavailable_extract() -> No
     # (the capped conversation also reaches ESC-09: it had asked for the transaction twice)
     assert "ESC-05" in capped.bank.packets[-1].triggered_rules
     assert down.bank.packets[-1].triggered_rules == ["ESC-05"]
-    assert capped.tracer.traces[-1].signals.source is ModelSource.LLM_FALLBACK  # type: ignore[union-attr]
+    assert capped.tracer.traces[-1].signals.source is ModelSource.UNAVAILABLE  # type: ignore[union-attr]
     assert capped.orchestrator._store.get("CONV-1").slots.transaction_ref is None  # type: ignore[union-attr]

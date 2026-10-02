@@ -94,10 +94,10 @@ def test_gate02_an_explicit_refusal_informs_at_once(e2e: E2E) -> None:
 
 
 def test_gate02_too_many_attempts_inform(e2e: E2E) -> None:
-    # Each login request without a login is an attempt; INFORM once they exceed
-    # AUTH_MAX_ATTEMPTS (3): the fifth turn, after four requests.
+    # Policy 0.4.10: AUTH_MAX_ATTEMPTS (3) login requests; the fourth turn without a login
+    # informs (authentication_attempts_exceeded).
     chat = e2e.conversation(document=None)
-    for _ in range(4):
+    for _ in range(3):
         assert chat.send("Hola, tengo un problema").outcome == "CLARIFY"
     last = chat.send("Hola, tengo un problema")
     assert last.outcome == "INFORM" and "después de varios intentos" in last.reply

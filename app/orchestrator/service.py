@@ -11,9 +11,10 @@ Contracts it keeps (each has a test):
 2. A message flagged by the Input Guard reaches neither the LLM nor Kev; the reply is
    ``ask_rephrase``; it is not a clarification; strikes count per ``conversation_id``. At the
    strike limit the turn escalates (ESC-13) without the models.
-3. If ``extract`` fails, the turn goes on with empty slots and the rule-based signals; no
-   exception reaches the customer. Past ``LLM_MAX_TOKENS_PER_CONVERSATION`` every turn behaves
-   the same way, without calling the LLM.
+3. If ``extract`` fails, the turn goes on with empty slots and the rule-based interrupts; no
+   exception reaches the customer. The signals are Kev's, or unavailable when Kev did not
+   answer either (ESC-11). Past ``LLM_MAX_TOKENS_PER_CONVERSATION`` every turn behaves the
+   same way, without calling the LLM.
 4. Any unexpected exception (engine, Tool Layer, templates) becomes a handoff with the
    ``tool_failure`` notice and a trace with the error, never an HTTP error with a stack trace.
 5. One confirmation per action (COM-03); the card block before the dispute summary; declining
@@ -473,7 +474,10 @@ class Orchestrator:
             turn.extraction, kev = await asyncio.gather(
                 self._extract(turn, turn.deadline), self._kev(turn, turn.deadline)
             )
-        turn.signals = resolve_signals(kev, turn.extraction)
+        # Architecture §8: with the extraction failed (or skipped by the token cap) and no Kev,
+        # the signals are unavailable (ESC-11), never a fallback derived from an empty
+        # extraction. The rule detector's interrupts still arrive in the extraction's flags.
+        turn.signals = resolve_signals(kev, turn.extraction if turn.llm_ok else None)
 
     async def _extract(self, turn: _Turn, deadline: Deadline) -> ExtractionResult:
         assert turn.context is not None

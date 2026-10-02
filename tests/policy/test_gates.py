@@ -93,7 +93,9 @@ def test_gate02_explicit_refusal_informs_at_once() -> None:
     assert decision.inform_reason is InformReason.AUTHENTICATION_DECLINED
 
 
-@pytest.mark.parametrize(("attempts", "outcome"), [(3, Outcome.CLARIFY), (4, Outcome.INFORM)])
+# Policy 0.4.10: AUTH_MAX_ATTEMPTS (3) is the number of authentication requests. With two made
+# the third request is a CLARIFY; with three made, the fourth turn without a session informs.
+@pytest.mark.parametrize(("attempts", "outcome"), [(2, Outcome.CLARIFY), (3, Outcome.INFORM)])
 def test_gate02_attempts_exceeding_the_maximum(attempts: int, outcome: Outcome) -> None:
     decision = evaluate(unauthenticated(counters=counters(authentication_attempts=attempts)))
     assert decision.outcome is outcome
