@@ -14,7 +14,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.5.0"
+template_version: "1.6.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -118,6 +118,45 @@ templates:
   card_already_blocked:
     es: "Su tarjeta {product} ya está bloqueada."
     pt: "Seu cartão {product} já está bloqueado."
+
+  identified_transaction:  # before confirm_block_card: the charge the block is about
+    es: "Encontré este cargo: {transaction_date} · {merchant} · {amount}."
+    pt: "Encontrei esta cobrança: {transaction_date} · {merchant} · {amount}."
+
+  block_not_done:  # the block offer got no clear answer: never dropped in silence
+    es: "No bloqueé su tarjeta. Si quiere hacerlo más adelante, dígamelo."
+    pt: "Não bloqueei seu cartão. Se quiser fazer isso depois, é só me dizer."
+
+  # --- Side questions (app.contracts.SideQuestion) ----------------------------------
+  # Answered before the flow goes on; never a clarification. No promises (COM-05).
+
+  side_refund:
+    es: "No puedo confirmarle un reembolso. Si registramos la disputa, nuestro equipo la revisará y le informará el resultado en un plazo de hasta {days} días hábiles."
+    pt: "Não posso confirmar um reembolso. Se registrarmos a contestação, nossa equipe vai analisá-la e informar o resultado em até {days} dias úteis."
+
+  side_timeline:
+    es: "Una vez registrada, nuestro equipo revisa la disputa en un plazo de hasta {days} días hábiles y le informa el resultado."
+    pt: "Depois de registrada, nossa equipe analisa a contestação em até {days} dias úteis e informa o resultado."
+
+  side_block_consequences:
+    es: "Si bloqueamos temporalmente su tarjeta, no funcionará para ninguna compra ni pago, incluidos los pagos automáticos. Si más adelante necesita desbloquearla, puede solicitarlo a un agente."
+    pt: "Se bloquearmos temporariamente seu cartão, ele não vai funcionar para nenhuma compra ou pagamento, incluindo os pagamentos automáticos. Se depois você precisar desbloqueá-lo, pode pedir isso a um atendente."
+
+  side_case_status:  # one line per case of the session customer (list_cases or get_case)
+    es: "Su disputa {case_ref} está {status}."
+    pt: "Sua contestação {case_ref} está {status}."
+
+  side_no_cases:
+    es: "Por ahora no tiene ninguna disputa registrada a su nombre."
+    pt: "No momento, você não tem nenhuma contestação registrada no seu nome."
+
+  side_case_not_found:  # a typed reference that is not the customer's (GATE-04: no more)
+    es: "No encontré una disputa suya con esa referencia."
+    pt: "Não encontrei uma contestação sua com essa referência."
+
+  side_unsupported:  # always followed by offer_transfer
+    es: "Por este canal solo puedo ayudarle con disputas de transacciones."
+    pt: "Por este canal, só posso ajudar com contestações de transações."
 
   # --- Language and authentication -------------------------------------------------
 

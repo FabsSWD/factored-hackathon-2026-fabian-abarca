@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.4.5 |
+| Version | 0.4.6 |
 | Last updated | 2026-10-01 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -288,7 +288,7 @@ Clarification rules:
 |---|---|
 | `COM-01` | The system replies in the language of the customer's latest message (`es` or `pt`). If the language is mixed or unclear, it asks once which language the customer prefers. |
 | `COM-02` | Commitments MUST come from versioned templates, never from free generation: case references, target times, next steps, eligibility wording, refusals, and escalation notices. The language model MAY write connecting sentences around them. |
-| `COM-03` | Before `ACT-02` or `ACT-03`, the system presents a templated summary and asks for explicit confirmation. **One confirmation covers exactly one action.** `ACT-03` is confirmed on its own, with its consequence (the card stops working for all purchases and payments, including automatic ones). `ACT-02` is confirmed with a summary of the transaction date, masked product, merchant, amount, and reason. When both apply, the card block is confirmed first, because it is protective and urgent; declining it does not affect the dispute, and the flow continues to the `ACT-02` summary. |
+| `COM-03` | Before `ACT-02` or `ACT-03`, the system presents a templated summary and asks for explicit confirmation. **One confirmation covers exactly one action.** `ACT-03` is confirmed on its own, with its consequence (the card stops working for all purchases and payments, including automatic ones). `ACT-02` is confirmed with a summary of the transaction date, masked product, merchant, amount, and reason. When both apply, the card block is confirmed first, because it is protective and urgent; declining it does not affect the dispute, and the flow continues to the `ACT-02` summary. The `ACT-03` offer names the charge it is about; if the customer says that charge is not the one they mean, the transaction is identified again (`GATE-05`) and nothing is blocked. An offer that gets no clear answer after one repetition is not executed and the customer is told so; the offer stays available until the case is created, so a later request to block the card is honored after its own confirmation. A question the customer asks instead of answering is not an unclear answer. |
 | `COM-04` | The system MUST NOT say an action happened unless its verification passed. |
 | `COM-05` | The system MUST NOT promise a refund, credit, or result. It states that the case will be investigated within `RESOLUTION_TARGET_BUSINESS_DAYS` business days. |
 | `COM-06` | Product numbers are masked to the last four digits. |
@@ -540,3 +540,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.4.3 | 2026-10-01 | Handoff packet (§13): claims are only the customer's words, and evidence links to them; `collected_slots` with the turn that set them; open questions list the missing slots and never a collected one. |
 | 0.4.4 | 2026-10-01 | Evaluation order (§5): `GATE-11` and the record-dependent triggers (`ESC-01`, `ESC-02`, `ESC-04`) before the reason-specific slots (`GATE-10`), so a case that will escalate is not asked questions that cannot change its outcome. |
 | 0.4.5 | 2026-10-01 | Handoff packet (§13): a collected `duplicate_ref` says the customer confirmed the charge the system found, instead of showing its ID. |
+| 0.4.6 | 2026-10-01 | `COM-03`: the card block offer names the charge ("that is not the one" identifies the transaction again); an offer without a clear answer is told and stays available until the case is created; a side question is not an unclear answer. |

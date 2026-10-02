@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.7 |
+| Version | 0.1.8 |
 | Last updated | 2026-10-01 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -93,13 +93,13 @@ One single-page application with four views:
 What happens when a customer sends one message. Step numbers match the order of the [decision flow](diagrams/dispute-decision-flow.md).
 
 1. **Customer Chat** sends the message with the session token to the **Orchestrator**, which opens a trace.
-2. **Identity Service** validates the session. If it is missing or expired, the turn ends with an authentication request.
+2. **Identity Service** validates the session. If it is missing or expired, the turn ends with an authentication request: the LLM Adapter still reads the message (language, a request for a human, a legal signal) and the slots it extracts are kept for after the login, but Kev is not called (no rule before GATE-02 uses its signals) and neither are connecting sentences.
 3. **Input Guard** checks the message for manipulation attempts.
 4. In parallel, the **LLM Adapter** extracts candidate slot values and the **Decision Client** asks Kev for the reason code, ambiguity, and escalation risk.
 5. The **Policy Engine** evaluates gates and triggers using the verified records it requests from the **Tool Layer**, the candidate slots, and the model signals. It returns exactly one outcome.
 6. If the outcome authorizes an action, the **Tool Layer** executes it, retries within bounds, and reads the result back. An unverified action is never reported to the customer.
 7. On `ESCALATE`, the **Handoff Builder** writes the packet to Cases, where the **Agent Console** picks it up.
-8. **Templates** produce the committed text; the LLM Adapter may add connecting sentences around it.
+8. **Templates** produce the committed text; the LLM Adapter may add connecting sentences around it. A side question (refund, timeline, what a card block implies, the status of a filed dispute, or something outside disputes) is answered with its own template before the rest of the reply; it is not a clarification, and when it is all the message says, the pending question is asked again without counting it.
 9. **Audit & Tracing** writes the turn record, and the Orchestrator returns the reply to **Customer Chat**.
 
 ## 5. Technology decisions
@@ -156,7 +156,7 @@ Target hosts, in order of preference: the developer's own server, or a cloud VM 
 
 ## 9. Observability
 
-Every turn has a `trace_id` that links the customer message, rule evaluations, model calls (with model and prompt versions), tool calls, outcome, latency, and token usage. Traces are stored in the Audit database and displayed in the Audit Viewer. The same records produce the operating metrics required by the challenge: p50/p95 latency, cost per attempted case and per successful automated resolution, containment, and the escalation rate by queue and rule (definitions in `app/audit/metrics.py`). Cost uses configured token rates, with cached input priced apart when the API reports it; otherwise it may be overestimated. Unsafe outcomes and escalation quality need reference labels, so they are computed in the evaluation (M18), not from traces.
+Every turn has a `trace_id` that links the customer message, rule evaluations, model calls (with model and prompt versions, and Kev's own server latency next to the client's), tool calls, outcome, latency, and token usage. Every trace has an outcome and a `reply_kind`, also when the Policy Engine is not called (the card block offer and its repetitions are `CLARIFY`; a question outside disputes is `INFORM`), plus the side question answered, if any. Traces are stored in the Audit database and displayed in the Audit Viewer. The same records produce the operating metrics required by the challenge: p50/p95 latency, cost per attempted case and per successful automated resolution, containment, and the escalation rate by queue and rule (definitions in `app/audit/metrics.py`). Cost uses configured token rates, with cached input priced apart when the API reports it; otherwise it may be overestimated. Unsafe outcomes and escalation quality need reference labels, so they are computed in the evaluation (M18), not from traces.
 
 ## 10. Artifacts built offline
 
@@ -197,3 +197,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.5 | 2026-09-29 | Decision Client against the real Kev contract; fallback derived from the extraction; Kev limitations and container notes for M7. |
 | 0.1.6 | 2026-10-01 | Database roles, card blocks and the simulated handoff queue (M9); audit access, message masking, cost and metrics; limitation: no identity per agent (M11). |
 | 0.1.7 | 2026-10-01 | Orchestrator and chat API (M12): in-memory conversation state, token cap behavior, agent console endpoints for the handoff queue. |
+| 0.1.8 | 2026-10-01 | M12 manual test fixes: side questions answered with templates, the card block offer names the charge and is never dropped in silence, every trace has an outcome and a reply kind, no Kev or connecting sentences before the login. |
