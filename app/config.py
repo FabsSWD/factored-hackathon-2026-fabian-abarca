@@ -76,6 +76,8 @@ class PolicyParameters(BaseModel):
     MAX_CLARIFICATION_TURNS: PositiveInt
     MAX_TOTAL_CLARIFICATIONS: PositiveInt
     MAX_CANDIDATES_SHOWN: PositiveInt
+    AMOUNT_TOLERANCE_PCT: Annotated[StrictInt, Field(ge=0, le=100)]
+    AMOUNT_TOLERANCE_USD: UsdAmount
     TOOL_MAX_RETRIES: NonNegativeInt
     INJECTION_STRIKES_MAX: PositiveInt
     # Calibrated on the validation split; null until calibration (policy §15, §16.4).

@@ -183,6 +183,22 @@ class Confirmation(StrEnum):
     WITHDRAWN = "withdrawn"  # "no, ya no quiero", "deixa pra lá": no case
 
 
+class TransactionSearch(StrEnum):
+    """Why GATE-05 did not identify the transaction (policy §5, "Transaction matching")."""
+
+    NO_MATCH = "no_match"  # nothing found, not even with relaxed details
+    TOO_MANY = "too_many"  # more than MAX_CANDIDATES_SHOWN: ask for the most useful detail
+    RELAXED = "relaxed"  # candidates from a relaxed search: the customer picks, even one
+
+
+class TransactionField(StrEnum):
+    """A detail of a transaction reference the customer can be asked for."""
+
+    MERCHANT = "merchant"
+    DATE = "transaction_date"
+    AMOUNT = "amount"
+
+
 class SideQuestion(StrEnum):
     """A question the customer asks instead of (or besides) answering. The Orchestrator answers
     it with a template and then goes on with the flow; it is not a clarification."""
@@ -191,7 +207,8 @@ class SideQuestion(StrEnum):
     TIMELINE = "timeline"  # "¿cuánto tarda?"
     BLOCK_CONSEQUENCES = "block_consequences"  # "¿qué pasa si la bloquean?"
     CASE_STATUS = "case_status"  # "¿cómo va mi disputa?"
-    OTHER = "other"  # anything unrelated to disputing a transaction
+    FLOW_HELP = "flow_help"  # "si le doy solo el nombre, ¿la busca?", "no recuerdo el monto"
+    OTHER = "other"  # clearly unrelated to disputes: loans, opening an account
 
 
 class ModelSource(StrEnum):
@@ -312,6 +329,9 @@ class TransactionRef(Contract):
     transaction_date: date | None = None
     amount: PositiveAmount | None = None
     merchant: NonEmptyStr | None = None
+    # The customer qualified the amount ("como de 40", "uns 40"): GATE-05 matches it with
+    # tolerance. None when no amount was given in that message (a merge keeps the earlier value).
+    amount_approximate: bool | None = None
 
     @model_validator(mode="after")
     def _not_empty(self) -> Self:
@@ -682,6 +702,9 @@ class PolicyDecision(Contract):
     # This CLARIFY is the single RC_DUPLICATE re-ask of the reason code: the Orchestrator sets
     # counters.duplicate_reason_reasked.
     duplicate_reason_reask: bool = False
+    # GATE-05 not passed on a transaction_ref: what the search found, and the detail to ask for.
+    transaction_search: TransactionSearch | None = None
+    ask_for: TransactionField | None = None
     # Codes for the audit record and the handoff's open_questions, e.g. "fraud_score_missing".
     notes: list[NonEmptyStr] = Field(default_factory=list)
     # Why each triggered rule fired (handoff escalation_reasons, audit).
@@ -937,7 +960,9 @@ __all__ = [
     "ToolResult",
     "ToolStatus",
     "TraceRecord",
+    "TransactionField",
     "TransactionRecord",
     "TransactionRef",
+    "TransactionSearch",
     "VerifiedFact",
 ]

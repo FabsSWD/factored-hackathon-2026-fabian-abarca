@@ -133,6 +133,10 @@ NOTE_QUESTIONS: dict[str, str] = {
     "customer_record_missing": "The customer record could not be read: verify the customer.",
     "product_record_missing": "The product record could not be read: verify the product.",
     "transaction_ref_missing": "Which transaction does the customer want to dispute?",
+    "relaxed_search": (
+        "The transaction was only found with relaxed details (approximate amount, or without "
+        "the amount or date the customer gave): confirm it with the customer."
+    ),
     "no_matching_transaction": (
         "No transaction matched the details the customer gave: identify the transaction."
     ),

@@ -11,6 +11,9 @@
   it is set to null (date, amount and merchant stay) and the
   ModelCall records ``transaction_id_discarded``. It is called only for messages the Input
   Guard did not flag (see ``app.interfaces.InputGuard``).
+- An amount the customer qualifies ("como de 40", "unos 40", "uns 40", "40 más o menos") is
+  marked ``amount_approximate`` by a deterministic rule on the message (``mark_approximate``),
+  so GATE-05 matches it with tolerance; the model is not asked for it.
 - ``connect`` returns the committed template text with optional connecting sentences around
   it. The template is inserted by this code, never copied by the model, so it reaches the
   customer unchanged (COM-02). A template in another language than the conversation is a
@@ -18,6 +21,9 @@
   with a promise (COM-05), a claim that an action happened (COM-04), a digit, a rule
   identifier, braces, the other language, or excessive length is dropped, and any model
   failure, a spent deadline, or ``LLM_CONNECT_ENABLED=false`` returns the template alone.
+  Spanish is always "usted": a sentence with a "tú" form is dropped (in Portuguese, a "tu"
+  form). ``brief`` (turns that collect details) allows at most a short acknowledgment before
+  the template; ``previous`` are the sentences already sent, and a repeated one is dropped.
 
 Both calls share the turn deadline passed by the Orchestrator. Every attempt is recorded as a
 ModelCall through the injected recorder (M11 stores them).
@@ -28,6 +34,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -78,6 +85,30 @@ _ACTION_CLAIM = re.compile(
     r"|(?:ya|ja) (?:quedo|esta|fue|foi|esta|ficou) (?:registrad|bloquead|transferid|cread"
     r"|criad|abiert|abert)\w*)\b"
 )
+
+
+_HEDGE = (
+    r"como de|como unos|como unas|unos|unas|mas o menos|aproximadamente|aprox\.?|cerca de"
+    r"|alrededor de|algo asi como|por ahi de|uns|umas|mais ou menos|por volta de|em torno de"
+)
+_SYMBOL = r"us\$|r\$|\$|usd|brl|cop|ars|mxn"
+_CURRENCY_WORD = rf"dolares|dolar|reales|reais|pesos|{_SYMBOL}"
+# A hedge right before the number, or right after it (with an optional currency word).
+_APPROXIMATE = re.compile(
+    rf"\b(?:{_HEDGE})\s+(?:de\s+)?(?:{_SYMBOL})?\s*\d"
+    rf"|\d[\d.,]*\s*(?:{_CURRENCY_WORD})?\s*"
+    r"(?:mas o menos|aprox|o algo asi|mais ou menos|por ai)\b"
+)
+
+
+# "Tú" forms (folded): the customer is always "usted" in Spanish, "você" in Portuguese.
+_INFORMAL = {
+    Language.ES: re.compile(
+        r"\b(?:tu|tus|te|ti|contigo|tienes|puedes|quieres|necesitas|estes|eres|sabes|has"
+        r"|hiciste|dime|cuentame|avisame|escribeme|preocupes|sientes|sientas|entiendes)\b"
+    ),
+    Language.PT: re.compile(r"\b(?:tu|teu|tua|teus|tuas|contigo|ti)\b"),
+}
 
 
 class ExtractionUnavailableError(LLMError):
@@ -138,6 +169,9 @@ class OpenAILLMAdapter:
         message: str,
         context: LLMContext,
         deadline: Deadline | None = None,
+        *,
+        brief: bool = False,
+        previous: Sequence[str] = (),
     ) -> str:
         language = context.language or Language.ES
         template_language = guess_language(templated_text)
@@ -152,6 +186,8 @@ class OpenAILLMAdapter:
         user = json.dumps(
             {
                 "language": language.value,
+                "mode": "brief" if brief else "full",
+                "previous_sentences": list(previous),
                 "customer_message": scrub_message(message),
                 "fixed_message": templated_text,
             },
@@ -172,10 +208,13 @@ class OpenAILLMAdapter:
         except LLMError:
             return templated_text
         before, after = completion.value
+        if brief:
+            after = ""  # an acknowledgment of what the customer said goes before, at most
+        said = {_fold(sentence) for sentence in previous}
         parts = [
-            _safe_sentence(before, language),
+            _safe_sentence(before, language, said),
             templated_text,
-            _safe_sentence(after, language),
+            _safe_sentence(after, language, said),
         ]
         return " ".join(part for part in parts if part)
 
@@ -185,7 +224,20 @@ def _validated(data: dict[str, Any], message: str, context: LLMContext) -> Adjus
     shown = {aliases[ref]: ref for ref in context.shown_candidates if ref in aliases}
     parsed, date_adjustments = parse_extraction(data, context.business_date)
     result, id_adjustments = enforce_transaction_id(parsed, message, shown)
-    return Adjusted(result, date_adjustments + id_adjustments)
+    return Adjusted(mark_approximate(result, message), date_adjustments + id_adjustments)
+
+
+def mark_approximate(result: ExtractionResult, message: str) -> ExtractionResult:
+    """An amount in this message is approximate when the customer qualifies it; with no
+    amount the mark stays unset, so an earlier one survives the merge of the reference."""
+    ref = result.slots.transaction_ref
+    if ref is None or ref.amount is None:
+        return result
+    approximate = _APPROXIMATE.search(_fold(message)) is not None
+    slots = result.slots.model_copy(
+        update={"transaction_ref": ref.model_copy(update={"amount_approximate": approximate})}
+    )
+    return result.model_copy(update={"slots": slots})
 
 
 def enforce_transaction_id(
@@ -300,17 +352,20 @@ def _fold(text: str) -> str:
     return "".join(char for char in decomposed if not unicodedata.combining(char))
 
 
-def _safe_sentence(sentence: str, language: Language) -> str:
+def _safe_sentence(sentence: str, language: Language, said: set[str] | None = None) -> str:
     """Fail closed: a doubtful connecting sentence is dropped, never repaired."""
     if not sentence:
         return ""
     sentence_language = guess_language(sentence)
+    folded = _fold(sentence)
     if (
-        len(sentence) > MAX_CONNECTING_CHARS
+        folded in (said or set())
+        or _INFORMAL[language].search(folded)
+        or len(sentence) > MAX_CONNECTING_CHARS
         or any(char.isdigit() for char in sentence)
         or _RULE_ID.search(sentence)
         or find_promises(sentence)
-        or _ACTION_CLAIM.search(_fold(sentence))
+        or _ACTION_CLAIM.search(folded)
         or "{" in sentence
         or "}" in sentence
         or (sentence_language is not None and sentence_language is not language)

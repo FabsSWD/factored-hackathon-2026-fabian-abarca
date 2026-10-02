@@ -95,6 +95,9 @@ class LLMAdapter(Protocol):
         message: str,
         context: LLMContext,
         deadline: Deadline | None = None,
+        *,
+        brief: bool = False,
+        previous: Sequence[str] = (),
     ) -> str:
         """Write connecting sentences around committed template text (COM-02).
 

@@ -17,8 +17,8 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode, SideQuestion
 
-EXTRACT_PROMPT_VERSION = "extract@1.7.0"
-CONNECT_PROMPT_VERSION = "connect@1.0.0"
+EXTRACT_PROMPT_VERSION = "extract@1.8.0"
+CONNECT_PROMPT_VERSION = "connect@1.1.0"
 
 EXTRACT_SYSTEM = """\
 You read one message from a bank customer who may want to dispute a card or account \
@@ -68,7 +68,10 @@ serious hardship or distress caused by the charge.
 - side_question: a question the customer asks instead of, or besides, answering: "refund" \
 (whether they get their money back), "timeline" (how long it takes), "block_consequences" \
 (what blocking the card implies), "case_status" (the status of a dispute already filed), \
-"other" (anything unrelated to disputing a transaction); null otherwise.
+"flow_help" (how to go on: "if I give you only the name, can you find it?", "what do you \
+need?", or not remembering a detail), "other" (only what is clearly unrelated to disputes: \
+loans, opening an account); when unsure between flow_help and other, flow_help; null \
+otherwise.
 - wrong_transaction: the customer says the transaction just shown to them is not the one \
 they mean ("ese no es", "esse não é").
 - block_card_requested: the customer asks to block their card.
@@ -81,7 +84,14 @@ Today is context.business_date."""
 CONNECT_SYSTEM = """\
 You write at most one short, warm sentence to go BEFORE and at most one to go AFTER a fixed \
 message that a bank assistant will send to a customer. The fixed message is final and is \
-not yours to change or repeat. Write in the language given.
+not yours to change or repeat. Write in the language given. In Spanish always address the \
+customer as "usted", never "tú"; in Portuguese use "você".
+
+mode "full" (first message, bad news, a frustrated customer): a warm sentence is welcome. \
+mode "brief" (the customer is giving details): leave both empty, or write only a very short \
+acknowledgment BEFORE of what the customer just said ("Gracias, con el nombre del comercio \
+puedo buscarla"); if the customer sounds frustrated, one short empathetic sentence instead. \
+Never repeat or paraphrase any of previous_sentences.
 
 Rules for your sentences: no numbers, amounts, dates, references or names; no promises of \
 refunds, credits, approvals or results; no new questions; no instructions to the customer; \
