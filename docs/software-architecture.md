@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.11 |
+| Version | 0.1.12 |
 | Last updated | 2026-10-01 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -98,7 +98,7 @@ What happens when a customer sends one message. Step numbers match the order of 
 4. In parallel, the **LLM Adapter** extracts candidate slot values and the **Decision Client** asks Kev for the reason code, ambiguity, and escalation risk.
 5. The **Policy Engine** evaluates gates and triggers using the verified records it requests from the **Tool Layer**, the candidate slots, and the model signals. It returns exactly one outcome. When the transaction is not identified, the decision says what the search found (nothing, too many, or candidates from relaxed details) and which detail to ask for, and the reply tells the customer what was searched instead of repeating a generic question. A merchant named only as a kind of business ("un restaurante") is searched by `merchant_category` (word list in `config/merchant_categories.yaml`), and a period of days narrows the date. A connecting sentence the filter rejects is dropped without calling the model again; retries are only for network and schema errors.
 6. If the outcome authorizes an action, the **Tool Layer** executes it, retries within bounds, and reads the result back. An unverified action is never reported to the customer.
-7. On `ESCALATE`, the **Handoff Builder** writes the packet to Cases, where the **Agent Console** picks it up.
+7. On `ESCALATE`, the **Handoff Builder** writes the packet to Cases, where the **Agent Console** picks it up. The transfer text is sent once; every later message gets a neutral notice, reaches no model, and is added masked to the packet (`post_handoff_messages`) for the agent. If it could not be added (expired session, write failure), the notice does not say the agent will see it.
 8. **Templates** produce the committed text; the LLM Adapter may add connecting sentences around it: full ones on the first turn and on bad news, at most a brief acknowledgment while the customer gives details, never a sentence already sent, never one that claims a state the system did not verify or an emotion the customer did not express, none for a request outside disputes, and in Spanish always addressing the customer as *usted*. Replies never show a window or threshold of the policy: the only number of days a customer sees is the resolution commitment, and an amount is shown with its currency code or, when the customer named none, as the plain number they gave. The same clarification text is never sent two turns in a row. A side question (refund, timeline, what a card block implies, the status of a filed dispute, or something outside disputes) is answered with its own template before the rest of the reply; it is not a clarification, and when it is all the message says, the pending question is asked again without counting it.
 9. **Audit & Tracing** writes the turn record, and the Orchestrator returns the reply to **Customer Chat**.
 
@@ -201,3 +201,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.9 | 2026-10-01 | M12 manual test 2: tolerant `GATE-05` search with relaxed candidates the customer picks, the search result told to the customer, clarifications answered with new details not counted toward `ESC-09`, `flow_help` side questions, connecting sentences by turn type and always *usted*. |
 | 0.1.10 | 2026-10-01 | M12 manual test 3: generic merchants by category, periods of days (`extract@1.9.0`), `flow_help` only when the message brings no detail, connecting sentences never retried after the filter. |
 | 0.1.11 | 2026-10-01 | M12 manual test 3, last fixes: the "card already blocked" notice only for a card blocked before the conversation; after RESOLVE or INFORM, a message with nothing to act on ("gracias") gets a closing reply instead of a new question. |
+| 0.1.12 | 2026-10-02 | Injection test: after a handoff, a neutral `already_transferred` notice instead of the transfer text again; later messages added masked to the packet without any model. |

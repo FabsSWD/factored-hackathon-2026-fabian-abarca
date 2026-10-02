@@ -15,7 +15,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.10.0"
+template_version: "1.12.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -27,6 +27,14 @@ templates:
   handoff:  # ESCALATE (policy §11 example, verbatim)
     es: "Voy a transferir su caso a un agente, que ya tendrá la información que me compartió."
     pt: "Vou transferir seu caso para um atendente, que já terá as informações que você me passou."
+
+  already_transferred:  # every message after the handoff: neutral, says nothing of the reason
+    es: "Su conversación ya fue transferida a un agente, que le responderá por este medio. Si necesita agregar algo, puede escribirlo aquí y el agente lo verá."
+    pt: "Sua conversa já foi transferida para um atendente, que vai responder por este canal. Se precisar acrescentar algo, pode escrever aqui e o atendente verá."
+
+  already_transferred_short:  # the message could not be added for the agent (COM-04)
+    es: "Su conversación ya fue transferida a un agente, que le responderá por este medio."
+    pt: "Sua conversa já foi transferida para um atendente, que vai responder por este canal."
 
   handoff_unauthenticated:  # ESC-05/06/13 before GATE-02: no account data, no hint of detection
     es: "Voy a transferirle con un agente, que primero verificará su identidad y luego revisará su solicitud."

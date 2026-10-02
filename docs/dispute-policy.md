@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.4.8 |
+| Version | 0.4.9 |
 | Last updated | 2026-10-01 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -411,7 +411,10 @@ Every `ESCALATE` outcome produces one handoff packet. It gives the human agent w
     "Were other charges made after the phone was stolen?"
   ],
   "transcript_ref": "CONV-...",
-  "policy_version": "0.4.3"
+  "policy_version": "0.4.3",
+  "post_handoff_messages": [
+    {"received_at": "2026-06-18T14:05:00Z", "text": "Also, I see another charge from yesterday."}
+  ]
 }
 ```
 
@@ -427,6 +430,7 @@ Field rules:
 - `actions_taken` lists only actions that were attempted, with their verification result. Failed actions are included.
 - `open_questions` lists what the agent still needs to establish. It is empty only if nothing is pending.
 - `model_signals` are informative. The agent must not treat them as decisions.
+- `post_handoff_messages` are what the customer wrote after the transfer, in order, with the same masking as the audit trail and read by no model. The customer receives only a neutral notice that the conversation was transferred and that the agent will see what they add; the transfer text itself is sent once, in the turn that escalates.
 
 ## 14. Responsibility split
 
@@ -552,3 +556,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.4.6 | 2026-10-01 | `COM-03`: the card block offer names the charge ("that is not the one" identifies the transaction again); an offer without a clear answer is told and stays available until the case is created; a side question is not an unclear answer. |
 | 0.4.7 | 2026-10-01 | `GATE-05`: merchant matched by words without generic words, approximate amounts with tolerance (`AMOUNT_TOLERANCE_PCT`, `AMOUNT_TOLERANCE_USD`), relaxed search in steps whose results the customer picks, the most useful detail asked for. §10: a clarification answered with new information does not count toward `ESC-09`; no clarification text twice in a row. |
 | 0.4.8 | 2026-10-01 | `GATE-05`: a merchant named only with generic words is searched by category, or left out when it has none; periods of days match the business days in them; a last relaxed step without the merchant, when an amount or a date remains. |
+| 0.4.9 | 2026-10-02 | Handoff packet (§13): `post_handoff_messages`, the customer's messages after the transfer, masked; the transfer text is sent once and later messages get a neutral notice. |
