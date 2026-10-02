@@ -1,0 +1,60 @@
+{
+  "runs": [
+    {
+      "profile": "measured",
+      "connect_enabled": true,
+      "turns": 100,
+      "p50": 4.8366043500009255,
+      "p95": 6.88546854000233,
+      "mean": 4.945925074999905,
+      "maximum": 7.336393899997347,
+      "wall": 28.321620099999564,
+      "outcomes": {
+        "CLARIFY": 60,
+        "RESOLVE": 40
+      }
+    },
+    {
+      "profile": "measured",
+      "connect_enabled": false,
+      "turns": 100,
+      "p50": 3.0598444499973994,
+      "p95": 4.581079705001502,
+      "mean": 3.2186285899998985,
+      "maximum": 4.867874999999913,
+      "wall": 20.59955070000069,
+      "outcomes": {
+        "CLARIFY": 60,
+        "RESOLVE": 40
+      }
+    },
+    {
+      "profile": "fast",
+      "connect_enabled": true,
+      "turns": 100,
+      "p50": 0.13683784999921045,
+      "p95": 0.18605869000020903,
+      "mean": 0.1336483139999109,
+      "maximum": 0.1983330000002752,
+      "wall": 0.7589895999990404,
+      "outcomes": {
+        "CLARIFY": 60,
+        "RESOLVE": 40
+      }
+    },
+    {
+      "profile": "fast",
+      "connect_enabled": false,
+      "turns": 100,
+      "p50": 0.0787270000018907,
+      "p95": 0.1236208650021581,
+      "mean": 0.08863316699997086,
+      "maximum": 0.1351369000003615,
+      "wall": 0.5393734999997832,
+      "outcomes": {
+        "CLARIFY": 60,
+        "RESOLVE": 40
+      }
+    }
+  ]
+}

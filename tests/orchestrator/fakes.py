@@ -339,12 +339,13 @@ class FakeTools:
         return self._bank.country
 
     def list_products(self) -> list[ProductRecord]:
-        self._read("products")
-        return [
+        customer = self._read("products")
+        return [  # only the session customer's, as the real Tool Layer
             p.model_copy(update={"product_status": "Blocked"})
             if p.product_id in self._bank.blocked
             else p
             for p in self._bank.products
+            if p.customer_id == customer
         ]
 
     def get_product(self, product_id: str) -> ProductRecord:
@@ -355,17 +356,16 @@ class FakeTools:
         return found[0]
 
     def transaction_candidates(self, transaction_id: str | None = None) -> list[TransactionRecord]:
-        self._read("transactions")
-        if transaction_id is not None and transaction_id not in {
-            t.transaction_id for t in self._bank.transactions
-        }:
+        customer = self._read("transactions")
+        own = [t for t in self._bank.transactions if t.customer_id == customer]
+        if transaction_id is not None and transaction_id not in {t.transaction_id for t in own}:
             raise AccessDeniedError
-        return list(self._bank.transactions)
+        return own
 
     def get_transaction(self, transaction_id: str) -> TransactionRecord:
-        self._read("transaction")
+        customer = self._read("transaction")
         for txn in self._bank.transactions:
-            if txn.transaction_id == transaction_id:
+            if txn.transaction_id == transaction_id and txn.customer_id == customer:
                 return txn
         raise AccessDeniedError
 

@@ -11,6 +11,7 @@ Each test runs inside a transaction that is rolled back (tests/conftest.py).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
@@ -64,6 +65,27 @@ SUSPENDED_DOCUMENT = "C9988776"  # CLI-GAMMA0000003, customer_status Suspended
 
 ToolWrapper = Callable[[DatabaseToolLayer], ToolLayer]
 
+# Checked on every reply of every end-to-end turn (security review, COM-07, COM-08): no rule
+# identifier, threshold or internal identifier, no full card or document number, no trace of an
+# internal error, no amount formatted without its currency code, no number of days but the
+# resolution commitment.
+FORBIDDEN_IN_REPLIES = re.compile(
+    r"\b(?:GATE|ESC|ACT|COM|DATA)-\d{2}\b|\bRC_[A-Z_]+|\bT[123]\b|\bTRX-|\bCLI-|\bPRD-"
+    r"|\bHO-\d|4111111111114821|X1234567|42388496|C9988776|fraud|score|threshold|umbral"
+    r"|Traceback|Exception|Error\b|None\b|\{|\}"
+)
+UNCODED_AMOUNT = re.compile(r"(?<![A-Z]{3} )(?<![\d.,])\d{1,3}(?:[.,]\d{3})*[.,]\d{2}(?!\d)")
+DAYS = re.compile(r"\b(\d+)\s+d[ií]as\b")
+
+
+def assert_customer_safe(reply: str) -> None:
+    assert not FORBIDDEN_IN_REPLIES.search(reply), reply
+    assert not UNCODED_AMOUNT.search(reply), reply
+    assert all(
+        int(days) == CONFIG.parameters.RESOLUTION_TARGET_BUSINESS_DAYS
+        for days in DAYS.findall(reply)
+    ), reply
+
 
 @dataclass
 class Turn:
@@ -104,7 +126,7 @@ class Conversation:
         message: str,
         extraction: ExtractionResult | None = None,
         signals: ModelSignals | None = None,
-        token: str | None | bool = True,
+        token: str | bool | None = True,
     ) -> Turn:
         """``extraction``: what the OpenAI double returns for this message; ``signals``: Kev's."""
         if extraction is not None:
@@ -122,6 +144,7 @@ class Conversation:
             self.conversation_id = data["conversation_id"]
         trace = self.e2e.tracer.get(data["trace_id"]) if "trace_id" in data else None
         turn = Turn(response.status_code, data, trace)
+        assert_customer_safe(turn.reply)
         self.turns.append(turn)
         return turn
 
@@ -176,7 +199,7 @@ class E2E:
 
 
 def e2e_settings() -> Settings:
-    return Settings(  # type: ignore[call-arg]
+    return Settings(
         _env_file=None,
         business_date=BUSINESS_DATE,
         pseudonym_key=SecretStr(PSEUDONYM_KEY),
