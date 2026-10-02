@@ -337,20 +337,26 @@ def test_exceeding_clarification_turns_for_a_slot_escalates() -> None:
 def test_exceeding_total_clarifications_escalates() -> None:
     world = build_world()
     world.say("Quiero disputar un cargo", ext())
+    world.say("no sé", ext())
     world.say("El de Cafe Sintetico del 10 de junio", ext(transaction_ref=REF_CAFE))
     world.say("No me entregaron el pedido", ext(reason_code=ReasonCode.NOT_RECEIVED))
     world.say("no sé la fecha", ext())
     for message in (
-        "Quiero disputar un cargo",
-        "El de Cafe Sintetico del 10 de junio",
-        "No me entregaron el pedido",
-        "no sé la fecha",
+        "Quiero disputar un cargo",  # transaction_ref asked: 1
+        "no sé",  # no new information: asked again, 2
+        "El de Cafe Sintetico del 10 de junio",  # answered: back to 1; reason asked, 2
+        "no sé",  # asked again, 3
+        "No me entregaron el pedido",  # answered: back to 2; delivery date asked, 3
+        "no sé la fecha",  # asked again, 4
     ):
         world.turn(message)
     assert stored(world).counters.total_clarifications == 4
     result = world.turn("no sé la fecha")
     assert result.outcome is Outcome.ESCALATE
-    assert world.bank.packets[0].triggered_rules == ["ESC-09"]
+    (packet,) = world.bank.packets
+    assert packet.triggered_rules == ["ESC-09"]
+    names = {e.name for e in packet.escalation_reasons[0].evidence}
+    assert "total_clarifications" in names
 
 
 # --- Composition, traces, privacy -----------------------------------------------------------------

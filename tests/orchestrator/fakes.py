@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -154,6 +154,9 @@ class ScriptedLLM:
     crash: bool = False
     contexts: list[LLMContext] = field(default_factory=list)
     connect_deadlines: list[float] = field(default_factory=list)
+    connect_modes: list[bool] = field(default_factory=list)  # brief?
+    connect_previous: list[list[str]] = field(default_factory=list)
+    connect_sentence: str = ""  # a connecting sentence to add before the template
     extract_deadlines: list[float] = field(default_factory=list)
     calls: int = 0
     tokens_per_call: int = 500
@@ -194,9 +197,16 @@ class ScriptedLLM:
         message: str,
         context: LLMContext,
         deadline: Deadline | None = None,
+        *,
+        brief: bool = False,
+        previous: Sequence[str] = (),
     ) -> str:
         if deadline is not None:
             self.connect_deadlines.append(deadline.remaining())
+        self.connect_modes.append(brief)
+        self.connect_previous.append(list(previous))
+        if self.connect_sentence:
+            return f"{self.connect_sentence} {templated_text}"
         return templated_text
 
 

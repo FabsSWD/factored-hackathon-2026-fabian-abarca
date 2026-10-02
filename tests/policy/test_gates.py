@@ -15,7 +15,9 @@ from app.contracts import (
     Outcome,
     Queue,
     ReasonCode,
+    TransactionField,
     TransactionRef,
+    TransactionSearch,
 )
 from tests.policy.conftest import (
     AS_OF,
@@ -201,6 +203,9 @@ def test_gate05_more_than_max_candidates_asks_for_details(count: int, listed: bo
     assert decision.clarify_target is ClarifyTarget.TRANSACTION_REF
     assert bool(decision.candidate_transaction_ids) is listed
     assert ("too_many_matches" in decision.notes) is not listed
+    if not listed:  # same amount, different hours of one day: the merchant narrows best
+        assert decision.transaction_search is TransactionSearch.TOO_MANY
+        assert decision.ask_for is TransactionField.MERCHANT
 
 
 def test_gate05_no_match() -> None:
@@ -208,6 +213,25 @@ def test_gate05_no_match() -> None:
     decision = evaluate(request(slots=slots(transaction_ref=ref)))
     assert decision.clarify_target is ClarifyTarget.TRANSACTION_REF
     assert "no_matching_transaction" in decision.notes
+    assert decision.transaction_search is TransactionSearch.NO_MATCH
+    assert decision.ask_for is TransactionField.MERCHANT
+
+
+def test_gate05_relaxed_single_candidate_is_listed_not_identified() -> None:
+    pool = [txn("TXN-1", amount="38.50", amount_usd="38.50", merchant="Restaurante El Buen Sabor")]
+    ref = TransactionRef(merchant="el buen sabor", amount=Decimal("40"), amount_approximate=True)
+    decision = evaluate(request(transaction_candidates=pool, slots=slots(transaction_ref=ref)))
+    assert gate(decision, "GATE-05") is False
+    assert decision.candidate_transaction_ids == ["TXN-1"]
+    assert decision.transaction_search is TransactionSearch.RELAXED
+    assert decision.transaction_id is None  # nothing identified until the customer picks it
+
+
+def test_gate05_exact_candidates_carry_no_search_result() -> None:
+    pool = [txn("TXN-1"), txn("TXN-2", when=TXN_DATE + timedelta(hours=3))]
+    ref = TransactionRef(amount=Decimal("50"))
+    decision = evaluate(request(transaction_candidates=pool, slots=slots(transaction_ref=ref)))
+    assert decision.transaction_search is None and decision.ask_for is None
 
 
 def test_gate05_fee_reference_is_asked_with_the_fee_question() -> None:

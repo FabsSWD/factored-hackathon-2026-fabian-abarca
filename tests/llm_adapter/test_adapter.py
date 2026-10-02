@@ -32,6 +32,7 @@ from app.llm_adapter.adapter import (
     ExtractionUnavailableError,
     OpenAILLMAdapter,
     TemplateLanguageError,
+    mark_approximate,
 )
 from app.llm_adapter.client import LLMClientConfig, LLMError, OpenAIJsonClient
 from tests.llm_adapter.conftest import (
@@ -107,6 +108,7 @@ CASES: list[tuple[str, str, dict[str, Any], dict[str, Any]]] = [
                 transaction_date=date(2026, 6, 15),
                 amount=Decimal("18.9"),
                 merchant="Streaming Plus",
+                amount_approximate=False,  # an amount without "como de", "unos"
             ),
         },
     ),
@@ -486,6 +488,8 @@ def test_connect_wraps_the_template_unchanged(
     user = sent_user(fake)
     assert user == {
         "language": "es",
+        "mode": "full",
+        "previous_sentences": [],
         "customer_message": "Quiero hablar con alguien",
         "fixed_message": TEMPLATE,
     }
@@ -957,3 +961,102 @@ def test_expected_delivery_date_out_of_range_is_discarded(
     assert result.slots.expected_delivery_date is None
     assert result.slots.reason_code is ReasonCode.NOT_RECEIVED
     assert calls[0].adjustments == ["expected_delivery_date_discarded"]
+
+
+# --- Approximate amounts (GATE-05 tolerance, policy 0.4.7) ------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("message", "approximate"),
+    [
+        ("la transacción del restaurante el buen sabor, fue como de 40 dólares", True),
+        ("unos 40", True),
+        ("fueron 40 dólares más o menos", True),
+        ("cerca de $40", True),
+        ("40 aprox", True),
+        ("uns R$ 40", True),
+        ("por volta de 18,90", True),
+        ("40 usd mais ou menos", True),
+        ("fueron 40 dólares", False),
+        ("compré unos audífonos de 40", False),  # "unos" is about the audífonos
+    ],
+)
+def test_a_qualified_amount_is_marked_approximate(message: str, approximate: bool) -> None:
+    result = ExtractionResult(slots=Slots(transaction_ref=TransactionRef(amount=Decimal("40"))))
+    ref = mark_approximate(result, message).slots.transaction_ref
+    assert ref is not None and ref.amount_approximate is approximate
+
+
+def test_without_an_amount_the_mark_stays_unset() -> None:
+    result = ExtractionResult(slots=Slots(transaction_ref=TransactionRef(merchant="Kiosko")))
+    ref = mark_approximate(result, "unos 40 más o menos").slots.transaction_ref
+    assert ref is not None and ref.amount_approximate is None
+    assert mark_approximate(ExtractionResult(), "unos 40") == ExtractionResult()
+
+
+def test_extract_marks_the_approximate_amount(adapter: OpenAILLMAdapter, fake: FakeOpenAI) -> None:
+    ref = {
+        "transaction_id": None,
+        "transaction_date": None,
+        "amount": 40,
+        "merchant": "el buen sabor",
+    }
+    fake.responses = [completion(extraction(slots={"transaction_ref": ref}))]
+    result = extract(adapter, "fue en el buen sabor, como de 40 dólares")
+    assert result.slots.transaction_ref is not None
+    assert result.slots.transaction_ref.amount_approximate is True
+
+
+# --- connect@1.1.0: usted, brief turns, no repetition --------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Lamento que estés pasando por esto.",
+        "Entiendo, tienes razón en preocuparte.",
+        "Si puedes, cuéntame más.",
+        "Te ayudo con gusto.",
+        "Revisemos tu caso.",
+    ],
+)
+def test_spanish_sentences_with_tu_are_dropped(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, sentence: str
+) -> None:
+    fake.responses = [completion({"before": sentence, "after": ""})]
+    assert connect(adapter) == TEMPLATE
+
+
+def test_portuguese_sentences_with_tu_are_dropped(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    template = (
+        "Vou transferir seu caso para um atendente, que já terá as informações que você me passou."
+    )
+    fake.responses = [completion({"before": "Entendo a tua situação.", "after": ""})]
+    pt = context().model_copy(update={"language": Language.PT})
+    assert run(adapter.connect(template, "Quero falar com alguém", pt)) == template
+
+
+def test_usted_sentences_are_kept(adapter: OpenAILLMAdapter, fake: FakeOpenAI) -> None:
+    fake.responses = [completion({"before": "Lamento que esté pasando por esto.", "after": ""})]
+    assert connect(adapter) == f"Lamento que esté pasando por esto. {TEMPLATE}"
+
+
+def test_brief_mode_keeps_only_an_acknowledgment_before(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [
+        completion({"before": "Gracias por el dato.", "after": "Quedo atento a su respuesta."})
+    ]
+    text = run(adapter.connect(TEMPLATE, "fue en el buen sabor", context(), brief=True))
+    assert text == f"Gracias por el dato. {TEMPLATE}"
+    assert sent_user(fake)["mode"] == "brief"
+
+
+def test_a_sentence_already_sent_is_dropped(adapter: OpenAILLMAdapter, fake: FakeOpenAI) -> None:
+    fake.responses = [completion({"before": "Entiendo su situación.", "after": ""})]
+    previous = ["Entiendo su situación."]
+    text = run(adapter.connect(TEMPLATE, "hola", context(), previous=previous))
+    assert text == TEMPLATE
+    assert sent_user(fake)["previous_sentences"] == previous

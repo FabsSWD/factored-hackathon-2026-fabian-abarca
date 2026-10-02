@@ -219,7 +219,7 @@ def test_confirmation_replies(name: str, expected: Confirmation) -> None:
         assert Decimal("40") in corrected
 
 
-# --- Side questions, "ese no es" and block requests (extract@1.7.0) ---------------------------
+# --- Side questions, "ese no es", block requests (extract@1.7.0), flow_help (extract@1.8.0) ---
 
 SIDE_CASES: dict[str, dict[str, Any]] = {
     "es_side_refund": {"side_question": SideQuestion.REFUND},
@@ -228,6 +228,10 @@ SIDE_CASES: dict[str, dict[str, Any]] = {
     "es_wrong_transaction": {"wrong_transaction": True},
     "es_block_requested": {"block_card_requested": True},
     "pt_side_other": {"side_question": SideQuestion.OTHER},
+    "es_flow_help_name_only": {"side_question": SideQuestion.FLOW_HELP},
+    "es_flow_help_what_data": {"side_question": SideQuestion.FLOW_HELP},
+    "es_flow_help_no_amount": {"side_question": SideQuestion.FLOW_HELP},
+    "es_side_other_account": {"side_question": SideQuestion.OTHER},
 }
 
 
@@ -244,3 +248,18 @@ def test_side_questions_and_block_replies(name: str, expected: dict[str, Any]) -
     assert result.wrong_transaction is expected.get("wrong_transaction", False)
     assert result.block_card_requested is expected.get("block_card_requested", False)
     assert result.slots.card_in_possession is expected.get("card_in_possession")
+
+
+def test_the_approximate_amount_of_the_manual_test() -> None:
+    name = "es_approximate_amount"
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    pending = SlotName(recorded["pending_slot"])
+    result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
+    ref = result.slots.transaction_ref
+    assert ref is not None and ref.amount == Decimal("40")
+    assert ref.merchant is not None and "buen sabor" in ref.merchant.lower()
+    assert ref.amount_approximate is True  # marked by the code, not by the model

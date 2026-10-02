@@ -5,13 +5,17 @@ from decimal import Decimal
 
 import pytest
 
-from app.contracts import TransactionRef
+from app.contracts import TransactionField, TransactionRef
 from app.policy.clock import business_date, business_day, transaction_within, within_window
 from app.policy.matching import (
+    Tolerance,
+    amount_matches,
     disputed_of,
     duplicate_twins,
     match_transaction,
     merchant_matches,
+    missing_detail,
+    most_useful_detail,
     nearest_twin,
     normalize_merchant,
 )
@@ -84,6 +88,49 @@ def test_empty_normalized_names_never_match() -> None:
     assert not merchant_matches("́", "Cafe")  # a lone combining accent normalizes to ""
 
 
+@pytest.mark.parametrize(
+    ("given", "merchant", "expected"),
+    [
+        ("el buen sabor", "Restaurante El Buen Sabor", True),
+        ("Restaurante el Buen Sabor", "El Buen Sabor", True),
+        ("buen sabor restaurante", "Restaurante El Buen Sabor", True),  # any word order
+        ("sabor", "Restaurante El Buen Sabor", True),
+        ("restaurante", "Restaurante El Buen Sabor", False),  # only a kind of business
+        ("la tienda", "Tienda La Esquina", False),
+        ("loja do zé", "Loja do Zé", True),
+        ("buen gusto", "Restaurante El Buen Sabor", False),
+    ],
+)
+def test_merchant_by_words_without_generic_words(given: str, merchant: str, expected: bool) -> None:
+    assert merchant_matches(given, merchant) is expected
+
+
+TOLERANCE = Tolerance(percent=Decimal("10"), usd=Decimal("5"))
+
+
+@pytest.mark.parametrize(
+    ("record", "record_usd", "given", "expected"),
+    [
+        ("38.50", "38.50", "40", True),
+        ("45.00", "45.00", "40", True),  # 5 USD beats 10% of 40
+        ("45.01", "45.01", "40", False),
+        ("110.00", "110.00", "100", True),  # 10% of 100 beats 5 USD
+        ("110.01", "110.01", "100", False),
+        ("14.90", "14.90", "10", True),  # 5 USD beats 10% of 10
+        ("15.01", "15.01", "10", False),
+        ("158000", "40", "160000", True),  # COP: 10% of 160,000
+        ("100000", "25", "120000", True),  # COP: 5 USD = 20,000 COP at this rate
+        ("39", None, "40", True),  # without a USD amount only the percent applies
+    ],
+)
+def test_approximate_amount_tolerance(
+    record: str, record_usd: str | None, given: str, expected: bool
+) -> None:
+    charge = txn(amount=record, amount_usd=record_usd)
+    assert amount_matches(charge, Decimal(given), TOLERANCE) is expected
+    assert amount_matches(charge, Decimal(record), None)
+
+
 # --- GATE-05 matching ------------------------------------------------------------------------
 
 
@@ -140,8 +187,100 @@ def test_date_tolerance_is_one_day(day: int, expected: str | None) -> None:
     assert found == expected
 
 
-def test_amount_is_exact() -> None:
+def test_amount_is_exact_and_a_near_amount_is_only_a_candidate() -> None:
     assert match(TransactionRef(amount=Decimal("50.01"))).note == "no_matching_transaction"
+    near = match_transaction(TransactionRef(amount=Decimal("50.01")), POOL, AS_OF, 120, TOLERANCE)
+    assert near.transaction is None and near.relaxed
+    assert [t.transaction_id for t in near.candidates] == ["TXN-2", "TXN-1"]
+
+
+# --- GATE-05: relaxed search (policy 0.4.7) -------------------------------------------------
+
+BUEN_SABOR = txn(
+    "TXN-BS",
+    when=datetime(2026, 6, 16, 15),
+    amount="38.50",
+    amount_usd="38.50",
+    merchant="Restaurante El Buen Sabor",
+)
+OTHER_DAY = txn("TXN-OD", when=datetime(2026, 6, 14, 12), amount="12", merchant="Kiosko 24")
+
+
+def relaxed(ref: TransactionRef, pool: list | None = None):  # type: ignore[no-untyped-def,type-arg]
+    return match_transaction(ref, pool or [BUEN_SABOR, OTHER_DAY, *POOL], AS_OF, 120, TOLERANCE)
+
+
+def test_the_manual_test_finds_el_buen_sabor_as_a_candidate() -> None:
+    said = TransactionRef(merchant="el buen sabor", amount=Decimal("40"), amount_approximate=True)
+    result = relaxed(said)
+    assert result.transaction is None and result.relaxed
+    assert result.candidates == [BUEN_SABOR]  # listed, even alone: the customer picks it
+
+
+def test_an_exact_amount_that_finds_nothing_is_searched_with_tolerance() -> None:
+    result = relaxed(TransactionRef(merchant="el buen sabor", amount=Decimal("40")))
+    assert result.candidates == [BUEN_SABOR] and result.note == "relaxed_search"
+
+
+def test_a_qualified_amount_never_identifies_on_its_own() -> None:
+    exact = relaxed(TransactionRef(merchant="el buen sabor", amount=Decimal("38.50")))
+    assert exact.transaction == BUEN_SABOR
+    qualified = TransactionRef(
+        merchant="el buen sabor", amount=Decimal("38.50"), amount_approximate=True
+    )
+    assert relaxed(qualified).candidates == [BUEN_SABOR]
+
+
+def test_relaxation_drops_the_amount_then_the_date() -> None:
+    wrong_amount = TransactionRef(merchant="Kiosko", amount=Decimal("90"))
+    assert relaxed(wrong_amount).candidates == [OTHER_DAY]
+    wrong_both = TransactionRef(
+        merchant="Kiosko", amount=Decimal("90"), transaction_date=date(2026, 6, 1)
+    )
+    assert relaxed(wrong_both).candidates == [OTHER_DAY]
+    # Without a merchant, dropping amount and date would leave nothing: no match.
+    only_numbers = TransactionRef(amount=Decimal("999"), transaction_date=date(2026, 6, 1))
+    assert relaxed(only_numbers).note == "no_matching_transaction"
+
+
+def test_a_wrong_merchant_alone_finds_nothing() -> None:
+    result = relaxed(TransactionRef(merchant="Zapateria Inventada"))
+    assert result.note == "no_matching_transaction"
+
+
+def test_an_approximate_id_check_uses_the_tolerance() -> None:
+    picked = TransactionRef(transaction_id="TXN-BS", amount=Decimal("40"), amount_approximate=True)
+    assert relaxed(picked).transaction == BUEN_SABOR
+    exact = TransactionRef(transaction_id="TXN-BS", amount=Decimal("40"))
+    assert relaxed(exact).note == "transaction_id_inconsistent"
+
+
+def test_the_detail_that_best_narrows_many_matches() -> None:
+    names = ["Cafe A", "Cafe B", "Cafe C", "Cafe D"]
+    same_day = [
+        txn(f"TXN-{i}", when=datetime(2026, 6, 10, 9 + i), amount=str(10 + i), merchant=name)
+        for i, name in enumerate(names)
+    ]
+    by_date = TransactionRef(transaction_date=date(2026, 6, 10))
+    assert most_useful_detail(by_date, same_day, AS_OF) is TransactionField.MERCHANT
+    one_shop = [txn(f"TXN-{i}", when=datetime(2026, 6, 1 + i, 12), amount="10") for i in range(4)]
+    by_amount = TransactionRef(amount=Decimal("10"))
+    assert most_useful_detail(by_amount, one_shop, AS_OF) is TransactionField.DATE
+    everything = TransactionRef(
+        merchant="cafe", amount=Decimal("10"), transaction_date=date(2026, 6, 1)
+    )
+    assert most_useful_detail(everything, one_shop, AS_OF) is None
+
+
+def test_the_detail_asked_for_when_nothing_is_found() -> None:
+    assert missing_detail(None) is TransactionField.MERCHANT
+    assert missing_detail(TransactionRef(merchant="x")) is TransactionField.DATE
+    dated = TransactionRef(merchant="x", transaction_date=date(2026, 6, 1))
+    assert missing_detail(dated) is TransactionField.AMOUNT
+    everything = TransactionRef(
+        merchant="x", amount=Decimal("1"), transaction_date=date(2026, 6, 1)
+    )
+    assert missing_detail(everything) is TransactionField.MERCHANT
 
 
 def test_several_matches_are_candidates_newest_first() -> None:

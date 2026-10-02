@@ -36,6 +36,7 @@ from app.templates.service import (
     CONFIRMATION_TEMPLATES,
     DEFAULT_TEMPLATES_PATH,
     INFORM_TEMPLATES,
+    POLICY_VALUES,
     REQUIRED_FOLLOW_UPS,
     SIDE_TEMPLATES,
     TemplateError,
@@ -55,6 +56,9 @@ SAMPLE_VALUES: dict[str, object] = {
     "action": "Registrar una disputa",
     "index": 1,
     "currency": "USD",
+    "detail": "la fecha aproximada de la compra",
+    "missing": "la fecha aproximada de la compra",
+    "known": "en El Buen Sabor por unos 40,00",
 }
 
 
@@ -65,7 +69,9 @@ def templates() -> TemplateService:
 
 def values_for(service: TemplateService, template_id: str) -> dict[str, object]:
     return {
-        name: SAMPLE_VALUES[name] for name in service.placeholders(template_id) if name != "days"
+        name: SAMPLE_VALUES[name]
+        for name in service.placeholders(template_id)
+        if name not in POLICY_VALUES
     }
 
 
@@ -89,7 +95,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.6.0"
+    assert templates.version == "1.7.0"
     assert isinstance(templates, interfaces.TemplateService)
 
 
@@ -356,6 +362,7 @@ def test_every_amount_placeholder_is_checked(templates: TemplateService) -> None
         "confirm_summary",
         "candidate_line",
         "clarify_duplicate_ref",
+        "clarify_duplicate_ref_again",
         "identified_transaction",
     }
 
@@ -396,7 +403,7 @@ def test_tool_failure_never_closes_a_turn_alone(templates: TemplateService) -> N
 
 def test_every_side_question_has_an_answer_without_promises(templates: TemplateService) -> None:
     assert set(SIDE_TEMPLATES) == set(SideQuestion)
-    assert REQUIRED_FOLLOW_UPS["side_unsupported"] == {"offer_transfer"}
+    assert REQUIRED_FOLLOW_UPS["no_match"] == {"ask_transaction_detail"}
     for template_id in SIDE_TEMPLATES.values():
         for language in ("es", "pt"):
             values = values_for(templates, template_id)
@@ -752,3 +759,13 @@ def test_withdrawn_and_correction_texts(templates: TemplateService) -> None:
     assert "não registrei nenhuma contestação" in templates.render("dispute_withdrawn", "pt")
     assert "¿Qué dato no es correcto?" in templates.render("ask_correction", "es")
     assert "Qual dado não está correto?" in templates.render("ask_correction", "pt")
+
+
+def test_window_days_come_from_the_policy(templates: TemplateService) -> None:
+    window = load_policy_config().parameters.LATE_WINDOW_DAYS
+    text = templates.render("no_match", "es", known="en El Buen Sabor")
+    assert f"en los últimos {window} días" in text
+    with pytest.raises(TemplateError, match="needs the policy"):
+        TemplateService(10).render("no_match", "es", known="en El Buen Sabor")
+    with pytest.raises(TemplateError, match="come from the policy"):
+        templates.render("no_match", "es", known="x", window_days=1)

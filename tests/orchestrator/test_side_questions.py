@@ -99,7 +99,8 @@ def test_a_side_question_repeats_the_pending_question_without_counting_it() -> N
     world.say("¿cuánto tarda?", ext(side=SideQuestion.TIMELINE))
     result = world.turn("¿cuánto tarda?")
     assert result.reply.startswith("Una vez registrada, nuestro equipo revisa la disputa")
-    assert result.reply.endswith(CARD_QUESTION_ES)
+    # The same question the turn before: its second wording (never the same text twice).
+    assert result.reply.endswith("¿la tarjeta está ahora en su poder? Puede responder sí o no.")
     counters = state(world).counters
     assert counters.clarifications_by_slot[ClarifyTarget.CARD_IN_POSSESSION] == asked
 

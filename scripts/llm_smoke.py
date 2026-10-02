@@ -94,6 +94,18 @@ MESSAGES: list[tuple[str, Language, str, SlotName | None]] = [
     ("es_wrong_transaction", Language.ES, "ese no es", SlotName.CONFIRMATION),
     ("es_block_requested", Language.ES, "Mejor sí, bloquéela por favor", SlotName.CONFIRMATION),
     ("pt_side_other", Language.PT, "Vocês oferecem empréstimo pessoal?", None),
+    # flow_help, a clearly unrelated question and an approximate amount (extract@1.8.0); the
+    # first and the last are the customer's words in manual test 2 of M12.
+    ("es_flow_help_name_only", Language.ES,
+     "Solo sé el nombre del lugar, si te lo doy me podrías confirmar lo demás?",
+     SlotName.TRANSACTION_REF),
+    ("es_flow_help_what_data", Language.ES, "¿Qué datos necesitas?", SlotName.TRANSACTION_REF),
+    ("es_flow_help_no_amount", Language.ES, "No recuerdo el monto", SlotName.TRANSACTION_REF),
+    ("es_side_other_account", Language.ES, "¿Puedo abrir una cuenta de ahorros con ustedes?",
+     None),
+    ("es_approximate_amount", Language.ES,
+     "la transacción del restaurante el buen sabor, fue como de 40 dólares",
+     SlotName.TRANSACTION_REF),
 ]  # fmt: skip
 
 
@@ -132,8 +144,10 @@ async def main(record: bool) -> None:
         detected = Language(result.detected_language) if result.detected_language in ("es", "pt") else language
         reply_context = context.model_copy(update={"language": detected})
         template = templates.render("handoff", detected)
-        reply = await adapter.connect(template, message, reply_context, deadline)
-        print(f"reply ({detected.value}):", reply)
+        # connect@1.1.0: full sentences on a first message, brief on a reply.
+        brief = pending_slot is not None
+        reply = await adapter.connect(template, message, reply_context, deadline, brief=brief)
+        print(f"reply ({detected.value}, {'brief' if brief else 'full'}):", reply)
         if record:
             FIXTURES.mkdir(parents=True, exist_ok=True)
             fixture = {
