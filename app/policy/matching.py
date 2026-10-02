@@ -3,7 +3,9 @@
 GATE-05 (policy §5, "Transaction matching"): the details the customer gave are compared with
 their transactions; details that find nothing are relaxed in steps (amount with tolerance,
 without amount, without amount and date), and what a relaxed step finds is only a list of
-candidates for the customer to pick from.
+candidates for the customer to pick from. A merchant named only with generic words is a
+category ("un restaurante" -> Food) or, without one, no detail at all; a period of days
+("entre el 15 y el 19 de junio") matches the business days in it, ±1 day.
 """
 
 from __future__ import annotations
@@ -12,22 +14,32 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
+from enum import StrEnum
 
 from app.contracts import TransactionField, TransactionRecord, TransactionRef
 from app.policy.clock import business_day, transaction_within, within_window
 
 DATE_TOLERANCE_DAYS = 1  # GATE-05: date ±1 business day
-# Words that name a kind of business, not the business: ignored when merchants are compared.
-GENERIC_MERCHANT_WORDS = frozenset(
+MAX_RANGE_DAYS = 31  # a longer period does not filter by date
+# Articles and prepositions: never part of what identifies a business.
+_FILLER_WORDS = frozenset(
     {
-        # es
-        "el", "la", "los", "las", "de", "del", "y", "en", "un", "una",
-        "restaurante", "restaurant", "tienda", "almacen", "supermercado", "super", "farmacia",
-        "cafeteria", "panaderia", "bar", "local", "negocio", "comercio", "lugar",
-        # pt
-        "o", "a", "os", "as", "do", "da", "dos", "das", "e", "em", "um", "uma",
-        "loja", "mercado", "padaria", "lanchonete", "estabelecimento",
+        "el", "la", "los", "las", "lo", "al", "de", "del", "y", "en", "un", "una", "unos",
+        "o", "a", "os", "as", "do", "da", "dos", "das", "e", "em", "um", "uma", "no", "na",
     }
+)  # fmt: skip
+# Words for a place of business that say nothing about which one, with no category.
+_VAGUE_WORDS = frozenset(
+    {
+        "tienda", "almacen", "local", "negocio", "comercio", "lugar", "sitio", "loja",
+        "estabelecimento", "establecimiento",
+    }
+)  # fmt: skip
+# Kinds of business ignored when two names are compared word by word; with the categories of
+# config/merchant_categories.yaml, the words of each category are ignored as well.
+GENERIC_MERCHANT_WORDS = _FILLER_WORDS | _VAGUE_WORDS | frozenset(
+    {"restaurante", "restaurant", "supermercado", "farmacia", "cafeteria", "panaderia",
+     "mercado", "padaria", "lanchonete"}
 )  # fmt: skip
 # Policy order on a tie when asking for a detail: merchant, date, amount.
 DETAIL_ORDER = (TransactionField.MERCHANT, TransactionField.DATE, TransactionField.AMOUNT)
@@ -42,6 +54,18 @@ class Tolerance:
     usd: Decimal
 
 
+class MerchantKind(StrEnum):
+    NAME = "name"  # "el buen sabor": compared with the merchant's name
+    CATEGORY = "category"  # "un restaurante": compared with the merchant's category
+    ABSENT = "absent"  # "una tienda": says nothing, the merchant is left out
+
+
+@dataclass(frozen=True)
+class Merchant:
+    kind: MerchantKind
+    category: str | None = None
+
+
 def normalize_merchant(name: str) -> str:
     """Case- and accent-insensitive form of a merchant name, with whitespace collapsed."""
     decomposed = unicodedata.normalize("NFKD", name)
@@ -49,18 +73,39 @@ def normalize_merchant(name: str) -> str:
     return " ".join(stripped.casefold().split())
 
 
-def merchant_words(name: str) -> frozenset[str]:
-    """The words of a merchant name that identify the business (generic words removed)."""
+def _words(name: str) -> frozenset[str]:
     spaced = "".join(char if char.isalnum() else " " for char in normalize_merchant(name))
-    return frozenset(spaced.split()) - GENERIC_MERCHANT_WORDS
+    return frozenset(spaced.split())
 
 
-def merchant_matches(given: str, merchant_name: str | None) -> bool:
+def merchant_words(name: str, generic: frozenset[str] = GENERIC_MERCHANT_WORDS) -> frozenset[str]:
+    """The words of a merchant name that identify the business (generic words removed)."""
+    return _words(name) - generic
+
+
+def merchant_criterion(given: str, categories: dict[str, str]) -> Merchant:
+    """What a merchant the customer gave can be compared with: its name, its category (only
+    generic words, one category among them), or nothing."""
+    words = _words(given) - _FILLER_WORDS
+    if words - _VAGUE_WORDS - GENERIC_MERCHANT_WORDS - set(categories):
+        return Merchant(MerchantKind.NAME)
+    found = {categories[word] for word in words if word in categories}
+    if len(found) == 1:
+        return Merchant(MerchantKind.CATEGORY, found.pop())
+    return Merchant(MerchantKind.ABSENT)
+
+
+def merchant_matches(
+    given: str, merchant_name: str | None, generic: frozenset[str] = GENERIC_MERCHANT_WORDS
+) -> bool:
     """The customer's words all in the merchant's name, or the other way round; or one name
     contained in the other. A name of generic words only ("restaurante") matches nothing."""
     if merchant_name is None:
         return False
-    given_words, record_words = merchant_words(given), merchant_words(merchant_name)
+    given_words, record_words = (
+        merchant_words(given, generic),
+        merchant_words(merchant_name, generic),
+    )
     if not given_words:
         return False
     if record_words and (given_words <= record_words or record_words <= given_words):
@@ -79,6 +124,24 @@ def amount_matches(txn: TransactionRecord, amount: Decimal, tolerance: Tolerance
     return abs(txn.amount - amount) <= allowed
 
 
+def range_filters(ref: TransactionRef) -> bool:
+    """A period the customer gave that narrows the search (at most MAX_RANGE_DAYS)."""
+    if ref.date_from is None or ref.date_to is None:
+        return False
+    return (ref.date_to - ref.date_from).days <= MAX_RANGE_DAYS
+
+
+def _date_fits(txn: TransactionRecord, ref: TransactionRef, as_of: datetime) -> bool:
+    day = business_day(txn.transaction_date, as_of)
+    tolerance = timedelta(days=DATE_TOLERANCE_DAYS)
+    if ref.transaction_date is not None:
+        return abs(day - ref.transaction_date) <= tolerance
+    if range_filters(ref):
+        assert ref.date_from is not None and ref.date_to is not None
+        return ref.date_from - tolerance <= day <= ref.date_to + tolerance
+    return True
+
+
 def consistent(
     txn: TransactionRecord,
     ref: TransactionRef,
@@ -87,15 +150,22 @@ def consistent(
     *,
     use_amount: bool = True,
     use_date: bool = True,
+    categories: dict[str, str] | None = None,
 ) -> bool:
     """Whether the date, amount and merchant the customer gave (if any) fit the transaction."""
-    if use_date and ref.transaction_date is not None:
-        gap = abs((business_day(txn.transaction_date, as_of) - ref.transaction_date).days)
-        if gap > DATE_TOLERANCE_DAYS:
-            return False
+    if use_date and not _date_fits(txn, ref, as_of):
+        return False
     if use_amount and ref.amount is not None and not amount_matches(txn, ref.amount, tolerance):
         return False
-    return ref.merchant is None or merchant_matches(ref.merchant, txn.merchant_name)
+    if ref.merchant is None:
+        return True
+    words = categories or {}
+    merchant = merchant_criterion(ref.merchant, words)
+    if merchant.kind is MerchantKind.CATEGORY:
+        return txn.merchant_category == merchant.category
+    if merchant.kind is MerchantKind.ABSENT:
+        return True
+    return merchant_matches(ref.merchant, txn.merchant_name, GENERIC_MERCHANT_WORDS | set(words))
 
 
 def _order(txn: TransactionRecord) -> tuple[datetime, str]:
@@ -127,6 +197,7 @@ def match_transaction(
     as_of: datetime,
     late_window_days: int,
     tolerance: Tolerance | None = None,
+    categories: dict[str, str] | None = None,
 ) -> Match:
     """Apply the GATE-05 matching rule (policy §5, "Transaction matching")."""
     if ref is None:
@@ -137,7 +208,8 @@ def match_transaction(
         by_id = [txn for txn in pool if txn.transaction_id == ref.transaction_id]
         if not by_id:
             return Match(note="transaction_id_not_in_records")
-        if not consistent(by_id[0], ref, as_of, tolerance if approximate else None):
+        allowed = tolerance if approximate else None
+        if not consistent(by_id[0], ref, as_of, allowed, categories=categories):
             return Match(note="transaction_id_inconsistent")
         return Match(transaction=by_id[0])
     window = [t for t in pool if transaction_within(t.transaction_date, as_of, late_window_days)]
@@ -148,7 +220,13 @@ def match_transaction(
             txn
             for txn in window
             if consistent(
-                txn, ref, as_of, allowed, use_amount=step.use_amount, use_date=step.use_date
+                txn,
+                ref,
+                as_of,
+                allowed,
+                use_amount=step.use_amount,
+                use_date=step.use_date,
+                categories=categories,
             )
         )
         return sorted(found, key=_order, reverse=True)
@@ -158,7 +236,8 @@ def match_transaction(
         return Match(transaction=matches[0])
     if matches:
         return Match(candidates=matches, relaxed=approximate)
-    for step in _relaxations(ref, approximate, tolerance):
+    given = given_details(ref, categories)
+    for step in _relaxations(given, approximate, tolerance):
         matches = search(step)
         if matches:
             return Match(candidates=matches, note="relaxed_search", relaxed=True)
@@ -166,35 +245,45 @@ def match_transaction(
 
 
 def _relaxations(
-    ref: TransactionRef, approximate: bool, tolerance: Tolerance | None
+    given: set[TransactionField], approximate: bool, tolerance: Tolerance | None
 ) -> list[_Step]:
     """Amount with tolerance, without amount, without amount and date; each step keeps at
     least one detail."""
+    has_merchant, has_date = TransactionField.MERCHANT in given, TransactionField.DATE in given
     steps: list[_Step] = []
-    if ref.amount is not None:
+    if TransactionField.AMOUNT in given:
         if not approximate and tolerance is not None:
             steps.append(_Step(use_amount=True, tolerant=True, use_date=True))
-        if ref.transaction_date is not None or ref.merchant is not None:
+        if has_date or has_merchant:
             steps.append(_Step(use_amount=False, tolerant=False, use_date=True))
-    if (ref.amount is not None or ref.transaction_date is not None) and ref.merchant is not None:
+    if (TransactionField.AMOUNT in given or has_date) and has_merchant:
         steps.append(_Step(use_amount=False, tolerant=False, use_date=False))
     return steps
 
 
-def given_details(ref: TransactionRef | None) -> set[TransactionField]:
-    """The details of the reference the customer gave."""
+def given_details(
+    ref: TransactionRef | None, categories: dict[str, str] | None = None
+) -> set[TransactionField]:
+    """The details of the reference that narrow the search: a merchant by name or category, a
+    day or a period of at most MAX_RANGE_DAYS, an amount."""
     if ref is None:
         return set()
-    values = {
-        TransactionField.MERCHANT: ref.merchant,
-        TransactionField.DATE: ref.transaction_date,
-        TransactionField.AMOUNT: ref.amount,
-    }
-    return {name for name, value in values.items() if value is not None}
+    given: set[TransactionField] = set()
+    merchant = merchant_criterion(ref.merchant, categories or {}) if ref.merchant else None
+    if merchant is not None and merchant.kind is not MerchantKind.ABSENT:
+        given.add(TransactionField.MERCHANT)
+    if ref.transaction_date is not None or range_filters(ref):
+        given.add(TransactionField.DATE)
+    if ref.amount is not None:
+        given.add(TransactionField.AMOUNT)
+    return given
 
 
 def most_useful_detail(
-    ref: TransactionRef | None, matches: list[TransactionRecord], as_of: datetime
+    ref: TransactionRef | None,
+    matches: list[TransactionRecord],
+    as_of: datetime,
+    categories: dict[str, str] | None = None,
 ) -> TransactionField | None:
     """Too many matches: the detail the customer did not give that best narrows them (the most
     distinct values among the matches), or None when they gave all three."""
@@ -205,16 +294,19 @@ def most_useful_detail(
         TransactionField.DATE: len({business_day(t.transaction_date, as_of) for t in matches}),
         TransactionField.AMOUNT: len({(t.amount, t.currency) for t in matches}),
     }
-    missing = [name for name in DETAIL_ORDER if name not in given_details(ref)]
+    given = given_details(ref, categories)
+    missing = [name for name in DETAIL_ORDER if name not in given]
     if not missing:
         return None
     return max(missing, key=lambda name: distinct[name])
 
 
-def missing_detail(ref: TransactionRef | None) -> TransactionField:
+def missing_detail(
+    ref: TransactionRef | None, categories: dict[str, str] | None = None
+) -> TransactionField:
     """Nothing found: the first detail the customer did not give (merchant, date, amount), or
     the merchant again when they gave all three."""
-    given = given_details(ref)
+    given = given_details(ref, categories)
     return next((name for name in DETAIL_ORDER if name not in given), TransactionField.MERCHANT)
 
 

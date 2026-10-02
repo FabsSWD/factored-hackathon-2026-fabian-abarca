@@ -48,8 +48,8 @@ Contracts it keeps (each has a test):
     missing detail, too many matches ask for the most useful one. The same clarification text
     is never sent two turns in a row (``VARIANT_TEMPLATES``).
 19. A clarification answered with new information is not counted toward ESC-09.
-20. ``flow_help`` is answered with how to go on; ``offer_transfer`` after ``other`` once per
-    conversation.
+20. ``flow_help`` is answered with how to go on, only when the message brings no detail (a
+    detail is processed instead); ``offer_transfer`` after ``other`` once per conversation.
 21. ``connect`` writes full sentences only on the first turn, bad news (INFORM, ESCALATE,
     REFUSE, ``no_match``); otherwise a brief acknowledgment at most. It receives the sentences
     already sent, so none is repeated. A turn that answers a side question ``other`` gets no
@@ -65,12 +65,12 @@ import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, TypeVar
 
 from app.audit.cost import TokenRates, estimate_cost
-from app.config import PolicyParameters
+from app.config import PolicyParameters, load_merchant_categories
 from app.contracts import (
     AccessDeniedError,
     ActionId,
@@ -280,6 +280,7 @@ class Orchestrator:
         self._clock = clock or (lambda: datetime.now(UTC))
         self._detector = RuleBasedSignalDetector()
         self._locks: dict[str, asyncio.Lock] = {}
+        self._categories = load_merchant_categories()  # the same words GATE-05 reads
 
     # ------------------------------------------------------------------ public API
 
@@ -524,6 +525,9 @@ class Orchestrator:
             and not extraction.block_card_requested
         )
         turn.asked_before = target if pending is Pending.CLARIFY else None
+        if question is SideQuestion.FLOW_HELP and answered:
+            question = None  # contract 20: the detail is processed, no help text
+            turn.side_only = False
         if question is not None:
             await self._answer_side_question(turn, question)
             if (
@@ -774,6 +778,10 @@ class Orchestrator:
         replaced = {"transaction_id"}
         if ref.amount is not None:  # a new amount brings its own qualifier and currency
             replaced |= {"amount_approximate", "amount_currency"}
+        if ref.transaction_date is not None:  # a day replaces a period, and the other way round
+            replaced |= {"date_from", "date_to"}
+        if ref.date_from is not None:
+            replaced |= {"transaction_date"}
         base = current.model_dump(exclude=replaced, exclude_none=True) if current else {}
         base.update(ref.model_dump(exclude_none=True))
         return TransactionRef.model_validate(base)
@@ -1042,7 +1050,8 @@ class Orchestrator:
             known = self._known(turn, ref)
             if not known:
                 return [("clarify_transaction_ref_again", {})]
-            missing = [name for name in TransactionField if name not in given_details(ref)]
+            given = given_details(ref, self._categories)
+            missing = [name for name in TransactionField if name not in given]
             language = self._language(turn)
             labels = [self._templates.label("detail", name.value, language) for name in missing]
             joiner = f" {self._templates.label('misc', 'or', language)} "
@@ -1060,17 +1069,20 @@ class Orchestrator:
         )
 
     def _detail(self, turn: _Turn, ref: TransactionRef | None, ask_for: TransactionField) -> str:
-        everything = len(given_details(ref)) == len(TransactionField)
+        everything = len(given_details(ref, self._categories)) == len(TransactionField)
         key = "merchant_statement" if everything else ask_for.value
         return self._templates.label("detail", key, self._language(turn))
 
     def _searched(self, turn: _Turn, ref: TransactionRef | None) -> str:
         """What GATE-05 searched with, in the customer's own details: "en El Buen Sabor por
         unos USD 40,00 del 16/06/2026", or "por unos 40" when no currency was named."""
-        return " ".join(
-            f"{self._templates.label('search', name.value, self._language(turn))} {value}"
-            for name, value in self._details(turn, ref)
-        )
+        language = self._language(turn)
+        parts: list[str] = []
+        for name, value in self._details(turn, ref):
+            period = name is TransactionField.DATE and ref is not None and ref.date_from
+            label = "" if period else f"{self._templates.label('search', name.value, language)} "
+            parts.append(f"{label}{value}")
+        return " ".join(parts)
 
     def _known(self, turn: _Turn, ref: TransactionRef | None) -> str:
         """The customer's details as a list: "El Buen Sabor, unos USD 40,00"."""
@@ -1098,7 +1110,15 @@ class Orchestrator:
             details.append((TransactionField.AMOUNT, number))
         if ref.transaction_date is not None:
             details.append((TransactionField.DATE, format_date(ref.transaction_date)))
+        elif ref.date_from is not None and ref.date_to is not None:
+            details.append((TransactionField.DATE, self._period(turn, ref.date_from, ref.date_to)))
         return details
+
+    def _period(self, turn: _Turn, first: date, last: date) -> str:
+        """A period of days as the customer gave it: "del 15/06/2026 al 17/06/2026"."""
+        language, label = self._language(turn), self._templates.label
+        start, end = label("search", "range_from", language), label("search", "range_to", language)
+        return f"{start} {format_date(first)} {end} {format_date(last)}"
 
     def _inform(self, turn: _Turn, decision: PolicyDecision) -> None:
         reason = decision.inform_reason

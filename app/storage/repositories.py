@@ -180,6 +180,7 @@ def _transaction(row: Transaction) -> TransactionRecord:
         currency=row.currency,
         amount_usd=row.amount_usd,
         merchant_name=row.merchant_name,
+        merchant_category=row.merchant_category,
         fraud_score=float(row.fraud_score) if row.fraud_score is not None else None,
     )
 

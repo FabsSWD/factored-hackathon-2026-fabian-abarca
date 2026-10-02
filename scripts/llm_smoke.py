@@ -106,6 +106,16 @@ MESSAGES: list[tuple[str, Language, str, SlotName | None]] = [
     ("es_approximate_amount", Language.ES,
      "la transacción del restaurante el buen sabor, fue como de 40 dólares",
      SlotName.TRANSACTION_REF),
+    # Periods of days and a generic merchant (extract@1.9.0); the first and the last are the
+    # customer's words in manual test 3 of M12.
+    ("es_period_15_19", Language.ES, "Si, fue entre el 15 y el 19 de junio",
+     SlotName.TRANSACTION_REF),
+    ("es_period_mid_june", Language.ES, "fue a mediados de junio", SlotName.TRANSACTION_REF),
+    ("es_period_last_week", Language.ES, "fue la semana pasada", SlotName.TRANSACTION_REF),
+    ("pt_period_10_12", Language.PT, "foi entre 10 e 12 de junho", SlotName.TRANSACTION_REF),
+    ("es_generic_restaurant", Language.ES,
+     "el monto era como de 40 dólares, la compra fue en un restaurante pero no recuerdo bien "
+     "su nombre", SlotName.TRANSACTION_REF),
 ]  # fmt: skip
 
 

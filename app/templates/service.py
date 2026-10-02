@@ -138,7 +138,9 @@ LABEL_KINDS: dict[str, frozenset[str]] = {
     "case_status": frozenset(s.value for s in CaseStatus if s is not CaseStatus.DRAFT),
     "misc": frozenset({"no_merchant", "or"}),
     "detail": frozenset({"merchant", "transaction_date", "amount", "merchant_statement"}),
-    "search": frozenset({"merchant", "amount", "approximately", "transaction_date"}),
+    "search": frozenset(
+        {"merchant", "amount", "approximately", "transaction_date", "range_from", "range_to"}
+    ),
 }
 
 

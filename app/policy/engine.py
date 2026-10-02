@@ -51,7 +51,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from decimal import Decimal
 
-from app.config import PolicyConfig
+from app.config import PolicyConfig, load_merchant_categories
 from app.contracts import (
     WRITE_ACTIONS,
     ActionId,
@@ -199,9 +199,12 @@ class _State:
 class DeterministicPolicyEngine:
     """Implements ``app.interfaces.PolicyEngine`` for docs/dispute-policy.md."""
 
-    def __init__(self, config: PolicyConfig) -> None:
+    def __init__(self, config: PolicyConfig, categories: dict[str, str] | None = None) -> None:
+        """``categories``: word -> merchant category for GATE-05 (by default
+        config/merchant_categories.yaml, read once here, never during an evaluation)."""
         self._config = config
         self._p = config.parameters
+        self._categories = categories if categories is not None else load_merchant_categories()
 
     @property
     def policy_version(self) -> str:
@@ -361,6 +364,7 @@ class DeterministicPolicyEngine:
             request.as_of,
             p.LATE_WINDOW_DAYS,
             Tolerance(Decimal(p.AMOUNT_TOLERANCE_PCT), p.AMOUNT_TOLERANCE_USD),
+            self._categories,
         )
         if match.note is not None:
             state.note(match.note)
@@ -374,7 +378,7 @@ class DeterministicPolicyEngine:
                 return _clarify(ClarifyTarget.FEE_REF)
             if found:
                 state.note("too_many_matches")
-                detail = most_useful_detail(ref, match.candidates, request.as_of)
+                detail = most_useful_detail(ref, match.candidates, request.as_of, self._categories)
                 return _clarify(
                     ClarifyTarget.TRANSACTION_REF,
                     search=TransactionSearch.TOO_MANY,
@@ -384,7 +388,7 @@ class DeterministicPolicyEngine:
                 return _clarify(
                     ClarifyTarget.TRANSACTION_REF,
                     search=TransactionSearch.NO_MATCH,
-                    ask_for=missing_detail(ref),
+                    ask_for=missing_detail(ref, self._categories),
                 )
             return _clarify(ClarifyTarget.TRANSACTION_REF)
         txn = match.transaction
