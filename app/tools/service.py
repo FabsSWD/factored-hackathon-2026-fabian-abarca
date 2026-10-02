@@ -34,6 +34,7 @@ from app.contracts import (
     CaseStatus,
     CustomerRecord,
     HandoffPacket,
+    PostHandoffMessage,
     ProductRecord,
     ProvisionalCreditFlag,
     ReasonCode,
@@ -358,6 +359,24 @@ class DatabaseToolLayer:
             )
 
         return self._write(ActionId.TRANSFER_TO_HUMAN, attempt)
+
+    def append_handoff_message(self, handoff_id: str, text: str) -> None:
+        """A message written after the handoff, masked by the caller, appended to the packet
+        for the agent. Only the session's own handoff (a handoff before authentication has no
+        customer and takes messages without a session)."""
+        with self._sessions() as db:
+            row = db.get(HandoffPacketRow, handoff_id)
+            owned = row is not None and row.customer_id == self._customer_id
+            if row is not None and owned:
+                packet = HandoffPacket.model_validate(row.packet)
+                message = PostHandoffMessage(received_at=self._clock(), text=text)
+                messages = [*packet.post_handoff_messages, message]
+                updated = packet.model_copy(update={"post_handoff_messages": messages})
+                row.packet = updated.model_dump(mode="json")
+                db.commit()
+        if not owned:  # logged in its own session, after this one is closed
+            self._security_event("handoff", handoff_id)
+            raise AccessDeniedError
 
     def _acknowledge(
         self, handoff_id: str, customer_id: str | None, payload: dict[str, object]

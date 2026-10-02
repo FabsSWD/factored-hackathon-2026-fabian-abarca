@@ -58,6 +58,11 @@ Contracts it keeps (each has a test):
     ACT-03 blocked in it. After RESOLVE or INFORM, a message with no detail, no signal and no
     side question ("gracias", "ok", "obrigado") gets ``closing``, not a new question; the turn
     keeps the final outcome, so the metrics still see the conversation's result.
+23. The handoff text is sent once, in the turn that escalates. Every later message gets
+    ``already_transferred`` (neutral: no reason, no hint of detection), reaches no model and
+    no Input Guard, and is added masked to the packet (``post_handoff_messages``) for the
+    agent. When it could not be added, ``already_transferred_short`` says nothing about the
+    agent seeing it (COM-04).
 """
 
 from __future__ import annotations
@@ -74,6 +79,7 @@ from decimal import Decimal
 from typing import Any, TypeVar
 
 from app.audit.cost import TokenRates, estimate_cost
+from app.audit.masking import mask_message
 from app.config import PolicyParameters, load_merchant_categories
 from app.contracts import (
     AccessDeniedError,
@@ -343,8 +349,10 @@ class Orchestrator:
         turn.tools = self._tools(session, state.conversation_id)
 
         if state.closed:
-            reply = self._new_reply(turn)
-            reply.add("handoff" if session else "handoff_unauthenticated")
+            # Contract 23: said once; now only a neutral notice, and the message for the agent.
+            kept = await self._keep_for_agent(turn)
+            notice = "already_transferred" if kept else "already_transferred_short"
+            self._new_reply(turn).add(notice)
             turn.reply_kind = "closed"
             turn.outcome = Outcome.ESCALATE
             turn.handoff_id = state.handoff_id
@@ -378,6 +386,26 @@ class Orchestrator:
         if await self._merge(turn):
             return
         await self._evaluate_and_act(turn)
+
+    async def _keep_for_agent(self, turn: _Turn) -> bool:
+        """Add the message, masked, to the handoff packet; True when it was added. Without the
+        session that owns the handoff (it expired) nothing is written."""
+        state = turn.state
+        if state.handoff_id is None or turn.tools is None:
+            turn.error = "post-handoff message not added: no handoff"
+            return False
+        if state.customer_id is not None and turn.session is None:
+            turn.error = "post-handoff message not added: no session"
+            return False
+        try:
+            with self._stage(turn, "tools"):
+                await self._io(
+                    turn.tools.append_handoff_message, state.handoff_id, mask_message(turn.message)
+                )
+        except Exception as exc:  # the notice still goes out, without promising the agent sees it
+            turn.error = f"post-handoff message not added: {type(exc).__name__}"
+            return False
+        return True
 
     async def _read_records(self, turn: _Turn) -> None:
         tools = turn.tools

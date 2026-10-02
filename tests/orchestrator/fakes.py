@@ -33,6 +33,7 @@ from app.contracts import (
     ModelCall,
     ModelSignals,
     ModelSource,
+    PostHandoffMessage,
     ProductRecord,
     ProvisionalCreditFlag,
     ReasonCode,
@@ -313,6 +314,7 @@ class Bank:
     case_failure: str | None = None  # "failed" or "mismatch"
     block_failure: bool = False
     transfer_failure: bool = False
+    append_failure: bool = False
     crash_on: str | None = None
 
 
@@ -442,6 +444,19 @@ class FakeTools:
             detail="Card ending 4821 blocked",
             completed_at=NOW,
         )
+
+    def append_handoff_message(self, handoff_id: str, text: str) -> None:
+        if self._bank.append_failure:
+            raise RuntimeError("queue down")
+        for index, packet in enumerate(self._bank.packets):
+            if packet.handoff_id == handoff_id:
+                message = PostHandoffMessage(received_at=NOW, text=text)
+                messages = [*packet.post_handoff_messages, message]
+                self._bank.packets[index] = packet.model_copy(
+                    update={"post_handoff_messages": messages}
+                )
+                return
+        raise AccessDeniedError
 
     def transfer_to_human(self, packet: HandoffPacket) -> ToolResult:
         if self._bank.transfer_failure:

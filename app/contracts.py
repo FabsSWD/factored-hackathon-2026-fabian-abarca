@@ -825,6 +825,13 @@ class EscalationReason(Contract):
     evidence: Annotated[list[Evidence], Field(min_length=1)]
 
 
+class PostHandoffMessage(Contract):
+    """A message the customer wrote after the handoff, masked, read by no model."""
+
+    received_at: AwareDatetime
+    text: NonEmptyStr
+
+
 class HandoffPacket(Contract):
     """Policy §13. Never contains the raw transcript, only ``transcript_ref``."""
 
@@ -851,6 +858,8 @@ class HandoffPacket(Contract):
     open_questions: list[NonEmptyStr] = Field(default_factory=list)
     transcript_ref: NonEmptyStr
     policy_version: NonEmptyStr
+    # What the customer wrote while waiting for the agent, in order (added after ACT-05).
+    post_handoff_messages: list[PostHandoffMessage] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _check(self) -> Self:
@@ -960,6 +969,7 @@ __all__ = [
     "Outcome",
     "PolicyDecision",
     "PolicyRequest",
+    "PostHandoffMessage",
     "Priority",
     "ProductRecord",
     "ProvisionalCreditFlag",

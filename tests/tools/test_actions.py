@@ -15,9 +15,11 @@ from sqlalchemy.orm import Session
 
 import app.tools.service as service
 from app.contracts import (
+    AccessDeniedError,
     ActionId,
     CaseStatus,
     DraftCase,
+    HandoffPacket,
     ProvisionalCreditFlag,
     ReasonCode,
     Tier,
@@ -393,6 +395,7 @@ def test_no_prohibited_action_exists() -> None:
         if not name.startswith("_")
     ]
     assert sorted(public) == [
+        "append_handoff_message",  # the customer's own words for the agent, after ACT-05
         "block_card",
         "create_case",
         "customer_country",
@@ -456,3 +459,49 @@ def test_every_result_has_its_completion_time(
         tools.transfer_to_human(packet()),
     ]
     assert {r.completed_at for r in results} == {NOW}
+
+
+# --- Messages after the handoff -------------------------------------------------------------
+
+
+def test_a_message_after_the_handoff_is_added_to_the_packet(
+    tools: DatabaseToolLayer, db_session: Session
+) -> None:
+    tools.transfer_to_human(packet())
+    tools.append_handoff_message("HO-20261001-000001", "No he solicitado un escalado")
+    tools.append_handoff_message("HO-20261001-000001", "Hola")
+    db_session.expire_all()
+    row = db_session.get(HandoffPacketRow, "HO-20261001-000001")
+    assert row is not None and row.status == "acknowledged"
+    stored = HandoffPacket.model_validate(row.packet)
+    assert [m.text for m in stored.post_handoff_messages] == [
+        "No he solicitado un escalado",
+        "Hola",
+    ]
+    assert stored.model_copy(update={"post_handoff_messages": []}) == packet()
+
+
+def test_another_customers_handoff_takes_no_message(
+    tools: DatabaseToolLayer, other_tools: DatabaseToolLayer, db_session: Session
+) -> None:
+    tools.transfer_to_human(packet())
+    with pytest.raises(AccessDeniedError):
+        other_tools.append_handoff_message("HO-20261001-000001", "hola")
+    with pytest.raises(AccessDeniedError):
+        tools.append_handoff_message("HO-20261001-999999", "hola")  # none: the same answer
+    assert [e["record_type"] for e in security_events(db_session)][-2:] == ["handoff", "handoff"]
+    row = db_session.get(HandoffPacketRow, "HO-20261001-000001")
+    assert row is not None and row.packet["post_handoff_messages"] == []
+
+
+def test_a_handoff_before_authentication_takes_messages_without_a_session(
+    make_tools: ToolFactory, tools: DatabaseToolLayer, db_session: Session
+) -> None:
+    anonymous = make_tools(None)
+    anonymous.transfer_to_human(packet())
+    anonymous.append_handoff_message("HO-20261001-000001", "hola")
+    with pytest.raises(AccessDeniedError):  # an authenticated session is another owner
+        tools.append_handoff_message("HO-20261001-000001", "hola")
+    db_session.expire_all()
+    row = db_session.get(HandoffPacketRow, "HO-20261001-000001")
+    assert row is not None and len(row.packet["post_handoff_messages"]) == 1

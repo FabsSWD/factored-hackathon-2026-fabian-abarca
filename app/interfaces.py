@@ -182,6 +182,11 @@ class ToolLayer(Protocol):
         """ACT-05. Verified by the queue acknowledgement."""
         ...
 
+    def append_handoff_message(self, handoff_id: str, text: str) -> None:
+        """Add a message the customer wrote after the handoff (already masked) to its packet,
+        for the agent. Only the session's own handoff: ``AccessDeniedError`` otherwise."""
+        ...
+
 
 @runtime_checkable
 class HandoffBuilder(Protocol):
