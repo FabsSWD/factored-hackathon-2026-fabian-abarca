@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.6.0",
+  "prompt_version": "extract@1.8.0",
   "response_model": "gpt-6-luna",
   "language": "pt",
   "pending_slot": null,
@@ -30,8 +30,11 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "O cliente informa que foi cobrado duas vezes pela Streaming Plus, no valor de 18,90 dólares.",
-      "O cliente solicita falar com um atendente."
-    ]
+      "O cliente informa que foi cobrado duas vezes pela Streaming Plus por 18,90 dólares.",
+      "O cliente pede para falar com um atendente."
+    ],
+    "side_question": null,
+    "wrong_transaction": false,
+    "block_card_requested": false
   }
 }

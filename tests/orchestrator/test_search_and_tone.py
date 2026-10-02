@@ -7,6 +7,7 @@ extract@1.8.0 is asked to return for it.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from decimal import Decimal
 
@@ -129,10 +130,10 @@ def test_no_match_says_what_was_searched_and_asks_for_a_missing_detail() -> None
     world.say(message, ext(transaction_ref=ref, reason_code=ReasonCode.UNRECOGNIZED))
     result = world.turn(message)
     assert result.reply == (
-        "Busqué compras en Zapatería Inventada por unos 70,00 en los últimos 120 días y no "
+        "Busqué entre sus compras recientes alguna en Zapatería Inventada por unos 70 y no "
         "encontré ninguna.\n\n"
         "¿Recuerda la fecha aproximada de la compra? Con ese dato puedo buscar de nuevo."
-    )
+    )  # no currency named: the customer's number, never formatted like an amount
 
 
 def test_no_match_with_every_detail_asks_for_the_merchant_as_on_the_statement() -> None:
@@ -179,7 +180,7 @@ def test_the_same_question_twice_names_what_is_known() -> None:
     world.say("no sé", ext())
     second = world.turn("no sé")
     assert second.reply == (
-        "Tengo estos datos de la compra: Zapatería Inventada, unos 70,00. ¿Recuerda la fecha "
+        "Tengo estos datos de la compra: Zapatería Inventada, unos 70. ¿Recuerda la fecha "
         "aproximada de la compra? Con eso puedo buscarla mejor."
     )
 
@@ -295,10 +296,76 @@ def test_no_match_names_only_the_details_given() -> None:
     ref = TransactionRef(amount=Decimal("999"), transaction_date=datetime(2026, 6, 1).date())
     world.say(message, ext(transaction_ref=ref, reason_code=ReasonCode.UNRECOGNIZED))
     numbers = world.turn(message)
-    assert numbers.reply.startswith("Busqué compras por 999,00 del 01/06/2026 en los últimos")
+    assert numbers.reply.startswith(
+        "Busqué entre sus compras recientes alguna por USD 999,00 del 01/06/2026 y no"
+    )  # "dólares": the amount with its currency code (COM-08)
     assert "¿Recuerda el nombre del comercio?" in numbers.reply
     other = build_world()
     ref = TransactionRef(merchant="Zapatería Inventada")
     other.say("Zapatería Inventada", ext(transaction_ref=ref, reason_code=ReasonCode.UNRECOGNIZED))
     merchant = other.turn("Zapatería Inventada")
-    assert merchant.reply.startswith("Busqué compras en Zapatería Inventada en los últimos")
+    assert merchant.reply.startswith(
+        "Busqué entre sus compras recientes alguna en Zapatería Inventada y no encontré"
+    )
+
+
+# --- Feedback on the recorded run: currency, thresholds, connect@1.2.0 ---------------------------
+
+# An amount formatted like one (1.250,00 / 40.00) not preceded by its currency code (COM-08).
+UNCODED_AMOUNT = re.compile(r"(?<![A-Z]{3} )(?<![\d.,])\d{1,3}(?:[.,]\d{3})*[.,]\d{2}(?!\d)")
+# A number of days other than the resolution commitment (a window or limit, COM-07).
+DAYS = re.compile(r"\b(\d+)\s+d[ií]as\b")
+
+
+def assert_customer_safe(reply: str) -> None:
+    assert not UNCODED_AMOUNT.search(reply), reply
+    for days in DAYS.findall(reply):
+        assert int(days) == 10, reply  # RESOLUTION_TARGET_BUSINESS_DAYS only
+
+
+def test_search_replies_show_no_uncoded_amount_and_no_window() -> None:
+    replies: list[str] = []
+    world = with_buen_sabor()
+    replies += [world.turn(message).reply for message in (T0, T1, T2, T3)]
+    for message, ref in (
+        ("Zapatería Inventada, unos 70", TransactionRef(merchant="Zapatería Inventada",
+                                                       amount=Decimal("70.5"),
+                                                       amount_approximate=True)),
+        ("unos 160000 pesos en Zapatería Inventada", TransactionRef(merchant="Zapatería Inventada",
+                                                                    amount=Decimal("160000"))),
+    ):  # fmt: skip
+        other = build_world()
+        other.say(message, ext(transaction_ref=ref, reason_code=ReasonCode.UNRECOGNIZED))
+        replies.append(other.turn(message).reply)
+        other.say("no sé", ext())
+        replies.append(other.turn("no sé").reply)
+    assert "unos 70,5" in replies[4]
+    assert "por COP 160.000,00" in replies[6]  # "pesos" of the customer's country, Colombia
+    for reply in replies:
+        assert_customer_safe(reply)
+
+
+def test_a_new_amount_brings_its_own_currency() -> None:
+    world = build_world()
+    first = TransactionRef(merchant="Zapatería Inventada", amount=Decimal("70"))
+    world.say(
+        "Zapatería Inventada, 70 dólares",
+        ext(transaction_ref=first, reason_code=ReasonCode.UNRECOGNIZED),
+    )
+    world.turn("Zapatería Inventada, 70 dólares")
+    world.say("no, eran 75", ext(transaction_ref=TransactionRef(amount=Decimal("75"))))
+    result = world.turn("no, eran 75")
+    assert result.reply.startswith(
+        "Busqué entre sus compras recientes alguna en Zapatería Inventada por 75 y no"
+    )  # the dollars were said about the 70, not the 75
+
+
+def test_other_gets_no_connecting_sentence() -> None:
+    world = build_world()
+    world.llm.connect_sentence = "Con gusto le atenderemos."
+    world.say("Hola", ext())
+    world.turn("Hola")
+    world.say("¿Puedo abrir una cuenta de ahorros?", ext(side=SideQuestion.OTHER))
+    result = world.turn("¿Puedo abrir una cuenta de ahorros?")
+    assert "Con gusto le atenderemos" not in result.reply
+    assert len(world.llm.connect_modes) == 1  # only the first turn called connect

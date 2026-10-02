@@ -255,3 +255,13 @@ def test_collected_duplicate_ref_is_not_shown_as_said_by_the_customer() -> None:
     collected = {s.name.value: s.value for s in packet.collected_slots}
     assert collected["duplicate_ref"] == DUPLICATE_CONFIRMED
     assert any(f.fact.startswith("Possible duplicate:") for f in packet.verified_facts)
+
+
+def test_no_match_is_always_followed_by_the_detail_question() -> None:
+    world = build_world()
+    reply = Reply(world.orchestrator._templates, Language.ES, Locale.ES_CO)
+    reply.add("no_match", known="en El Buen Sabor")
+    with pytest.raises(CompositionError, match="ask_transaction_detail"):
+        reply.check(authenticated=True)
+    reply.add("ask_transaction_detail", detail="la fecha aproximada de la compra")
+    reply.check(authenticated=True)

@@ -23,11 +23,13 @@ from app.contracts import (
 from app.templates.formatting import (
     FormattedAmount,
     Locale,
+    currency_said,
     format_amount,
     format_date,
     is_masked,
     locale_for,
     mask_product_number,
+    plain_number,
 )
 from app.templates.promises import contains_promise, find_promises
 from app.templates.service import (
@@ -58,7 +60,7 @@ SAMPLE_VALUES: dict[str, object] = {
     "currency": "USD",
     "detail": "la fecha aproximada de la compra",
     "missing": "la fecha aproximada de la compra",
-    "known": "en El Buen Sabor por unos 40,00",
+    "known": "en El Buen Sabor por unos USD 40,00",
 }
 
 
@@ -95,7 +97,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.7.0"
+    assert templates.version == "1.8.0"
     assert isinstance(templates, interfaces.TemplateService)
 
 
@@ -761,11 +763,51 @@ def test_withdrawn_and_correction_texts(templates: TemplateService) -> None:
     assert "Qual dado não está correto?" in templates.render("ask_correction", "pt")
 
 
-def test_window_days_come_from_the_policy(templates: TemplateService) -> None:
-    window = load_policy_config().parameters.LATE_WINDOW_DAYS
-    text = templates.render("no_match", "es", known="en El Buen Sabor")
-    assert f"en los últimos {window} días" in text
-    with pytest.raises(TemplateError, match="needs the policy"):
-        TemplateService(10).render("no_match", "es", known="en El Buen Sabor")
-    with pytest.raises(TemplateError, match="come from the policy"):
-        templates.render("no_match", "es", known="x", window_days=1)
+def test_no_template_shows_a_policy_value_other_than_the_resolution_days(
+    templates: TemplateService,
+) -> None:
+    # COM-07: windows and thresholds stay internal. {days} (RESOLUTION_TARGET_BUSINESS_DAYS) is
+    # the only policy value a customer sees, and no template writes a number of its own.
+    assert POLICY_VALUES == {"days"}
+    parameters = {name.lower() for name in type(load_policy_config().parameters).model_fields}
+    for template_id in templates.template_ids:
+        assert not templates.placeholders(template_id) & (parameters | {"window_days"})
+    for text in _all_texts():
+        assert not re.search(r"\d", text), text
+
+
+def test_no_rendered_template_shows_an_amount_without_its_currency(
+    templates: TemplateService,
+) -> None:
+    uncoded = re.compile(r"(?<![A-Z]{3} )(?<![\d.,])\d{1,3}(?:[.,]\d{3})*[.,]\d{2}(?!\d)")
+    for template_id in templates.template_ids:
+        for language in ("es", "pt"):
+            text = templates.render(template_id, language, **values_for(templates, template_id))
+            assert not uncoded.search(text), (template_id, text)
+
+
+@pytest.mark.parametrize(
+    ("message", "country", "currency"),
+    [
+        ("fue como de 40 dólares", None, "USD"),
+        ("uns R$ 40", None, "BRL"),
+        ("unos 40 reales", None, "BRL"),
+        ("40 USD", None, "USD"),
+        ("unos 160000 pesos", "Colombia", "COP"),
+        ("unos 900 pesos", "México", "MXN"),
+        ("unos 900 pesos", None, None),  # whose pesos? none named
+        ("$40", None, None),  # "$" alone is ambiguous
+        ("unos 40", None, None),
+        ("40 dólares o 160000 pesos", "Colombia", None),  # two currencies: none
+    ],
+)
+def test_the_currency_the_customer_named(
+    message: str, country: str | None, currency: str | None
+) -> None:
+    assert currency_said(message, country) == currency
+
+
+def test_a_plain_number_is_never_formatted_like_an_amount() -> None:
+    assert plain_number(Decimal("40"), Locale.ES_CO) == "40"
+    assert plain_number(Decimal("18.90"), Locale.ES_CO) == "18,9"
+    assert plain_number(Decimal("1250.5"), Locale.ES_MX) == "1250.5"

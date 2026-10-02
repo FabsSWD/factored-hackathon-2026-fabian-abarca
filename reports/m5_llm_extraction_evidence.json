@@ -55,6 +55,13 @@
         ]
       },
       "notes": "Adds the 'withdrawn' confirmation and the duplicate_ref yes/no question. The three first-message cases are unchanged from 1.5.0. Extract latency rose from 3.3-3.8 s to 4.6-6.4 s with ~230 more input tokens. Confirmation cases (six replies to a pending question) are added to scripts/llm_smoke.py; their results are recorded with the next --record run. Over the later runs with the confirmation cases, extract latency ranged from 2.8 to 9.8 s."
+    },
+    {
+      "prompt_version": "extract@1.8.0",
+      "date": "2026-10-01",
+      "transaction_id_invented": 0,
+      "cases": 20,
+      "notes": "All 20 recorded fixtures classified as expected, including the five new phrases of M12 manual test 2: flow_help x3, other ('abrir una cuenta de ahorros') and 'el buen sabor, como de 40 dólares' (amount 40, amount_approximate true, marked by code). One connect@1.1.0 call returned invalid output; the retry succeeded."
     }
   ],
   "latency_seconds": {
@@ -85,6 +92,23 @@
       "extract_latency_seconds": [
         2.8,
         9.8
+      ]
+    },
+    "extract@1.8.0": {
+      "input_tokens": [
+        1528,
+        1568
+      ],
+      "extract_latency_seconds": [
+        2.6,
+        5.3
+      ],
+      "calls": 20
+    },
+    "connect@1.1.0": {
+      "input_tokens": [
+        310,
+        350
       ]
     }
   },

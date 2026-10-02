@@ -32,6 +32,8 @@ from tests.orchestrator.fakes import (
 )
 
 AMOUNT = "Me cobraron 50 en Cafe Sintetico el 10 de junio y acordamos 40"
+# A number of days other than RESOLUTION_TARGET_BUSINESS_DAYS (10), the one a customer sees.
+WINDOW_DAYS = re.compile(r"\b(?!10\b)\d+\s+d[ií]as\b")
 RULE_OR_THRESHOLD = re.compile(
     r"\b(?:GATE|ESC|ACT|COM|DATA)-\d{2}\b|\bRC_[A-Z_]+|\bT[123]\b|fraud|score|threshold|umbral"
     r"|\b(?:35|1000|1\.000|1,000)\b",
@@ -404,8 +406,16 @@ def test_customer_never_sees_rule_ids_or_thresholds() -> None:
         ),
     )
     replies.append(world.turn(message, conversation_id="CONV-2").reply)
+    # GATE-05 replies say what was searched: never the window searched (LATE_WINDOW_DAYS).
+    for text, ref in (
+        ("Zapatería Inventada, unos 70", TransactionRef(merchant="Zapatería Inventada")),
+        ("unos 50", TransactionRef(amount=Decimal("50"), amount_approximate=True)),
+    ):
+        world.say(text, ext(transaction_ref=ref, reason_code=ReasonCode.UNRECOGNIZED))
+        replies.append(world.turn(text, conversation_id=f"CONV-{text}"[:20]).reply)
     for reply in replies:
         assert not RULE_OR_THRESHOLD.search(reply), reply
+        assert not WINDOW_DAYS.search(reply), reply
 
 
 def test_token_cap_stops_llm_calls() -> None:

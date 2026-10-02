@@ -5,8 +5,8 @@
 # - every template has exactly "es" and "pt", with the same {placeholders} in both;
 # - placeholders are plain names: no attributes, indexes or format specs, no literal braces;
 # - no text promises a refund, credit or result (COM-05);
-# - {days} is filled from RESOLUTION_TARGET_BUSINESS_DAYS and {window_days} from
-#   LATE_WINDOW_DAYS, never by the caller;
+# - {days} is filled from RESOLUTION_TARGET_BUSINESS_DAYS, never by the caller; no
+#   other policy value (windows, thresholds) is ever shown to the customer (COM-07);
 # - {product} only accepts a masked product number (COM-06);
 # - {amount} only accepts an amount formatted by app/templates/formatting.py: currency code
 #   first and the customer's locale (es-MX 1,250.00; es-CO, es-AR, pt-BR 1.250,00).
@@ -15,7 +15,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.7.0"
+template_version: "1.8.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -213,8 +213,8 @@ templates:
 
   no_match:  # GATE-05 found nothing, not even relaxed: what was searched ({known}: the
              # customer's own details), always followed by ask_transaction_detail
-    es: "Busqué compras {known} en los últimos {window_days} días y no encontré ninguna."
-    pt: "Procurei compras {known} nos últimos {window_days} dias e não encontrei nenhuma."
+    es: "Busqué entre sus compras recientes alguna {known} y no encontré ninguna."
+    pt: "Procurei entre suas compras recentes alguma {known} e não encontrei nenhuma."
 
   ask_transaction_detail:  # {detail}: labels.detail
     es: "¿Recuerda {detail}? Con ese dato puedo buscar de nuevo."

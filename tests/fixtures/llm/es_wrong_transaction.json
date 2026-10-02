@@ -3,21 +3,16 @@
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": "confirmation",
-  "message": "no, el monto está mal, eran 40",
+  "message": "ese no es",
   "raw": {
     "detected_language": "es",
     "language_ambiguous": false,
     "slots": {
-      "transaction_ref": {
-        "transaction_id": null,
-        "transaction_date": null,
-        "amount": 40,
-        "merchant": null
-      },
-      "reason_code": "RC_INCORRECT_AMOUNT",
+      "transaction_ref": null,
+      "reason_code": null,
       "card_in_possession": null,
       "shared_credentials": null,
-      "expected_amount": 40,
+      "expected_amount": null,
       "expected_delivery_date": null,
       "merchant_contacted": null,
       "fee_ref": null,
@@ -30,10 +25,10 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente indica que el monto está mal y que eran 40."
+      "El cliente indica que ese no es el movimiento al que se refiere."
     ],
     "side_question": null,
-    "wrong_transaction": false,
+    "wrong_transaction": true,
     "block_card_requested": false
   }
 }

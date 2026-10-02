@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.6.0",
+  "prompt_version": "extract@1.8.0",
   "response_model": "gpt-6-luna",
   "language": "pt",
   "pending_slot": "confirmation",
@@ -26,6 +26,9 @@
     },
     "customer_claims": [
       "O cliente informa que não quer mais prosseguir."
-    ]
+    ],
+    "side_question": null,
+    "wrong_transaction": false,
+    "block_card_requested": false
   }
 }

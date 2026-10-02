@@ -1060,3 +1060,61 @@ def test_a_sentence_already_sent_is_dropped(adapter: OpenAILLMAdapter, fake: Fak
     text = run(adapter.connect(TEMPLATE, "hola", context(), previous=previous))
     assert text == TEMPLATE
     assert sent_user(fake)["previous_sentences"] == previous
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Perfecto, ya tengo los datos de la transacción.",
+        "Ya encontré la compra que menciona.",
+        "Listo, ya está.",
+        "Ótimo, já tenho as informações.",
+    ],
+)
+def test_a_state_nobody_verified_is_dropped(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, sentence: str
+) -> None:
+    fake.responses = [completion({"before": sentence, "after": ""})]
+    language = Language.PT if "tenho" in sentence else Language.ES
+    template = (
+        "Vou transferir seu caso para um atendente, que já terá as informações que você me passou."
+        if language is Language.PT
+        else TEMPLATE
+    )
+    ctx = context().model_copy(update={"language": language})
+    assert run(adapter.connect(template, "fue en el buen sabor", ctx)) == template
+
+
+@pytest.mark.parametrize(
+    ("message", "sentence", "language"),
+    [
+        ("mejor ya no, déjelo así", "Lamento que esto haya sido frustrante.", Language.ES),
+        ("deixa pra lá, não quero mais", "Entendo sua frustração.", Language.PT),
+    ],
+)
+def test_an_emotion_the_customer_did_not_express_is_dropped(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI, message: str, sentence: str, language: Language
+) -> None:
+    template = (
+        "Entendido, não registrei nenhuma contestação."
+        if language is Language.PT
+        else "Entendido, no registré ninguna disputa."
+    )
+    fake.responses = [completion({"before": sentence, "after": ""})]
+    ctx = context().model_copy(update={"language": language})
+    assert run(adapter.connect(template, message, ctx)) == template
+
+
+def test_an_emotion_the_customer_expressed_may_be_mirrored(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [completion({"before": "Lamento la molestia que esto le causa.", "after": ""})]
+    text = run(adapter.connect(TEMPLATE, "estoy muy molesto con este cobro", context()))
+    assert text == f"Lamento la molestia que esto le causa. {TEMPLATE}"
+
+
+def test_connect_prompt_forbids_unverified_states_and_unstated_emotions() -> None:
+    text = " ".join(prompts.CONNECT_SYSTEM.split())
+    assert prompts.CONNECT_PROMPT_VERSION == "connect@1.2.0"
+    assert "Never say or imply that something was found, verified, registered" in text
+    assert "Only empathize with an emotion the customer expressed in customer_message" in text
