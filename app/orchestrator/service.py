@@ -54,6 +54,10 @@ Contracts it keeps (each has a test):
     REFUSE, ``no_match``); otherwise a brief acknowledgment at most. It receives the sentences
     already sent, so none is repeated. A turn that answers a side question ``other`` gets no
     connecting sentence: nothing may sound like accepting the request.
+22. ``card_already_blocked`` is only for a card blocked before the conversation, never for one
+    ACT-03 blocked in it. After RESOLVE or INFORM, a message with no detail, no signal and no
+    side question ("gracias", "ok", "obrigado") gets ``closing``, not a new question; the turn
+    keeps the final outcome, so the metrics still see the conversation's result.
 """
 
 from __future__ import annotations
@@ -525,6 +529,19 @@ class Orchestrator:
             and not extraction.block_card_requested
         )
         turn.asked_before = target if pending is Pending.CLARIFY else None
+        if (
+            state.last_outcome in (Outcome.RESOLVE, Outcome.INFORM)
+            and pending is Pending.NONE
+            and not answered
+            and question is None
+            and extraction.flags == ConversationFlags()
+            and not extraction.wrong_transaction
+            and not extraction.block_card_requested
+        ):
+            # Contract 22: "gracias" after a final outcome closes; it asks for nothing.
+            self._new_reply(turn).add("closing")
+            turn.reply_kind, turn.outcome = "closing", state.last_outcome
+            return True
         if question is SideQuestion.FLOW_HELP and answered:
             question = None  # contract 20: the detail is processed, no help text
             turn.side_only = False
@@ -905,7 +922,8 @@ class Orchestrator:
         rules = decision.triggered_rules
         if decision.card_already_blocked and not state.card_already_blocked_told:
             product = self._product_of(turn, decision.transaction_id)
-            if product is not None:
+            # Contract 22: a card ACT-03 blocked in this conversation was announced already.
+            if product is not None and product.product_id not in state.blocked_here:
                 turn.prefix.append(
                     ("card_already_blocked", {"product": product.product_number_masked})
                 )
@@ -1217,6 +1235,7 @@ class Orchestrator:
         self._record_tool(turn, result)
         state.block_offer = BlockOffer.DONE
         if result.status is ToolStatus.SUCCESS and result.verified:
+            state.blocked_here.add(state.block_product_id)
             product = self._product_by_id(turn, state.block_product_id)
             masked = product.product_number_masked if product else None
             if masked:
@@ -1336,6 +1355,7 @@ class Orchestrator:
             and "ask_language" not in reply.ids
             and not set(reply.ids) & LOGIN_IDS  # contract 17
             and turn.side_question is not SideQuestion.OTHER  # nothing to accept (contract 21)
+            and turn.reply_kind != "closing"  # the closing is complete as it is
         ):
             context = turn.context.model_copy(update={"language": state.language})
             # Contract 21: full sentences only where they add something.
@@ -1365,6 +1385,7 @@ class Orchestrator:
         state.tokens_used += tokens
         state.last_reply_kind = turn.reply_kind
         state.last_clarify = turn.clarify_key
+        state.last_outcome = turn.outcome
         cost: Decimal | None = estimate_cost(calls, self._config.rates)
         trace = TraceRecord(
             trace_id=turn.trace_id,

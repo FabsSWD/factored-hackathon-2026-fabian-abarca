@@ -15,7 +15,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.9.0"
+template_version: "1.10.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -94,6 +94,10 @@ templates:
   merchant_not_contacted:  # GATE-10 RC_NOT_RECEIVED
     es: "Antes de registrar esta disputa, le recomendamos contactar al comercio para intentar resolver la entrega. Si no obtiene respuesta, puede volver a escribirnos."
     pt: "Antes de registrar esta contestação, recomendamos entrar em contato com o estabelecimento para tentar resolver a entrega. Se não tiver resposta, você pode nos procurar novamente."
+
+  closing:  # "gracias", "ok" after RESOLVE or INFORM: asks for nothing
+    es: "Con gusto. ¿Hay algo más en lo que pueda ayudarle?"
+    pt: "Por nada. Posso ajudar em mais alguma coisa?"
 
   dispute_withdrawn:  # §8: the customer withdrew at the summary; no case was created
     es: "Entendido, no registré ninguna disputa."

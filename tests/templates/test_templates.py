@@ -97,7 +97,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.9.0"
+    assert templates.version == "1.10.0"
     assert isinstance(templates, interfaces.TemplateService)
 
 

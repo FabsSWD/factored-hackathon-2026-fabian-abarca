@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.10 |
+| Version | 0.1.11 |
 | Last updated | 2026-10-01 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -200,3 +200,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.8 | 2026-10-01 | M12 manual test fixes: side questions answered with templates, the card block offer names the charge and is never dropped in silence, every trace has an outcome and a reply kind, no Kev or connecting sentences before the login. |
 | 0.1.9 | 2026-10-01 | M12 manual test 2: tolerant `GATE-05` search with relaxed candidates the customer picks, the search result told to the customer, clarifications answered with new details not counted toward `ESC-09`, `flow_help` side questions, connecting sentences by turn type and always *usted*. |
 | 0.1.10 | 2026-10-01 | M12 manual test 3: generic merchants by category, periods of days (`extract@1.9.0`), `flow_help` only when the message brings no detail, connecting sentences never retried after the filter. |
+| 0.1.11 | 2026-10-01 | M12 manual test 3, last fixes: the "card already blocked" notice only for a card blocked before the conversation; after RESOLVE or INFORM, a message with nothing to act on ("gracias") gets a closing reply instead of a new question. |

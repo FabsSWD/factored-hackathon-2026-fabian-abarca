@@ -78,6 +78,8 @@ class ConversationState:
     pending_counted: bool = False  # the pending clarification counted toward ESC-09
     unsupported_offered: bool = False  # offer_transfer after side question "other": once
     connect_sentences: list[str] = field(default_factory=list)  # connecting sentences sent
+    blocked_here: set[str] = field(default_factory=set)  # cards ACT-03 blocked in this chat
+    last_outcome: Outcome | None = None  # the outcome of the last turn
     closed: bool = False  # handed off: automation ended
     handoff_id: str | None = None
 

@@ -295,6 +295,7 @@ class TemplateService:
             | set(CONFIRMATION_TEMPLATES)
             | set(SIDE_TEMPLATES.values())
             | {"side_no_cases", "side_case_not_found", "identified_transaction", "block_not_done"}
+            | {"closing"}
             | set(VARIANT_TEMPLATES) - {"ask_correction"}
             | set(VARIANT_TEMPLATES.values())
             | SEARCH_TEMPLATES
