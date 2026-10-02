@@ -33,3 +33,32 @@ If `MIGRATION_DATABASE_URL` is empty, migrations and the load fall back to `DATA
    ```
 
 The roles are defined once in [scripts/sql/roles.sql](scripts/sql/roles.sql), which can also be applied with `psql` (see the header of that file).
+
+## Manual testing
+
+Requires the database loaded, `DATABASE_URL`, `OPENAI_API_KEY`, `KEV_*`, `PSEUDONYM_KEY`, `TEST_OTP` and `AGENT_API_TOKEN` in `.env`. These steps call OpenAI and Kev for real; local use only.
+
+1. Start the server with exactly one worker (conversation state is kept in memory, so more workers would split conversations; a restart loses open ones):
+
+   ```
+   python scripts/serve.py
+   ```
+
+   It listens on `http://127.0.0.1:8000` (`--host` and `--port` to change it). Do not start it with `uvicorn --workers N`.
+
+2. Find a customer for the scenario to test (read-only, prints to screen and writes no file):
+
+   ```
+   python scripts/find_test_customers.py
+   ```
+
+   For each scenario (`t1_purchase`, `pending`, `duplicate_pair`, `same_day`, `high_fraud`) it prints the `customer_id`, the document number to log in with (read from `data/raw/customers.csv`, since the database keeps only its HMAC) and the relevant transactions with date, merchant, amount and currency. The current data has no pair that meets `RC_DUPLICATE`; that flow is shown with `python scripts/demo_conversation.py`, which uses test doubles.
+
+3. Chat as the customer:
+
+   ```
+   python scripts/manual_chat.py            # asks for the document number, logs in with TEST_OTP
+   python scripts/manual_chat.py --anon     # without logging in
+   ```
+
+   Each turn prints the reply, the `trace_id`, the latency seen by the client and, read from the turn's trace with `AGENT_API_TOKEN`, the engine's result: outcome, failed gates, triggered rules, authorized actions, executed tools and model calls. Commands: `/handoff` prints the handoff packet of the conversation (agent API), `/new` starts a new conversation, `/quit` exits. Secrets are never printed.

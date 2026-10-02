@@ -12,7 +12,8 @@ Contracts it keeps (each has a test):
    ``ask_rephrase``; it is not a clarification; strikes count per ``conversation_id``. At the
    strike limit the turn escalates (ESC-13) without the models.
 3. If ``extract`` fails, the turn goes on with empty slots and the rule-based signals; no
-   exception reaches the customer.
+   exception reaches the customer. Past ``LLM_MAX_TOKENS_PER_CONVERSATION`` every turn behaves
+   the same way, without calling the LLM.
 4. Any unexpected exception (engine, Tool Layer, templates) becomes a handoff with the
    ``tool_failure`` notice and a trace with the error, never an HTTP error with a stack trace.
 5. One confirmation per action (COM-03); the card block before the dispute summary; declining

@@ -131,11 +131,73 @@ def test_model_call_records_latencies_tokens_questions_and_serving_details(
     assert call.success is True
 
 
-def test_model_version_without_serving_details(client: KevDecisionClient, fake: FakeKev) -> None:
+def test_model_version_without_serving_details(
+    client: KevDecisionClient, fake: FakeKev, calls: list[ModelCall]
+) -> None:
+    fake.models = httpx.Response(500)
     fake.responses = [response(REAL_ES)]
     result = signals(client)
-    assert result.model_version == "kev-latest"
+    assert result.model_version == "kev-latest"  # the alias, and the failure is recorded
     assert result.model_info == {}
+    failure = next(c for c in calls if c.purpose == "model_info")
+    assert failure.success is False and "v1/models" in (failure.error or "")
+
+
+def test_serving_details_are_read_lazily_and_cached(
+    client: KevDecisionClient, fake: FakeKev
+) -> None:
+    assert fake.model_requests == 0  # nothing at construction (startup)
+    fake.responses = [response(REAL_ES), response(REAL_ES)]
+    first = signals(client)
+    assert fake.model_requests == 1
+    assert first.model_version == "jaredpalmer/kev-0.8b@2026-09-24"
+    second = signals(client)
+    assert fake.model_requests == 1  # cached
+    assert second.model_version == first.model_version
+
+
+def test_serving_details_are_not_read_after_a_failed_call(
+    client: KevDecisionClient, fake: FakeKev
+) -> None:
+    fake.responses = [httpx.Response(500)]
+    signals(client)
+    assert fake.model_requests == 0
+
+
+def test_failed_serving_details_are_retried_a_bounded_number_of_times(
+    client: KevDecisionClient, fake: FakeKev
+) -> None:
+    from app.decision.client import MODEL_INFO_ATTEMPTS
+
+    fake.models = httpx.Response(503)
+    fake.responses = [response(REAL_ES) for _ in range(MODEL_INFO_ATTEMPTS + 2)]
+    for _ in range(MODEL_INFO_ATTEMPTS + 2):
+        assert signals(client).model_version == "kev-latest"
+    assert fake.model_requests == MODEL_INFO_ATTEMPTS
+
+
+def test_serving_details_wait_when_the_deadline_is_nearly_spent(
+    fake: FakeKev, calls: list[ModelCall]
+) -> None:
+    ticker = Ticker()
+    deadline = Deadline(1.0, monotonic=ticker)
+    fake.responses = [response(REAL_ES)]
+
+    original = fake.handler
+
+    def slow(request: httpx.Request) -> httpx.Response:
+        ticker.now += 0.95  # the Kev call spends almost the whole deadline
+        return original(request)
+
+    client = KevDecisionClient(
+        KevConfig(BASE_URL, 2.0),
+        load_kev_questions(),
+        httpx.MockTransport(slow),
+        calls.append,
+        ticker,
+    )
+    run(client.signals("Me cobraron dos veces", context(), deadline))
+    assert fake.model_requests == 0
 
 
 # --- Malformed responses -------------------------------------------------------------------------
@@ -290,7 +352,7 @@ def test_timeout_uses_the_configured_value_without_deadline(
 def test_model_info_failures_leave_it_empty(
     client: KevDecisionClient, fake: FakeKev, failure: httpx.Response | Exception
 ) -> None:
-    fake.responses = [failure]
+    fake.models = failure
     assert run(client.refresh_model_info()) == {}
     assert client.model_info == {}
 
@@ -318,3 +380,12 @@ def test_works_without_a_recorder(fake: FakeKev) -> None:
     )
     assert signals(client).source is ModelSource.KEV
     assert signals(client).source is ModelSource.UNAVAILABLE
+
+
+def test_serving_details_failure_without_a_recorder(fake: FakeKev) -> None:
+    fake.models = httpx.Response(500)
+    fake.responses = [response(REAL_ES)]
+    client = KevDecisionClient(
+        KevConfig(BASE_URL, 2.0), load_kev_questions(), httpx.MockTransport(fake.handler)
+    )
+    assert signals(client).model_version == "kev-latest"

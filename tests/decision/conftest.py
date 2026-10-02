@@ -24,10 +24,22 @@ def fixture(name: str) -> Any:
 
 @dataclass
 class FakeKev:
+    """``responses`` script ``POST /v1/systemone``; ``models`` answers ``GET /v1/models``
+    (the client reads it lazily after its first successful call), by default the real serving
+    details of tests/fixtures/kev/kev_models.json."""
+
     responses: list[httpx.Response | Exception] = field(default_factory=list)
     requests: list[httpx.Request] = field(default_factory=list)
+    models: httpx.Response | Exception | None = None
+    model_requests: int = 0
 
     def handler(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/models":
+            self.model_requests += 1
+            answer = self.models or httpx.Response(200, json=fixture("kev_models.json"))
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
         self.requests.append(request)
         if not self.responses:
             raise AssertionError("unexpected extra request to Kev")

@@ -439,3 +439,28 @@ def test_ambiguous_short_first_message_asks_the_language() -> None:
     world = build_world()
     world.say("Hola", ext(None, ambiguous=True))
     assert world.turn("Hola").reply_kind == "clarify:language"
+
+
+def test_past_the_token_cap_the_turn_behaves_like_an_unavailable_extract() -> None:
+    capped = build_world(token_cap=600)
+    down = build_world()
+    down.llm.fail = True
+    capped.say("Quiero disputar un cargo", ext())
+    capped.turn("Quiero disputar un cargo")
+    capped.turn("Quiero disputar un cargo")  # the cap is reached here
+    calls_before = capped.llm.calls
+    connects_before = len(capped.llm.connect_deadlines)
+    message = "Quiero hablar con una persona, por favor"
+    capped.say(message, ext(transaction_ref=REF_CAFE))  # would be ignored: no LLM call
+    from_cap = capped.turn(message)
+    from_down = down.turn(message)
+    assert capped.llm.calls == calls_before  # not called again
+    assert len(capped.llm.connect_deadlines) == connects_before  # no connect either
+    assert down.llm.connect_deadlines == []
+    # Same as decision 3: empty slots, rule-based signals; ESC-05 is still honored.
+    assert from_cap.outcome is from_down.outcome is Outcome.ESCALATE
+    # (the capped conversation also reaches ESC-09: it had asked for the transaction twice)
+    assert "ESC-05" in capped.bank.packets[-1].triggered_rules
+    assert down.bank.packets[-1].triggered_rules == ["ESC-05"]
+    assert capped.tracer.traces[-1].signals.source is ModelSource.LLM_FALLBACK  # type: ignore[union-attr]
+    assert capped.orchestrator._store.get("CONV-1").slots.transaction_ref is None  # type: ignore[union-attr]

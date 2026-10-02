@@ -1,4 +1,4 @@
-"""Handoff IDs keep growing past six digits: ``^HO-\d{8}-\d{6,}$``, up to 32 characters.
+r"""Handoff IDs keep growing past six digits: ``^HO-\d{8}-\d{6,}$``, up to 32 characters.
 
 The number is zero-padded to six digits and never wrapped, so IDs stay unique (primary key).
 

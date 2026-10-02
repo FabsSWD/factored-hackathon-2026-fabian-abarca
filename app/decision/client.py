@@ -11,6 +11,10 @@
   ``app.decision.fallback.resolve_signals`` applies the fallback.
 - Every call is a ModelCall: client and server latency, tokens, questions version and hash,
   and the serving details read from ``GET /v1/models`` (``refresh_model_info``).
+- The serving details (run and release date, so traces name the exact model) are read lazily,
+  after the first successful call, never at startup, and cached. A failed read is recorded as
+  a ``model_info`` call and retried on later successful calls, up to ``MODEL_INFO_ATTEMPTS``;
+  until then ``model_version`` stays the configured alias (``kev-latest``).
 
 The signals are informative only; this module decides nothing.
 """
@@ -41,6 +45,8 @@ PROVIDER = "kev"
 PURPOSE = "decision_signals"
 MIN_CALL_SECONDS = 0.1
 MODEL_INFO_FIELDS = ("run", "release_date", "temperature", "dtype", "device")
+MODEL_INFO_PURPOSE = "model_info"
+MODEL_INFO_ATTEMPTS = 3
 
 CallRecorder = Callable[[ModelCall], None]
 
@@ -84,6 +90,7 @@ class KevDecisionClient:
         self._recorder = recorder
         self._monotonic = monotonic
         self._model_info: dict[str, str] = {}
+        self._info_attempts = 0
 
     @property
     def configured(self) -> bool:
@@ -135,7 +142,9 @@ class KevDecisionClient:
                 response = await http.post("/v1/systemone", json=self.request_body(message))
             if response.status_code >= 400:
                 raise KevResponseError(f"HTTP {response.status_code}")
-            parsed = self._parse(response.json())
+            payload = response.json()
+            await self._ensure_model_info(deadline)
+            parsed = self._parse(payload)
         except httpx.TimeoutException:
             self._record(started, None, "timeout")
             return ModelSignals(source=ModelSource.UNAVAILABLE)
@@ -152,6 +161,31 @@ class KevDecisionClient:
         return parsed.signals
 
     # --- Internals ------------------------------------------------------------------
+
+    async def _ensure_model_info(self, deadline: Deadline | None) -> None:
+        """Read the serving details once Kev has answered, within what is left of the turn."""
+        if self._model_info or self._info_attempts >= MODEL_INFO_ATTEMPTS:
+            return
+        if deadline is not None and deadline.remaining() < MIN_CALL_SECONDS:
+            return
+        self._info_attempts += 1
+        started = self._monotonic()
+        if not await self.refresh_model_info():
+            self._record_info_failure(started)
+
+    def _record_info_failure(self, started: float) -> None:
+        if self._recorder is None:
+            return
+        self._recorder(
+            ModelCall(
+                provider=PROVIDER,
+                model=self._questions.model,
+                purpose=MODEL_INFO_PURPOSE,
+                latency_ms=max(0.0, (self._monotonic() - started) * 1000),
+                success=False,
+                error="GET /v1/models failed: model_version stays the alias",
+            )
+        )
 
     def _http(self, timeout: float) -> httpx.AsyncClient:
         assert self._config is not None
