@@ -15,7 +15,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.8.0"
+template_version: "1.9.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -391,3 +391,9 @@ labels:
     transaction_date:
       es: "del"
       pt: "do dia"
+    range_from:  # a period: "del 15/06/2026 al 17/06/2026" / "entre 15/06/2026 e 17/06/2026"
+      es: "del"
+      pt: "entre"
+    range_to:
+      es: "al"
+      pt: "e"

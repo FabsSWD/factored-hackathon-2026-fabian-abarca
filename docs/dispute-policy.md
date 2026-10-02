@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.4.7 |
+| Version | 0.4.8 |
 | Last updated | 2026-10-01 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -134,9 +134,9 @@ Gates `GATE-01` to `GATE-09` are evaluated in the order listed, then `GATE-11`, 
 
 **Transaction matching (`GATE-05`).** A `transaction_id` matches only if the customer gave it, or picked it among candidates shown to them, and it is consistent with any date, amount, or merchant they also gave; otherwise the reference is ambiguous. Without an ID, the details are compared with the customer's transactions within `LATE_WINDOW_DAYS`:
 
-- Date: ±1 business day.
+- Date: ±1 business day. A period instead of one day ("entre el 15 y el 19 de junio", "a mediados de junio", "la semana pasada") matches the business days in it, ±1 day; a period of more than 31 days does not narrow the search.
 - Amount: exact, in the transaction currency. When the customer qualifies it ("como de", "unos", "más o menos", "cerca de", "uns"), it matches within a tolerance: `AMOUNT_TOLERANCE_PCT` of the amount given or `AMOUNT_TOLERANCE_USD` converted to the transaction currency, whichever is larger.
-- Merchant: case- and accent-insensitive and by words, ignoring generic words ("restaurante", "tienda", "loja", "el", "la", ...): the customer's words are all in the merchant name, or the other way round. "el buen sabor" matches "Restaurante El Buen Sabor".
+- Merchant: case- and accent-insensitive and by words, ignoring generic words ("restaurante", "tienda", "loja", "el", "la", ...): the customer's words are all in the merchant name, or the other way round. "el buen sabor" matches "Restaurante El Buen Sabor". A merchant named only with generic words is a kind of business: "un restaurante", "una farmacia" match the transaction's `merchant_category` through the word list of `config/merchant_categories.yaml`; generic words with no category there ("una tienda", "uma loja") are no detail at all, and the search uses the others.
 
 Details that resolve to exactly one transaction identify it. Details that resolve to none are relaxed in steps: the amount with tolerance, then without the amount, then without the amount and the date; a step needs at least one detail left. What a relaxed step finds, or what a qualified amount finds, is listed as candidates even when there is only one: it is identified only when the customer picks it. With more than `MAX_CANDIDATES_SHOWN` matches, the customer is asked for the detail they did not give that best narrows the matches (merchant, date, amount on a tie). When nothing is found, the customer is told what was searched and asked for a detail they did not give (merchant, date, amount, in that order), or for the merchant as it appears on the statement when they gave all three. The `COM-03` confirmation protects against a wrong match.
 
@@ -551,3 +551,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.4.5 | 2026-10-01 | Handoff packet (§13): a collected `duplicate_ref` says the customer confirmed the charge the system found, instead of showing its ID. |
 | 0.4.6 | 2026-10-01 | `COM-03`: the card block offer names the charge ("that is not the one" identifies the transaction again); an offer without a clear answer is told and stays available until the case is created; a side question is not an unclear answer. |
 | 0.4.7 | 2026-10-01 | `GATE-05`: merchant matched by words without generic words, approximate amounts with tolerance (`AMOUNT_TOLERANCE_PCT`, `AMOUNT_TOLERANCE_USD`), relaxed search in steps whose results the customer picks, the most useful detail asked for. §10: a clarification answered with new information does not count toward `ESC-09`; no clarification text twice in a row. |
+| 0.4.8 | 2026-10-01 | `GATE-05`: a merchant named only with generic words is searched by category, or left out when it has none; periods of days match the business days in them. |

@@ -1,0 +1,67 @@
+# Words a customer uses for a kind of business, mapped to transactions.merchant_category
+# (GATE-05, policy §5). A merchant the customer names only with such words ("un restaurante",
+# "una farmacia") is searched by its category. Generic words without a category ("tienda",
+# "loja", "un lugar") leave the merchant out of the search: "tienda" alone is ambiguous in the
+# data (Tienda Don José is Food, Tienda General is Other).
+#
+# Words are compared case- and accent-insensitively; a word belongs to one category only.
+# The categories are the values of the data (Food, Health, Transport, Entertainment,
+# Services, Other); about 5% of purchases have none and are never found by category.
+
+categories:
+  Food:
+    - restaurante
+    - restaurant
+    - comida
+    - almuerzo
+    - cena
+    - desayuno
+    - supermercado
+    - mercado
+    - panaderia
+    - cafeteria
+    - lanchonete
+    - padaria
+    - almoco
+    - jantar
+  Health:
+    - farmacia
+    - drogueria
+    - clinica
+    - hospital
+    - medico
+    - laboratorio
+    - optica
+    - otica
+    - consultorio
+  Transport:
+    - gasolinera
+    - gasolina
+    - combustible
+    - combustivel
+    - taxi
+    - transporte
+    - posto
+  Entertainment:
+    - cine
+    - cinema
+    - teatro
+    - concierto
+    - show
+    - streaming
+    - entretenimiento
+    - ingresso
+  Services:
+    - telefono
+    - telefonica
+    - telefone
+    - celular
+    - internet
+    - cable
+    - servicios
+    - servicos
+  Other:
+    - boutique
+    - ropa
+    - roupa
+    - ferreteria
