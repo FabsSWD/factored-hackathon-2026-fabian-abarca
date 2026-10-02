@@ -37,6 +37,7 @@ from app.contracts import (
     ProvisionalCreditFlag,
     ReasonCode,
     SessionContext,
+    SideQuestion,
     Slots,
     Tier,
     ToolResult,
@@ -127,6 +128,9 @@ def ext(
     ambiguous: bool = False,
     claims: list[str] | None = None,
     flags: dict[str, bool] | None = None,
+    side: SideQuestion | None = None,
+    wrong_transaction: bool = False,
+    block_requested: bool = False,
     **slots: Any,
 ) -> ExtractionResult:
     """An extraction as the LLM Adapter returns it."""
@@ -136,6 +140,9 @@ def ext(
         slots=Slots(**slots),
         flags=ConversationFlags(**(flags or {})),
         customer_claims=claims or [],
+        side_question=side,
+        wrong_transaction=wrong_transaction,
+        block_card_requested=block_requested,
     )
 
 
@@ -351,12 +358,15 @@ class FakeTools:
         raise AccessDeniedError
 
     def get_case(self, case_id: str) -> CaseRecord:
-        self._read("case")
+        customer = self._read("case")
+        for case in self._bank.cases:
+            if case.case_id == case_id and case.customer_id == customer:
+                return case
         raise AccessDeniedError
 
     def list_cases(self, transaction_id: str | None = None) -> list[CaseRecord]:
-        self._read("cases")
-        return list(self._bank.cases)
+        customer = self._read("cases")
+        return [case for case in self._bank.cases if case.customer_id == customer]
 
     def create_case(self, transaction_id: str, reason_code: ReasonCode, tier: Tier) -> ToolResult:
         key = f"{transaction_id}:{reason_code.value}"

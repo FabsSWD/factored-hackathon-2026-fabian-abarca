@@ -68,6 +68,9 @@ def extraction(**overrides: Any) -> dict[str, Any]:
         "slots": slots,
         "flags": flags,
         "customer_claims": [],
+        "side_question": None,
+        "wrong_transaction": False,
+        "block_card_requested": False,
     }
     data.update(overrides)
     return data

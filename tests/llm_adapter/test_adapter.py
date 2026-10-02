@@ -19,6 +19,7 @@ from app.contracts import (
     LLMTransaction,
     ModelCall,
     ReasonCode,
+    SideQuestion,
     SlotName,
     Slots,
     TransactionRef,
@@ -282,6 +283,9 @@ OUT_OF_SCHEMA = [
     extraction(detected_language="spanish"),
     extraction(flags={"human_requested": "yes"}),
     extraction(slots={"invented_slot": "x"}),
+    extraction(side_question="loan"),
+    extraction(wrong_transaction="yes"),
+    extraction(block_card_requested=1),
 ]
 
 
@@ -294,6 +298,33 @@ def test_values_outside_the_schema_are_rejected(
         extract(adapter, "Hola")
     assert len(fake.requests) == 3
     assert all(call.error == "invalid output" for call in calls)
+
+
+def test_side_question_wrong_transaction_and_block_request(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [
+        completion(extraction(side_question="refund")),
+        completion(extraction(wrong_transaction=True, block_card_requested=True)),
+        completion(extraction()),
+    ]
+    refund = extract(adapter, "Existe una posibilidad de reembolso?")
+    assert refund.side_question is SideQuestion.REFUND
+    assert refund.slots == Slots()
+    rejected = extract(adapter, "ese no es, pero bloquéela igual")
+    assert rejected.wrong_transaction and rejected.block_card_requested
+    plain = extract(adapter, "Hola")
+    assert plain.side_question is None
+    assert not plain.wrong_transaction and not plain.block_card_requested
+
+
+def test_extract_schema_requires_the_new_fields() -> None:
+    required = prompts.EXTRACT_SCHEMA["required"]
+    assert {"side_question", "wrong_transaction", "block_card_requested"} <= set(required)
+    assert prompts.EXTRACT_SCHEMA["properties"]["side_question"]["enum"] == [
+        *(question.value for question in SideQuestion),
+        None,
+    ]
 
 
 def test_one_bad_answer_then_a_good_one(

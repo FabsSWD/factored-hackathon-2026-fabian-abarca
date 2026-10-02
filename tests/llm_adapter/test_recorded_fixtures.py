@@ -24,6 +24,7 @@ from app.contracts import (
     LLMTransaction,
     ModelCall,
     ReasonCode,
+    SideQuestion,
     SlotName,
 )
 from app.llm_adapter import prompts
@@ -216,3 +217,30 @@ def test_confirmation_replies(name: str, expected: Confirmation) -> None:
         ref = result.slots.transaction_ref
         corrected = {result.slots.expected_amount, ref.amount if ref else None}
         assert Decimal("40") in corrected
+
+
+# --- Side questions, "ese no es" and block requests (extract@1.7.0) ---------------------------
+
+SIDE_CASES: dict[str, dict[str, Any]] = {
+    "es_side_refund": {"side_question": SideQuestion.REFUND},
+    "es_side_refund_again": {"side_question": SideQuestion.REFUND},
+    "es_answer_and_refund": {"side_question": SideQuestion.REFUND, "card_in_possession": True},
+    "es_wrong_transaction": {"wrong_transaction": True},
+    "es_block_requested": {"block_card_requested": True},
+    "pt_side_other": {"side_question": SideQuestion.OTHER},
+}
+
+
+@pytest.mark.parametrize(("name", "expected"), SIDE_CASES.items())
+def test_side_questions_and_block_replies(name: str, expected: dict[str, Any]) -> None:
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    pending = SlotName(recorded["pending_slot"]) if recorded["pending_slot"] else None
+    result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
+    assert result.side_question is expected.get("side_question")
+    assert result.wrong_transaction is expected.get("wrong_transaction", False)
+    assert result.block_card_requested is expected.get("block_card_requested", False)
+    assert result.slots.card_in_possession is expected.get("card_in_possession")

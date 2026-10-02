@@ -46,7 +46,7 @@ def test_short_sentences(text: str, language: Language | None) -> None:
 
 
 def test_extract_prompt_rules() -> None:
-    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.6.0"
+    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.7.0"
     text = " ".join(prompts.EXTRACT_SYSTEM.split())
     assert "Always fill transaction_date, amount" in text
     assert "transaction_date is {day, month, year}" in text
@@ -58,5 +58,8 @@ def test_extract_prompt_rules() -> None:
     assert "context.shown_candidates" in text
     assert "identified only by an alias (C1, C2, ...)" in text
     assert "always in the third person and in the conversation's language" in text
+    assert '"refund" (whether they get their money back)' in text
+    assert "wrong_transaction: the customer says the transaction just shown" in text
+    assert "block_card_requested: the customer asks to block their card" in text
     assert '"El cliente indica que..."' in text
     assert '"O cliente informa que..."' in text

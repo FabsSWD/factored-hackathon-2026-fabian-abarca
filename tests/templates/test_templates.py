@@ -11,7 +11,15 @@ import yaml
 
 from app import interfaces
 from app.config import load_policy_config
-from app.contracts import ActionId, CaseStatus, InformReason, Language, ReasonCode, SlotName
+from app.contracts import (
+    ActionId,
+    CaseStatus,
+    InformReason,
+    Language,
+    ReasonCode,
+    SideQuestion,
+    SlotName,
+)
 from app.templates.formatting import (
     FormattedAmount,
     Locale,
@@ -29,6 +37,7 @@ from app.templates.service import (
     DEFAULT_TEMPLATES_PATH,
     INFORM_TEMPLATES,
     REQUIRED_FOLLOW_UPS,
+    SIDE_TEMPLATES,
     TemplateError,
     TemplateService,
 )
@@ -80,7 +89,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.5.0"
+    assert templates.version == "1.6.0"
     assert isinstance(templates, interfaces.TemplateService)
 
 
@@ -343,7 +352,12 @@ def test_raw_amounts_are_never_rendered(templates: TemplateService, value: objec
 
 def test_every_amount_placeholder_is_checked(templates: TemplateService) -> None:
     with_amount = [t for t in templates.template_ids if "amount" in templates.placeholders(t)]
-    assert set(with_amount) == {"confirm_summary", "candidate_line", "clarify_duplicate_ref"}
+    assert set(with_amount) == {
+        "confirm_summary",
+        "candidate_line",
+        "clarify_duplicate_ref",
+        "identified_transaction",
+    }
 
 
 def test_format_date() -> None:
@@ -378,6 +392,27 @@ def test_tool_failure_never_closes_a_turn_alone(templates: TemplateService) -> N
     follow_ups = REQUIRED_FOLLOW_UPS["tool_failure"]
     assert follow_ups == {"handoff", "offer_transfer"}
     assert follow_ups <= templates.template_ids
+
+
+def test_every_side_question_has_an_answer_without_promises(templates: TemplateService) -> None:
+    assert set(SIDE_TEMPLATES) == set(SideQuestion)
+    assert REQUIRED_FOLLOW_UPS["side_unsupported"] == {"offer_transfer"}
+    for template_id in SIDE_TEMPLATES.values():
+        for language in ("es", "pt"):
+            values = values_for(templates, template_id)
+            assert not find_promises(templates.render(template_id, language, **values))
+
+
+def test_refund_and_timeline_answers_take_the_days_from_the_policy(
+    templates: TemplateService,
+) -> None:
+    days = load_policy_config().parameters.RESOLUTION_TARGET_BUSINESS_DAYS
+    refund = templates.render("side_refund", "es")
+    assert refund.startswith("No puedo confirmarle un reembolso.")
+    assert f"hasta {days} días hábiles" in refund
+    assert f"até {days} dias úteis" in templates.render("side_timeline", "pt")
+    with pytest.raises(TemplateError, match="come from the policy"):
+        templates.render("side_refund", "es", days=1)
 
 
 def test_session_expired_mid_conversation_asks_to_reauthenticate_and_reconfirm(
