@@ -10,6 +10,10 @@ extraction of that reply is a proposed correction, not a fact:
   right one, so GATE-05 matches again (the transaction ID is dropped).
 - Any other new slot is applied as a candidate for the Policy Engine to validate.
 - ``confirmation`` is cleared, so the summary is shown again and a stale yes never confirms it.
+- Deterministic backup (M18): when the extraction brings no amount at all, the reason is
+  ``RC_INCORRECT_AMOUNT`` and the message has exactly one number, that number is the corrected
+  ``expected_amount``. With ``extract@1.13.0`` the model stopped extracting the 40 of "no, el
+  monto está mal, eran 40"; an amount correction must not depend on the model alone.
 
 Found with the recorded answer ``tests/fixtures/llm/es_confirm_declined_amount.json``: the model
 returned ``reason_code: RC_INCORRECT_AMOUNT`` and ``expected_amount: 40``.
@@ -17,10 +21,16 @@ returned ``reason_code: RC_INCORRECT_AMOUNT`` and ``expected_amount: 40``.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
-from app.contracts import ClarifyTarget, Slots, TransactionRecord, TransactionRef
+from app.contracts import ClarifyTarget, ReasonCode, Slots, TransactionRecord, TransactionRef
+
+# 40, 40,50, 1.200, 1.200,50, 1,200.50: digits with thousands and decimal separators.
+_NUMBER = re.compile(
+    r"(?<![\w.,])\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?(?![\w])|(?<![\w.,])\d+(?:[.,]\d{1,2})?(?![\w])"
+)
 
 _CORRECTABLE = (
     "card_in_possession",
@@ -45,11 +55,13 @@ def apply_declined_correction(
     established: Slots,
     proposed: Slots,
     identified: TransactionRecord | None = None,
+    message: str = "",
 ) -> Correction:
     """Apply the extraction of a declined reply (``proposed``) to the conversation's slots.
 
     ``identified`` is the transaction the summary showed; its date and merchant keep narrowing
-    the new match when the established reference was only an ID."""
+    the new match when the established reference was only an ID. ``message`` is the customer's
+    reply, read for the deterministic amount backup."""
     if proposed.reason_code is not None and proposed.reason_code != established.reason_code:
         return Correction(
             slots=established.model_copy(update={"confirmation": None}),
@@ -58,6 +70,11 @@ def apply_declined_correction(
 
     updates: dict[str, object] = {"confirmation": None}
     amount = _corrected_amount(proposed)
+    reason = proposed.reason_code or established.reason_code
+    if amount is None and reason is ReasonCode.INCORRECT_AMOUNT:
+        backup = single_amount(message)
+        if backup is not None:
+            updates["expected_amount"] = backup  # the model gave no amount: the message's one
     ref_changes = _ref_changes(proposed.transaction_ref, amount)
     if ref_changes:
         updates["transaction_ref"] = _rematch_ref(
@@ -68,6 +85,28 @@ def apply_declined_correction(
         if value is not None:
             updates[name] = value
     return Correction(slots=established.model_copy(update=updates), rematch=bool(ref_changes))
+
+
+def single_amount(message: str) -> Decimal | None:
+    """The one number of a message as an amount (40, 40,50, 1.200, 1.200,50), or None when
+    there is none or more than one (a date and an amount would be ambiguous)."""
+    found = _NUMBER.findall(message)
+    if len(found) != 1:
+        return None
+    text = found[0]
+    if "." in text and "," in text:
+        decimal = "." if text.rfind(".") > text.rfind(",") else ","
+        thousands = "," if decimal == "." else "."
+        text = text.replace(thousands, "").replace(decimal, ".")
+    elif "," in text or "." in text:
+        sep = "," if "," in text else "."
+        whole, _, tail = text.rpartition(sep)
+        text = text.replace(sep, "") if len(tail) == 3 else f"{whole.replace(sep, '')}.{tail}"
+    try:
+        value = Decimal(text)
+    except InvalidOperation:  # pragma: no cover - the pattern only finds numbers
+        return None
+    return value if value > 0 else None
 
 
 def _corrected_amount(proposed: Slots) -> Decimal | None:

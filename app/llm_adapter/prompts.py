@@ -17,7 +17,7 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode, SideQuestion
 
-EXTRACT_PROMPT_VERSION = "extract@1.12.0"
+EXTRACT_PROMPT_VERSION = "extract@1.13.0"
 CONNECT_PROMPT_VERSION = "connect@1.2.0"
 
 EXTRACT_SYSTEM = """\
@@ -63,10 +63,11 @@ pra lá").
 - flags (booleans, from the customer's own statements):
   - human_requested: asks to talk to a human agent.
   - account_takeover_reported: someone else got into the app or the account (unknown login \
-or device), a credential change they did not make, a lost or stolen phone with the app, or \
-sharing passwords or codes with someone (including a caller who pretended to be the bank). \
-A lost or stolen card is NOT account takeover ("acho que roubaram" about the card): it only \
-answers card_in_possession.
+or device), a credential change they did not make, a lost or stolen phone ("me robaron el \
+celular", "perdi o telefone"; true even if the app is not mentioned), or sharing passwords or \
+codes with someone (including a caller who pretended to be the bank). Only a lost or stolen \
+card alone is NOT account takeover ("acho que roubaram" about the card): it only answers \
+card_in_possession.
   - legal_or_vulnerability: mentions legal action, a lawyer, a regulator, the media, or \
 serious hardship or distress caused by the charge.
   - authentication_declined: refuses to verify their identity.

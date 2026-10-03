@@ -170,6 +170,7 @@ SUPPORTED = frozenset(language.value for language in Language)
 NOT_COUNTED = frozenset({ClarifyTarget.LANGUAGE, ClarifyTarget.AUTHENTICATION})
 SUMMARY_TARGETS = frozenset({ClarifyTarget.CONFIRMATION, ClarifyTarget.CORRECTION})
 BLOCK_REASKS = 1  # an unclear answer to the block offer is asked once more (policy §8)
+SIDE_QUESTIONS_FREE = 2  # side-question-only replies in a row that cost nothing (policy §10)
 MIN_GUESS_WORDS = 3  # the rule-based language guess needs a few words
 LOGIN_IDS = frozenset({"ask_authentication", "session_expired_reconfirm"})
 CASE_REF = re.compile(r"\bDSP-\d{8}-\d{6,}\b", re.IGNORECASE)
@@ -247,6 +248,7 @@ class _Turn:
     prefix: Prefix = field(default_factory=list)
     side_question: SideQuestion | None = None
     side_only: bool = False  # a side question and no answer to anything (contract 14)
+    free_side: bool = False  # side_only, and among the first SIDE_QUESTIONS_FREE in a row (§10)
     asked_before: ClarifyTarget | None = None  # the CLARIFY target this message answers
     clarify_key: tuple[ClarifyTarget, str] | None = None  # the clarification sent (contract 18)
     # The pending clarification counted and was not answered: a side question that repeats it
@@ -563,6 +565,8 @@ class Orchestrator:
             and not extraction.wrong_transaction
             and not extraction.block_card_requested
         )
+        state.side_streak = state.side_streak + 1 if turn.side_only else 0
+        turn.free_side = turn.side_only and state.side_streak <= SIDE_QUESTIONS_FREE
         turn.asked_before = target if pending is Pending.CLARIFY else None
         if (
             state.last_outcome in (Outcome.RESOLVE, Outcome.INFORM)
@@ -623,7 +627,7 @@ class Orchestrator:
                 state.block_offer = BlockOffer.DECLINED  # the dispute goes on (COM-03)
             elif urgent:
                 pass  # still offered and unconfirmed: the handoff tells the agent (contract 7)
-            elif turn.side_only:
+            elif turn.free_side:
                 state.pending = Pending.BLOCK_OFFER  # contract 14: no BLOCK_REASKS spent
                 self._offer_block(turn)
                 return True
@@ -758,7 +762,7 @@ class Orchestrator:
         """Contract 6: a declined summary is a proposed correction (corrections.py)."""
         state = turn.state
         identified = self._find(turn.records.pool, state.last_transaction_id)
-        correction = apply_declined_correction(state.slots, new, identified)
+        correction = apply_declined_correction(state.slots, new, identified, turn.message)
         if correction.clarify_target is ClarifyTarget.REASON_CODE:
             state.slots = correction.slots
             self._count(state, ClarifyTarget.REASON_CODE)
@@ -909,7 +913,11 @@ class Orchestrator:
         with self._stage(turn, "policy"):
             decision = self._engine.evaluate(request)
         turn.decisions.append(decision)
-        await self._act(turn, request, decision)
+        state = turn.state
+        state.counters = state.counters.model_copy(
+            update={"dispute_turns": state.counters.dispute_turns + 1}
+        )
+        await self._act(turn, request, decision)  # a final outcome resets it (reset_transaction)
 
     async def _request(self, turn: _Turn) -> PolicyRequest:
         state, records, session = turn.state, turn.records, turn.session
@@ -1001,7 +1009,8 @@ class Orchestrator:
         turn.reply_kind = f"clarify:{target.value}"
         state.pending, state.pending_target = Pending.CLARIFY, target
         first_summary = target is ClarifyTarget.CONFIRMATION and request.slots.confirmation is None
-        repeated = turn.side_only and target is turn.asked_before  # contract 14
+        # Contract 14; from the third side-question-only reply in a row it counts (§10).
+        repeated = turn.free_side and target is turn.asked_before
         shown: list[str] = []
         if target is ClarifyTarget.AUTHENTICATION:
             reconfirm = (
