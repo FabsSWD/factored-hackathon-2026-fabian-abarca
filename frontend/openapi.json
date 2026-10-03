@@ -1,0 +1,3132 @@
+{
+  "components": {
+    "schemas": {
+      "ActionId": {
+        "description": "Policy §8. ACT-06 (prohibited actions) is intentionally absent: it is never authorized.",
+        "enum": [
+          "ACT-01",
+          "ACT-02",
+          "ACT-03",
+          "ACT-04",
+          "ACT-05"
+        ],
+        "title": "ActionId",
+        "type": "string"
+      },
+      "ActionTaken": {
+        "additionalProperties": false,
+        "description": "An attempted action with its verification result. Failed actions are included.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ActionId"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ToolStatus"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "action",
+          "result",
+          "verified"
+        ],
+        "title": "ActionTaken",
+        "type": "object"
+      },
+      "AuditMetrics": {
+        "additionalProperties": false,
+        "properties": {
+          "abandoned": {
+            "title": "Abandoned",
+            "type": "integer"
+          },
+          "attempted_cases": {
+            "title": "Attempted Cases",
+            "type": "integer"
+          },
+          "automated_resolutions": {
+            "title": "Automated Resolutions",
+            "type": "integer"
+          },
+          "contained": {
+            "title": "Contained",
+            "type": "integer"
+          },
+          "containment_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Containment Rate"
+          },
+          "conversations": {
+            "title": "Conversations",
+            "type": "integer"
+          },
+          "cost_per_attempted_case_usd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Per Attempted Case Usd"
+          },
+          "cost_per_automated_resolution_usd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Per Automated Resolution Usd"
+          },
+          "ended_before_transaction": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Ended Before Transaction",
+            "type": "object"
+          },
+          "escalated": {
+            "title": "Escalated",
+            "type": "integer"
+          },
+          "escalation_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Rate"
+          },
+          "escalations_by_queue": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Escalations By Queue",
+            "type": "object"
+          },
+          "escalations_by_rule": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Escalations By Rule",
+            "type": "object"
+          },
+          "outcomes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Outcomes",
+            "type": "object"
+          },
+          "outcomes_by_language": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "title": "Outcomes By Language",
+            "type": "object"
+          },
+          "outcomes_by_tier": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "title": "Outcomes By Tier",
+            "type": "object"
+          },
+          "stage_latency": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LatencySummary"
+            },
+            "title": "Stage Latency",
+            "type": "object"
+          },
+          "total_cost_usd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cost Usd"
+          },
+          "turn_latency": {
+            "$ref": "#/components/schemas/LatencySummary"
+          },
+          "turns": {
+            "title": "Turns",
+            "type": "integer"
+          },
+          "turns_without_cost": {
+            "title": "Turns Without Cost",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "turns",
+          "conversations",
+          "outcomes",
+          "attempted_cases",
+          "ended_before_transaction",
+          "abandoned",
+          "automated_resolutions",
+          "contained",
+          "containment_rate",
+          "escalated",
+          "escalation_rate",
+          "escalations_by_queue",
+          "escalations_by_rule",
+          "turn_latency",
+          "stage_latency",
+          "total_cost_usd",
+          "cost_per_attempted_case_usd",
+          "cost_per_automated_resolution_usd",
+          "turns_without_cost"
+        ],
+        "title": "AuditMetrics",
+        "type": "object"
+      },
+      "AuthStatus": {
+        "enum": [
+          "authenticated",
+          "unauthenticated",
+          "expired"
+        ],
+        "title": "AuthStatus",
+        "type": "string"
+      },
+      "CaseStatus": {
+        "description": "docs/diagrams/dispute-case-lifecycle.md.",
+        "enum": [
+          "Draft",
+          "Open",
+          "Escalated",
+          "In Process",
+          "Resolved",
+          "Rejected",
+          "Closed"
+        ],
+        "title": "CaseStatus",
+        "type": "string"
+      },
+      "ClarifyTarget": {
+        "description": "What a CLARIFY turn asks for: a §10 slot, the language (GATE-01), or\nauthentication (GATE-02).",
+        "enum": [
+          "transaction_ref",
+          "reason_code",
+          "card_in_possession",
+          "shared_credentials",
+          "duplicate_ref",
+          "expected_amount",
+          "expected_delivery_date",
+          "merchant_contacted",
+          "fee_ref",
+          "confirmation",
+          "language",
+          "authentication",
+          "correction"
+        ],
+        "title": "ClarifyTarget",
+        "type": "string"
+      },
+      "CollectedSlot": {
+        "additionalProperties": false,
+        "description": "A slot the customer already gave: a claim, never verified (DATA-03).",
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/SlotName"
+          },
+          "turn_index": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Index"
+          },
+          "value": {
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          },
+          "verified": {
+            "const": false,
+            "default": false,
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "CollectedSlot",
+        "type": "object"
+      },
+      "DraftCase": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_usd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Usd"
+          },
+          "provisional_credit_flag": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProvisionalCreditFlag"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Tier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transaction_ref": {
+            "minLength": 1,
+            "title": "Transaction Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transaction_ref"
+        ],
+        "title": "DraftCase",
+        "type": "object"
+      },
+      "EscalationReason": {
+        "additionalProperties": false,
+        "description": "A triggered rule in plain words, with the evidence that made it fire.",
+        "properties": {
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "minItems": 1,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "rule_id": {
+            "pattern": "^(GATE|ESC)-\\d{2}$",
+            "title": "Rule Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_id",
+          "description",
+          "evidence"
+        ],
+        "title": "EscalationReason",
+        "type": "object"
+      },
+      "Evidence": {
+        "additionalProperties": false,
+        "description": "One input that made a rule fire. Taken from the request, never generated.",
+        "properties": {
+          "claims": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EvidenceKind"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "origin": {
+            "minLength": 1,
+            "title": "Origin",
+            "type": "string"
+          },
+          "record_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Id"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "value": {
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "value",
+          "origin"
+        ],
+        "title": "Evidence",
+        "type": "object"
+      },
+      "EvidenceKind": {
+        "description": "Where a piece of evidence for a fired rule comes from.",
+        "enum": [
+          "slot",
+          "flag",
+          "counter",
+          "record",
+          "signal",
+          "tool_result",
+          "input_guard",
+          "language"
+        ],
+        "title": "EvidenceKind",
+        "type": "string"
+      },
+      "GateResult": {
+        "additionalProperties": false,
+        "properties": {
+          "gate_id": {
+            "pattern": "^GATE-\\d{2}$",
+            "title": "Gate Id",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "gate_id",
+          "passed"
+        ],
+        "title": "GateResult",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HandoffAuth": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "session_age_min": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Age Min"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "HandoffAuth",
+        "type": "object"
+      },
+      "HandoffModelSignals": {
+        "additionalProperties": false,
+        "description": "Informative model output shown to the agent (never a decision).",
+        "properties": {
+          "calibrated": {
+            "default": false,
+            "title": "Calibrated",
+            "type": "boolean"
+          },
+          "escalation_risk": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Risk"
+          },
+          "model_info": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "minLength": 1
+            },
+            "title": "Model Info",
+            "type": "object"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "reason_code_other": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code Other"
+          },
+          "reason_code_probs": {
+            "additionalProperties": {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "title": "Reason Code Probs",
+            "type": "object"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "HandoffModelSignals",
+        "type": "object"
+      },
+      "HandoffPacket": {
+        "additionalProperties": false,
+        "description": "Policy §13. Never contains the raw transcript, only ``transcript_ref``.",
+        "properties": {
+          "actions_taken": {
+            "items": {
+              "$ref": "#/components/schemas/ActionTaken"
+            },
+            "title": "Actions Taken",
+            "type": "array"
+          },
+          "auth": {
+            "$ref": "#/components/schemas/HandoffAuth"
+          },
+          "business_date": {
+            "format": "date",
+            "title": "Business Date",
+            "type": "string"
+          },
+          "collected_slots": {
+            "items": {
+              "$ref": "#/components/schemas/CollectedSlot"
+            },
+            "title": "Collected Slots",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_claims": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Customer Claims",
+            "type": "array"
+          },
+          "customer_ref": {
+            "minLength": 1,
+            "title": "Customer Ref",
+            "type": "string"
+          },
+          "draft_case": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftCase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "escalation_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/EscalationReason"
+            },
+            "title": "Escalation Reasons",
+            "type": "array"
+          },
+          "handoff_id": {
+            "pattern": "^HO-\\d{8}-\\d{6,}$",
+            "title": "Handoff Id",
+            "type": "string"
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "model_signals": {
+            "$ref": "#/components/schemas/HandoffModelSignals"
+          },
+          "open_questions": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Open Questions",
+            "type": "array"
+          },
+          "policy_version": {
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "post_handoff_messages": {
+            "items": {
+              "$ref": "#/components/schemas/PostHandoffMessage"
+            },
+            "title": "Post Handoff Messages",
+            "type": "array"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/Queue"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_summary": {
+            "minLength": 1,
+            "title": "Request Summary",
+            "type": "string"
+          },
+          "transcript_ref": {
+            "minLength": 1,
+            "title": "Transcript Ref",
+            "type": "string"
+          },
+          "triggered_rules": {
+            "items": {
+              "pattern": "^(GATE|ESC)-\\d{2}$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Triggered Rules",
+            "type": "array"
+          },
+          "verified_facts": {
+            "items": {
+              "$ref": "#/components/schemas/VerifiedFact"
+            },
+            "title": "Verified Facts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "handoff_id",
+          "created_at",
+          "business_date",
+          "language",
+          "queue",
+          "priority",
+          "customer_ref",
+          "auth",
+          "request_summary",
+          "triggered_rules",
+          "transcript_ref",
+          "policy_version"
+        ],
+        "title": "HandoffPacket",
+        "type": "object"
+      },
+      "HandoffSummary": {
+        "additionalProperties": false,
+        "description": "One line of the queue: enough to choose a case without opening it.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "handoff_id": {
+            "title": "Handoff Id",
+            "type": "string"
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/Queue"
+          },
+          "request_summary": {
+            "title": "Request Summary",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "triggered_rules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Triggered Rules",
+            "type": "array"
+          }
+        },
+        "required": [
+          "handoff_id",
+          "created_at",
+          "queue",
+          "priority",
+          "status",
+          "language",
+          "request_summary",
+          "triggered_rules"
+        ],
+        "title": "HandoffSummary",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "policy_version"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "InformReason": {
+        "description": "Why an INFORM outcome was produced. Each value maps to a versioned template (COM-02).",
+        "enum": [
+          "authentication_declined",
+          "authentication_attempts_exceeded",
+          "transaction_pending",
+          "transaction_declined",
+          "transaction_reversed",
+          "not_disputable",
+          "outside_window",
+          "duplicate_case",
+          "amount_not_exceeded",
+          "delivery_date_not_reached",
+          "merchant_not_contacted",
+          "dispute_withdrawn"
+        ],
+        "title": "InformReason",
+        "type": "string"
+      },
+      "InputGuardResult": {
+        "additionalProperties": false,
+        "description": "Input Guard output for one message (ESC-13).",
+        "properties": {
+          "escalate_security": {
+            "default": false,
+            "title": "Escalate Security",
+            "type": "boolean"
+          },
+          "flagged": {
+            "title": "Flagged",
+            "type": "boolean"
+          },
+          "pattern_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Id"
+          },
+          "strikes": {
+            "minimum": 0.0,
+            "title": "Strikes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "flagged",
+          "strikes"
+        ],
+        "title": "InputGuardResult",
+        "type": "object"
+      },
+      "IssuedSession": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "session_id",
+          "expires_at"
+        ],
+        "title": "IssuedSession",
+        "type": "object"
+      },
+      "Language": {
+        "description": "Supported conversation languages (GATE-01, COM-01).",
+        "enum": [
+          "es",
+          "pt"
+        ],
+        "title": "Language",
+        "type": "string"
+      },
+      "LatencySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "p50_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50 Ms"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          }
+        },
+        "required": [
+          "count",
+          "p50_ms",
+          "p95_ms"
+        ],
+        "title": "LatencySummary",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "document_number": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Document Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_number"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "LoginResponse": {
+        "properties": {
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "status": {
+            "default": "otp_sent",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expires_in_seconds"
+        ],
+        "title": "LoginResponse",
+        "type": "object"
+      },
+      "ModelCall": {
+        "additionalProperties": false,
+        "properties": {
+          "adjustments": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Adjustments",
+            "type": "array"
+          },
+          "cached_input_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached Input Tokens"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Tokens"
+          },
+          "latency_ms": {
+            "minimum": 0.0,
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "model": {
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "model_info": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "minLength": 1
+            },
+            "title": "Model Info",
+            "type": "object"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Tokens"
+          },
+          "prompt_hash": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{16}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Hash"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "provider": {
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "purpose": {
+            "minLength": 1,
+            "title": "Purpose",
+            "type": "string"
+          },
+          "response_model": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Model"
+          },
+          "server_latency_ms": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Latency Ms"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "system_fingerprint": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Fingerprint"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "purpose",
+          "latency_ms",
+          "success"
+        ],
+        "title": "ModelCall",
+        "type": "object"
+      },
+      "ModelSignals": {
+        "additionalProperties": false,
+        "description": "Decision-layer output (architecture §3). Informative only; never a decision.\n\nHow the Policy Engine may use these signals (M8):\n\n- ``source`` says where they came from: ``kev`` (the decision model), ``llm_fallback``\n  (derived from the current message's extraction when Kev is unavailable: 0/1 values,\n  deliberately uncalibrated; it is the baseline Kev is evaluated against in M18), or\n  ``unavailable`` (all empty: treat as uncertainty, ESC-11).\n- As served, Kev's ``ambiguity`` and ``escalation_risk`` sit near 0.5 (0.51-0.60 on the\n  verified cases). They must not influence any decision until M7 recalibrates the\n  temperature per question on the validation split; until then the ESC-11 thresholds stay\n  null.\n- ``reason_code_probs`` is informative: it never replaces the reason code the customer\n  states and confirms. ``reason_code_other`` is the probability of a reason outside the\n  five codes; with it the distribution is complete (never renormalized).",
+        "properties": {
+          "ambiguity": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ambiguity"
+          },
+          "escalation_risk": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Risk"
+          },
+          "manipulation": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manipulation"
+          },
+          "model_info": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "minLength": 1
+            },
+            "title": "Model Info",
+            "type": "object"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "reason_code_other": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code Other"
+          },
+          "reason_code_probs": {
+            "additionalProperties": {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "title": "Reason Code Probs",
+            "type": "object"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ModelSource"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "ModelSignals",
+        "type": "object"
+      },
+      "ModelSource": {
+        "description": "Where decision-layer signals came from (architecture §3, §8).",
+        "enum": [
+          "kev",
+          "llm_fallback",
+          "unavailable"
+        ],
+        "title": "ModelSource",
+        "type": "string"
+      },
+      "Outcome": {
+        "description": "Policy §9. Precedence: REFUSE > ESCALATE > INFORM > CLARIFY > RESOLVE.",
+        "enum": [
+          "RESOLVE",
+          "CLARIFY",
+          "INFORM",
+          "ESCALATE",
+          "REFUSE"
+        ],
+        "title": "Outcome",
+        "type": "string"
+      },
+      "PolicyDecision": {
+        "additionalProperties": false,
+        "description": "Policy Engine output for one disputed transaction.",
+        "properties": {
+          "amount_usd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Usd"
+          },
+          "ask_for": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionField"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authorized_actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionId"
+            },
+            "title": "Authorized Actions",
+            "type": "array"
+          },
+          "candidate_transaction_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Candidate Transaction Ids",
+            "type": "array"
+          },
+          "card_already_blocked": {
+            "default": false,
+            "title": "Card Already Blocked",
+            "type": "boolean"
+          },
+          "card_product_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Product Id"
+          },
+          "clarify_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClarifyTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "duplicate_reason_reask": {
+            "default": false,
+            "title": "Duplicate Reason Reask",
+            "type": "boolean"
+          },
+          "duplicate_transaction_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicate Transaction Id"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/RuleEvidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "existing_case_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Existing Case Id"
+          },
+          "existing_case_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gates_evaluated": {
+            "items": {
+              "$ref": "#/components/schemas/GateResult"
+            },
+            "title": "Gates Evaluated",
+            "type": "array"
+          },
+          "inform_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InformReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/Outcome"
+          },
+          "policy_version": {
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Priority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provisional_credit_flag": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProvisionalCreditFlag"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "queue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Queue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Tier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transaction_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Id"
+          },
+          "transaction_search": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionSearch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "triggered_rules": {
+            "items": {
+              "pattern": "^(GATE|ESC)-\\d{2}$",
+              "type": "string"
+            },
+            "title": "Triggered Rules",
+            "type": "array"
+          }
+        },
+        "required": [
+          "outcome",
+          "policy_version"
+        ],
+        "title": "PolicyDecision",
+        "type": "object"
+      },
+      "PostHandoffMessage": {
+        "additionalProperties": false,
+        "description": "A message the customer wrote after the handoff, masked, read by no model.",
+        "properties": {
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "received_at",
+          "text"
+        ],
+        "title": "PostHandoffMessage",
+        "type": "object"
+      },
+      "Priority": {
+        "enum": [
+          "normal",
+          "high"
+        ],
+        "title": "Priority",
+        "type": "string"
+      },
+      "ProvisionalCreditFlag": {
+        "description": "Policy §6. For T3 the flag is decided by a human, so it is absent (None).",
+        "enum": [
+          "eligible",
+          "requires_review"
+        ],
+        "title": "ProvisionalCreditFlag",
+        "type": "string"
+      },
+      "Queue": {
+        "description": "Escalation routes named in policy §7.",
+        "enum": [
+          "disputes",
+          "fraud",
+          "security_review"
+        ],
+        "title": "Queue",
+        "type": "string"
+      },
+      "ReasonCode": {
+        "description": "Policy §3.",
+        "enum": [
+          "RC_UNRECOGNIZED",
+          "RC_DUPLICATE",
+          "RC_INCORRECT_AMOUNT",
+          "RC_NOT_RECEIVED",
+          "RC_FEE"
+        ],
+        "title": "ReasonCode",
+        "type": "string"
+      },
+      "RuleEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "minItems": 1,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "rule_id": {
+            "pattern": "^(GATE|ESC)-\\d{2}$",
+            "title": "Rule Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_id",
+          "evidence"
+        ],
+        "title": "RuleEvidence",
+        "type": "object"
+      },
+      "SessionResponse": {
+        "properties": {
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "issued_at": {
+            "format": "date-time",
+            "title": "Issued At",
+            "type": "string"
+          },
+          "last_activity_at": {
+            "format": "date-time",
+            "title": "Last Activity At",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "customer_id",
+          "issued_at",
+          "last_activity_at",
+          "expires_at"
+        ],
+        "title": "SessionResponse",
+        "type": "object"
+      },
+      "SideQuestion": {
+        "description": "A question the customer asks instead of (or besides) answering. The Orchestrator answers\nit with a template and then goes on with the flow; it is not a clarification.",
+        "enum": [
+          "refund",
+          "timeline",
+          "block_consequences",
+          "case_status",
+          "flow_help",
+          "other"
+        ],
+        "title": "SideQuestion",
+        "type": "string"
+      },
+      "SlotName": {
+        "description": "Policy §10, in the order the system asks for them.",
+        "enum": [
+          "transaction_ref",
+          "reason_code",
+          "card_in_possession",
+          "shared_credentials",
+          "duplicate_ref",
+          "expected_amount",
+          "expected_delivery_date",
+          "merchant_contacted",
+          "fee_ref",
+          "confirmation"
+        ],
+        "title": "SlotName",
+        "type": "string"
+      },
+      "Tier": {
+        "description": "Policy §6.",
+        "enum": [
+          "T1",
+          "T2",
+          "T3"
+        ],
+        "title": "Tier",
+        "type": "string"
+      },
+      "ToolResult": {
+        "additionalProperties": false,
+        "description": "Result of one Tool Layer write action (ACT-02, ACT-03, ACT-05).\n\nFor write actions with read-back verification, ``success`` implies ``verified`` and\n``verified`` implies ``success`` (policy §8, COM-04).",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ActionId"
+          },
+          "attempts": {
+            "minimum": 1.0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "record_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ToolStatus"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "action",
+          "status",
+          "verified",
+          "attempts"
+        ],
+        "title": "ToolResult",
+        "type": "object"
+      },
+      "ToolStatus": {
+        "enum": [
+          "success",
+          "failed",
+          "access_denied"
+        ],
+        "title": "ToolStatus",
+        "type": "string"
+      },
+      "TraceRecord": {
+        "additionalProperties": false,
+        "description": "One record per turn. Optional stages that did not run are recorded as None.",
+        "properties": {
+          "conversation_id": {
+            "minLength": 1,
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyDecision"
+            },
+            "title": "Decisions",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "estimated_cost_usd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost Usd"
+          },
+          "handoff_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handoff Id"
+          },
+          "input_guard": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputGuardResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "language": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Language"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "model_calls": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCall"
+            },
+            "title": "Model Calls",
+            "type": "array"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Outcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policy_version": {
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "reply_kind": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Kind"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "side_question": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SideQuestion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "signals": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelSignals"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stage_latencies_ms": {
+            "additionalProperties": {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            "propertyNames": {
+              "minLength": 1
+            },
+            "title": "Stage Latencies Ms",
+            "type": "object"
+          },
+          "tool_calls": {
+            "items": {
+              "$ref": "#/components/schemas/ToolResult"
+            },
+            "title": "Tool Calls",
+            "type": "array"
+          },
+          "total_latency_ms": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Latency Ms"
+          },
+          "trace_id": {
+            "minLength": 1,
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "turn_index": {
+            "minimum": 0.0,
+            "title": "Turn Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "trace_id",
+          "conversation_id",
+          "turn_index",
+          "created_at",
+          "policy_version"
+        ],
+        "title": "TraceRecord",
+        "type": "object"
+      },
+      "TransactionField": {
+        "description": "A detail of a transaction reference the customer can be asked for.",
+        "enum": [
+          "merchant",
+          "transaction_date",
+          "amount"
+        ],
+        "title": "TransactionField",
+        "type": "string"
+      },
+      "TransactionSearch": {
+        "description": "Why GATE-05 did not identify the transaction (policy §5, \"Transaction matching\").",
+        "enum": [
+          "no_match",
+          "too_many",
+          "relaxed"
+        ],
+        "title": "TransactionSearch",
+        "type": "string"
+      },
+      "TurnRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{4,64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "message": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "TurnRequest",
+        "type": "object"
+      },
+      "TurnResponse": {
+        "properties": {
+          "case_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Reference"
+          },
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "handed_off": {
+            "title": "Handed Off",
+            "type": "boolean"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Language"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reply": {
+            "title": "Reply",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "in_progress",
+              "awaiting_confirmation",
+              "authentication_required",
+              "case_created",
+              "handed_off"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "turn_index": {
+            "title": "Turn Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "turn_index",
+          "reply",
+          "language",
+          "handed_off",
+          "trace_id",
+          "status"
+        ],
+        "title": "TurnResponse",
+        "type": "object"
+      },
+      "UiTexts": {
+        "description": "One language's catalog, as the frontend receives it.",
+        "properties": {
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "texts": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Texts",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "language",
+          "texts"
+        ],
+        "title": "UiTexts",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VerifiedFact": {
+        "additionalProperties": false,
+        "description": "DATA-04: every verified fact names its source table and record ID.",
+        "properties": {
+          "fact": {
+            "minLength": 1,
+            "title": "Fact",
+            "type": "string"
+          },
+          "record_id": {
+            "minLength": 1,
+            "title": "Record Id",
+            "type": "string"
+          },
+          "source": {
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fact",
+          "source",
+          "record_id"
+        ],
+        "title": "VerifiedFact",
+        "type": "object"
+      },
+      "VerifyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "document_number": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Document Number",
+            "type": "string"
+          },
+          "otp": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Otp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_number",
+          "otp"
+        ],
+        "title": "VerifyRequest",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Dispute Intake API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/agent/handoffs": {
+      "get": {
+        "description": "Escalated cases, high priority first, then the oldest.",
+        "operationId": "list_handoffs_api_agent_handoffs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "queue",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Queue"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Queue"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Priority"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Priority"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HandoffSummary"
+                  },
+                  "title": "Response List Handoffs Api Agent Handoffs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Handoffs",
+        "tags": [
+          "agent"
+        ]
+      }
+    },
+    "/api/agent/handoffs/{handoff_id}": {
+      "get": {
+        "operationId": "get_handoff_api_agent_handoffs__handoff_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handoff_id",
+            "required": true,
+            "schema": {
+              "title": "Handoff Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffPacket"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Handoff",
+        "tags": [
+          "agent"
+        ]
+      }
+    },
+    "/api/agent/metrics": {
+      "get": {
+        "description": "The same metrics as /api/audit/metrics, for the console.",
+        "operationId": "agent_metrics_api_agent_metrics_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Outcome"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Language"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditMetrics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Agent Metrics",
+        "tags": [
+          "agent"
+        ]
+      }
+    },
+    "/api/audit": {
+      "get": {
+        "operationId": "list_traces_api_audit_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Outcome"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Language"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TraceRecord"
+                  },
+                  "title": "Response List Traces Api Audit Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Traces",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/audit/metrics": {
+      "get": {
+        "description": "Outcomes, containment, escalations, latency p50/p95, cost, by language and tier.",
+        "operationId": "metrics_api_audit_metrics_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Outcome"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Language"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditMetrics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Metrics",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/audit/{trace_id}": {
+      "get": {
+        "operationId": "get_trace_api_audit__trace_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trace_id",
+            "required": true,
+            "schema": {
+              "title": "Trace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Trace",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/turn": {
+      "post": {
+        "operationId": "turn_api_turn_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Turn",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/api/ui/texts/{language}": {
+      "get": {
+        "operationId": "texts_api_ui_texts__language__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "language",
+            "required": true,
+            "schema": {
+              "enum": [
+                "es",
+                "pt"
+              ],
+              "title": "Language",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UiTexts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Texts",
+        "tags": [
+          "ui"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "Request an OTP. The response is identical whether or not the document exists.",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/session": {
+      "get": {
+        "operationId": "current_session_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Current Session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/verify": {
+      "post": {
+        "operationId": "verify_auth_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedSession"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    }
+  }
+}
