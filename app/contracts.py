@@ -539,6 +539,9 @@ class ConversationCounters(Contract):
     authentication_attempts: NonNegativeInt = 0
     injection_strikes: NonNegativeInt = 0  # ESC-13
     unrecognized_transactions: NonNegativeInt = 0  # ESC-03 batch count
+    # Turns the current dispute has taken: past MAX_TOTAL_CLARIFICATIONS + 4, a CLARIFY becomes
+    # ESC-09 (policy §10, 0.4.12). The Orchestrator resets it when a dispute ends.
+    dispute_turns: NonNegativeInt = 0
     unresolved_contradiction: bool = False  # ESC-09 (claim contradicts verified facts)
     # GATE-10 RC_DUPLICATE: the "another reason?" question was already asked (exactly once).
     duplicate_reason_reasked: bool = False
