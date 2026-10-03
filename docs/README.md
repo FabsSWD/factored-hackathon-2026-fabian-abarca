@@ -10,6 +10,7 @@ docs/
 ├── glossary.md                # Shared terminology used across all documents
 ├── dispute-policy.md          # Normative dispute-intake policy (rules, thresholds, actions)
 ├── backend-acceptance.md      # M13: end-to-end, security and load results of the backend
+├── evaluation-design.md       # M17-M18: scenario specifications, labels, seeding, split
 ├── software-architecture.md   # Runtime components, technology decisions, deployment
 ├── spikes/                    # Time-boxed investigations and their findings
 │   └── 2026-09-25-data-label-validity.md
@@ -35,6 +36,7 @@ docs/
 | [Dispute policy](dispute-policy.md) | Document | Draft | Gates, escalation triggers, action permissions, parameters, and outcomes for dispute intake. |
 | [Software architecture](software-architecture.md) | Document | Draft | Runtime components, request walkthrough, technology decisions, deployment, and security. |
 | [Backend acceptance](backend-acceptance.md) | Report | Draft | M13 exit gate: policy coverage through the API, security review, latency, findings and limitations. |
+| [Evaluation design](evaluation-design.md) | Document | Draft | Scenario specifications, reference labels from the policy engine, seeded records, case mix, fixed split and human review (M17). |
 | [Glossary](glossary.md) | Document | Draft | Definitions of terms, outcomes, and identifiers. |
 | [Data label validity](spikes/2026-09-25-data-label-validity.md) | Spike | Complete | EDA of the supplied data: workflow selection evidence and validity of escalation labels. |
 | [Dispute decision flow](diagrams/dispute-decision-flow.md) | Diagram | Draft | Rule evaluation order for one customer message, from start to end of turn. |

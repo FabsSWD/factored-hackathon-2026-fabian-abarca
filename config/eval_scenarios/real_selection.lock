@@ -1,0 +1,579 @@
+# M17 cases on real records: what the repository keeps of the selection
+# (scripts/select_real_scenarios.py). No identifier: ids_sha256 is the SHA-256 of the
+# lines '<case key> <customer_id> <transaction_id>' ordered by key; --check selects again
+# and compares. The cases themselves are in config/eval_scenarios/local/ (git-ignored).
+criteria_version: 1.0.0
+seed: '20261004'
+business_date: '2026-06-17'
+counts:
+  unrecognized_t1:
+    es: 3
+    pt: 2
+  unrecognized_t2:
+    es: 2
+    pt: 1
+  pending:
+    es: 1
+    pt: 1
+  declined:
+    es: 1
+    pt: 1
+  reversed:
+    es: 1
+    pt: 1
+  outside_window:
+    es: 1
+    pt: 1
+  late_filing:
+    es: 1
+    pt: 1
+  another_customer:
+    es: 1
+    pt: 1
+  not_disputable:
+    es: 1
+    pt: 1
+ids_sha256: 05b5bf52f755186072ffeef02682770c6207596eea98a0e7d59ef8b3bfaa369e
+cases:
+- id: R001
+  category: unrecognized_t1
+  language: es
+  path: resolution
+  data_source: real
+  expected:
+    case_id: R001
+    language: es
+    path: resolution
+    outcome: RESOLVE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: RESOLVE
+      triggered_rules: []
+      failed_gates: []
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: T1
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-02
+      - ACT-04
+- id: R002
+  category: unrecognized_t1
+  language: es
+  path: resolution
+  data_source: real
+  expected:
+    case_id: R002
+    language: es
+    path: resolution
+    outcome: RESOLVE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: RESOLVE
+      triggered_rules: []
+      failed_gates: []
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: T1
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-02
+      - ACT-04
+- id: R003
+  category: unrecognized_t1
+  language: es
+  path: resolution
+  data_source: real
+  expected:
+    case_id: R003
+    language: es
+    path: resolution
+    outcome: RESOLVE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: RESOLVE
+      triggered_rules: []
+      failed_gates: []
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: T1
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-02
+      - ACT-04
+- id: R004
+  category: unrecognized_t1
+  language: pt
+  path: resolution
+  data_source: real
+  expected:
+    case_id: R004
+    language: pt
+    path: resolution
+    outcome: RESOLVE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: RESOLVE
+      triggered_rules: []
+      failed_gates: []
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: T1
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-02
+      - ACT-04
+- id: R005
+  category: unrecognized_t1
+  language: pt
+  path: resolution
+  data_source: real
+  expected:
+    case_id: R005
+    language: pt
+    path: resolution
+    outcome: RESOLVE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: RESOLVE
+      triggered_rules: []
+      failed_gates: []
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: T1
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-02
+      - ACT-04
+- id: R006
+  category: unrecognized_t2
+  language: es
+  path: resolution
+  data_source: real
+  expected:
+    case_id: R006
+    language: es
+    path: resolution
+    outcome: RESOLVE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: RESOLVE
+      triggered_rules: []
+      failed_gates: []
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-02
+      - ACT-04
+- id: R007
+  category: unrecognized_t2
+  language: es
+  path: resolution
+  data_source: real
+  expected:
+    case_id: R007
+    language: es
+    path: resolution
+    outcome: RESOLVE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: RESOLVE
+      triggered_rules: []
+      failed_gates: []
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-02
+      - ACT-04
+- id: R008
+  category: unrecognized_t2
+  language: pt
+  path: resolution
+  data_source: real
+  expected:
+    case_id: R008
+    language: pt
+    path: resolution
+    outcome: RESOLVE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: RESOLVE
+      triggered_rules: []
+      failed_gates: []
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-02
+      - ACT-04
+- id: R009
+  category: pending
+  language: es
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R009
+    language: es
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-06
+      queue: null
+      priority: null
+      inform_reason: transaction_pending
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R010
+  category: pending
+  language: pt
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R010
+    language: pt
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-06
+      queue: null
+      priority: null
+      inform_reason: transaction_pending
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R011
+  category: declined
+  language: es
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R011
+    language: es
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-06
+      queue: null
+      priority: null
+      inform_reason: transaction_declined
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R012
+  category: declined
+  language: pt
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R012
+    language: pt
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-06
+      queue: null
+      priority: null
+      inform_reason: transaction_declined
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R013
+  category: reversed
+  language: es
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R013
+    language: es
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-06
+      queue: null
+      priority: null
+      inform_reason: transaction_reversed
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R014
+  category: reversed
+  language: pt
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R014
+    language: pt
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-06
+      queue: null
+      priority: null
+      inform_reason: transaction_reversed
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R015
+  category: outside_window
+  language: es
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R015
+    language: es
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-08
+      queue: null
+      priority: null
+      inform_reason: outside_window
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R016
+  category: outside_window
+  language: pt
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R016
+    language: pt
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-08
+      queue: null
+      priority: null
+      inform_reason: outside_window
+      clarify_target: null
+      tier: T1
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R017
+  category: late_filing
+  language: es
+  path: human
+  data_source: real
+  expected:
+    case_id: R017
+    language: es
+    path: human
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-07
+    disputes:
+    - transaction: null
+      outcome: ESCALATE
+      triggered_rules:
+      - ESC-07
+      failed_gates:
+      - GATE-08
+      queue: disputes
+      priority: normal
+      inform_reason: null
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-05
+- id: R018
+  category: late_filing
+  language: pt
+  path: human
+  data_source: real
+  expected:
+    case_id: R018
+    language: pt
+    path: human
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-07
+    disputes:
+    - transaction: null
+      outcome: ESCALATE
+      triggered_rules:
+      - ESC-07
+      failed_gates:
+      - GATE-08
+      queue: disputes
+      priority: normal
+      inform_reason: null
+      clarify_target: null
+      tier: T2
+      reason_code: RC_UNRECOGNIZED
+      actions:
+      - ACT-05
+- id: R019
+  category: another_customer
+  language: es
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R019
+    language: es
+    path: ambiguous_or_unsupported
+    outcome: REFUSE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: REFUSE
+      triggered_rules: []
+      failed_gates:
+      - GATE-04
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: null
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R020
+  category: another_customer
+  language: pt
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R020
+    language: pt
+    path: ambiguous_or_unsupported
+    outcome: REFUSE
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: REFUSE
+      triggered_rules: []
+      failed_gates:
+      - GATE-04
+      queue: null
+      priority: null
+      inform_reason: null
+      clarify_target: null
+      tier: null
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R021
+  category: not_disputable
+  language: es
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R021
+    language: es
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-07
+      queue: null
+      priority: null
+      inform_reason: not_disputable
+      clarify_target: null
+      tier: T3
+      reason_code: RC_UNRECOGNIZED
+      actions: []
+- id: R022
+  category: not_disputable
+  language: pt
+  path: ambiguous_or_unsupported
+  data_source: real
+  expected:
+    case_id: R022
+    language: pt
+    path: ambiguous_or_unsupported
+    outcome: INFORM
+    triggered_rules: []
+    disputes:
+    - transaction: null
+      outcome: INFORM
+      triggered_rules: []
+      failed_gates:
+      - GATE-07
+      queue: null
+      priority: null
+      inform_reason: not_disputable
+      clarify_target: null
+      tier: T3
+      reason_code: RC_UNRECOGNIZED
+      actions: []

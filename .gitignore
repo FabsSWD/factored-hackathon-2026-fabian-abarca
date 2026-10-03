@@ -11,9 +11,12 @@ config.local.*
 # Data (never commit supplied or derived data; the repo is public)
 data/
 *.csv
+# The M17 review sample (reports/m17_review/) shows real records: ignored like any CSV.
 *.parquet
 *.jsonl
 reports/eda/*.csv
+# M17 cases on real records: their identifiers stay local.
+config/eval_scenarios/local/
 
 # Model artifacts and experiment tracking
 models/

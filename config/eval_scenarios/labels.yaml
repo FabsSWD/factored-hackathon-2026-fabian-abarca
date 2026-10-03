@@ -1,0 +1,1849 @@
+# Reference labels: the policy engine on each specification (scripts/label_scenarios.py).
+spec_version: 1.0.0
+labels:
+- case_id: S001
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S002
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S003
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S004
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S005
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S006
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-02
+    - ACT-04
+- case_id: S007
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-02
+    - ACT-04
+- case_id: S008
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-02
+    - ACT-04
+- case_id: S009
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-02
+    - ACT-04
+- case_id: S010
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S011
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S012
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-02
+    - ACT-04
+- case_id: S013
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-02
+    - ACT-04
+- case_id: S014
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S015
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S016
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S017
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S018
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T2
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S019
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T2
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S020
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T2
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S021
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S022
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S023
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S024
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S025
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_NOT_RECEIVED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S026
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_NOT_RECEIVED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S027
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T2
+    reason_code: RC_NOT_RECEIVED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S028
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t2
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_DUPLICATE
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S029
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t2
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_DUPLICATE
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S030
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t2
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_DUPLICATE
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S031
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t2
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_DUPLICATE
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S032
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_FEE
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S033
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_FEE
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S034
+  language: es
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S035
+  language: pt
+  path: resolution
+  outcome: RESOLVE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+- case_id: S036
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-06
+    queue: null
+    priority: null
+    inform_reason: transaction_pending
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S037
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-06
+    queue: null
+    priority: null
+    inform_reason: transaction_pending
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S038
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-06
+    queue: null
+    priority: null
+    inform_reason: transaction_declined
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S039
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-06
+    queue: null
+    priority: null
+    inform_reason: transaction_declined
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S040
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-06
+    queue: null
+    priority: null
+    inform_reason: transaction_reversed
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S041
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-06
+    queue: null
+    priority: null
+    inform_reason: transaction_reversed
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S042
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-07
+    queue: null
+    priority: null
+    inform_reason: not_disputable
+    clarify_target: null
+    tier: T1
+    reason_code: RC_FEE
+    actions: []
+- case_id: S043
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-07
+    queue: null
+    priority: null
+    inform_reason: not_disputable
+    clarify_target: null
+    tier: T2
+    reason_code: RC_UNRECOGNIZED
+    actions: []
+- case_id: S044
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-08
+    queue: null
+    priority: null
+    inform_reason: outside_window
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S045
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-08
+    queue: null
+    priority: null
+    inform_reason: outside_window
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S046
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-10
+    queue: null
+    priority: null
+    inform_reason: amount_not_exceeded
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S047
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-10
+    queue: null
+    priority: null
+    inform_reason: amount_not_exceeded
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S048
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-10
+    queue: null
+    priority: null
+    inform_reason: delivery_date_not_reached
+    clarify_target: null
+    tier: T1
+    reason_code: RC_NOT_RECEIVED
+    actions: []
+- case_id: S049
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-10
+    queue: null
+    priority: null
+    inform_reason: delivery_date_not_reached
+    clarify_target: null
+    tier: T1
+    reason_code: RC_NOT_RECEIVED
+    actions: []
+- case_id: S050
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-10
+    queue: null
+    priority: null
+    inform_reason: merchant_not_contacted
+    clarify_target: null
+    tier: T2
+    reason_code: RC_NOT_RECEIVED
+    actions: []
+- case_id: S051
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-10
+    queue: null
+    priority: null
+    inform_reason: merchant_not_contacted
+    clarify_target: null
+    tier: T1
+    reason_code: RC_NOT_RECEIVED
+    actions: []
+- case_id: S052
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-11
+    queue: null
+    priority: null
+    inform_reason: duplicate_case
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions: []
+- case_id: S053
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-11
+    queue: null
+    priority: null
+    inform_reason: duplicate_case
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions: []
+- case_id: S054
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: dispute_withdrawn
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S055
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: dispute_withdrawn
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S056
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: REFUSE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: REFUSE
+    triggered_rules: []
+    failed_gates:
+    - GATE-04
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: null
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S057
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: REFUSE
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: REFUSE
+    triggered_rules: []
+    failed_gates:
+    - GATE-04
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: null
+    reason_code: RC_INCORRECT_AMOUNT
+    actions: []
+- case_id: S058
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-02
+    queue: null
+    priority: null
+    inform_reason: authentication_declined
+    clarify_target: null
+    tier: null
+    reason_code: null
+    actions: []
+- case_id: S059
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: INFORM
+  triggered_rules: []
+  disputes:
+  - transaction: t1
+    outcome: INFORM
+    triggered_rules: []
+    failed_gates:
+    - GATE-02
+    queue: null
+    priority: null
+    inform_reason: authentication_attempts_exceeded
+    clarify_target: null
+    tier: null
+    reason_code: null
+    actions: []
+- case_id: S060
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-09
+  disputes:
+  - transaction: null
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-09
+    failed_gates:
+    - GATE-05
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: null
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-05
+- case_id: S061
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-09
+  disputes:
+  - transaction: null
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-09
+    failed_gates:
+    - GATE-05
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: null
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-05
+- case_id: S062
+  language: en
+  path: ambiguous_or_unsupported
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-12
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-12
+    failed_gates:
+    - GATE-01
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: null
+    reason_code: null
+    actions:
+    - ACT-05
+- case_id: S063
+  language: es
+  path: ambiguous_or_unsupported
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-14
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-14
+    failed_gates:
+    - GATE-07
+    queue: fraud
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-05
+- case_id: S064
+  language: pt
+  path: ambiguous_or_unsupported
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-14
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-14
+    failed_gates:
+    - GATE-07
+    queue: fraud
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-05
+- case_id: S065
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-01
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-01
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T3
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S066
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-01
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-01
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T3
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S067
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-01
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-01
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T3
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S068
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-02
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-02
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S069
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-02
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-02
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S070
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-02
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-02
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S071
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-03
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-03
+    failed_gates: []
+    queue: fraud
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-05
+- case_id: S072
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-03
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-03
+    failed_gates: []
+    queue: fraud
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T2
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-05
+- case_id: S073
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-03
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-03
+    failed_gates: []
+    queue: fraud
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T2
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-05
+- case_id: S074
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-03
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-03
+    failed_gates:
+    - GATE-10
+    queue: fraud
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-05
+- case_id: S075
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-03
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-03
+    failed_gates:
+    - GATE-10
+    queue: fraud
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-03
+    - ACT-05
+- case_id: S076
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-03
+  disputes:
+  - transaction: t1
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+  - transaction: t2
+    outcome: RESOLVE
+    triggered_rules: []
+    failed_gates: []
+    queue: null
+    priority: null
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-02
+    - ACT-04
+  - transaction: t3
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-03
+    failed_gates: []
+    queue: fraud
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-05
+- case_id: S077
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-04
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-04
+    failed_gates: []
+    queue: fraud
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S078
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-04
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-04
+    failed_gates: []
+    queue: fraud
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S079
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-05
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-05
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S080
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-05
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-05
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S081
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-05
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-05
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S082
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-06
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-06
+    failed_gates: []
+    queue: disputes
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S083
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-06
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-06
+    failed_gates: []
+    queue: disputes
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S084
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-06
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-06
+    failed_gates: []
+    queue: disputes
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S085
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-06
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-06
+    failed_gates: []
+    queue: disputes
+    priority: high
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S086
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-07
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-07
+    failed_gates:
+    - GATE-08
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S087
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-07
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-07
+    failed_gates:
+    - GATE-08
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S088
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-08
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-08
+    failed_gates:
+    - GATE-03
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: null
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S089
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-08
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-08
+    failed_gates:
+    - GATE-09
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S090
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-10
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-10
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S091
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-11
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-11
+    failed_gates: []
+    queue: disputes
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_INCORRECT_AMOUNT
+    actions:
+    - ACT-05
+- case_id: S092
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-13
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-13
+    failed_gates:
+    - GATE-10
+    queue: security_review
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-05
+- case_id: S093
+  language: pt
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-13
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-13
+    failed_gates:
+    - GATE-10
+    queue: security_review
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-05
+- case_id: S094
+  language: es
+  path: human
+  outcome: ESCALATE
+  triggered_rules:
+  - ESC-13
+  disputes:
+  - transaction: t1
+    outcome: ESCALATE
+    triggered_rules:
+    - ESC-13
+    failed_gates:
+    - GATE-10
+    queue: security_review
+    priority: normal
+    inform_reason: null
+    clarify_target: null
+    tier: T1
+    reason_code: RC_UNRECOGNIZED
+    actions:
+    - ACT-05

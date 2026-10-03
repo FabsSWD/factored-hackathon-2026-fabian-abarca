@@ -494,7 +494,7 @@ The [data label validity spike](spikes/2026-09-25-data-label-validity.md) shows 
 3. A sample of at least 10% of cases (minimum 50) is reviewed by a person against this document. Disagreements are resolved by fixing the specification or, if the policy is unclear, by amending the policy and bumping its version.
 4. The held-out split is created before any prompt, threshold, or model tuning, and it is never used to set `Calibrated` parameters.
 
-The full evaluation design, including case mix and metrics, will be documented separately.
+The evaluation design, including the case mix, the split and the human review, is in [Evaluation design](evaluation-design.md); the metrics are added in M18.
 
 ## 17. Assumptions, limitations, and open questions
 
