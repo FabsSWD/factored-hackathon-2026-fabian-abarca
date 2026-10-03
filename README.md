@@ -78,6 +78,24 @@ Requires the database loaded, `DATABASE_URL`, `OPENAI_API_KEY`, `KEV_*`, `PSEUDO
 
    Each turn prints the reply, the `trace_id`, the latency seen by the client and, read from the turn's trace with `AGENT_API_TOKEN`, the engine's result: outcome, failed gates, triggered rules, authorized actions, executed tools and model calls. Commands: `/handoff` prints the handoff packet of the conversation (agent API), `/new` starts a new conversation, `/quit` exits. Secrets are never printed.
 
+## Customer Chat (M14)
+
+The browser chat is a React + TypeScript + Vite app in [frontend/](frontend/). Requires Node 20.19+ or 22.12+. With the server from step 1 running:
+
+```
+cd frontend
+npm install
+npm run dev        # http://localhost:5173, proxies /api and /auth to http://127.0.0.1:8000
+```
+
+`VITE_API_TARGET` points the proxy at another address. To open it from a phone on the same network, use `npm run dev -- --host` and the address it prints.
+
+- Every text comes from the backend: the interface texts from `GET /api/ui/texts/{es|pt}` (catalog in [config/ui_texts.yaml](config/ui_texts.yaml)), the conversation from `/api/turn`. The only exception is the bilingual message shown when those texts cannot be loaded at all.
+- `/api/turn` returns a `status` (`in_progress`, `awaiting_confirmation`, `authentication_required`, `case_created`, `handed_off`) and, once the case is created and read back, its `case_reference`. The chat follows that status.
+- The session token is kept in memory only and sent in the `Authorization` header; it never goes in a URL or in browser storage. Only the language preference is stored (`localStorage`).
+
+Checks: `npm run lint`, `npm run typecheck`, `npm test` (or `npm run coverage`), `npm run build`. The TypeScript types come from the API: after changing it, run `python scripts/export_openapi.py` and `npm run gen:api` (a backend test fails if `frontend/openapi.json` is out of date).
+
 ## Evaluation scenarios (M17)
 
 The evaluation cases are specifications in `config/eval_scenarios/`; their labels come from the policy engine ([docs/evaluation-design.md](docs/evaluation-design.md)). Their records are seeded as `SEED-` rows with the owner role:

@@ -1,0 +1,138 @@
+# Texts of the customer chat's interface (M14), in Spanish and Portuguese. The frontend shows
+# no text of its own: labels, buttons, notices and errors come from here through
+# GET /api/ui/texts/{language}; the conversation itself comes from the templates
+# (config/templates.yaml) through /api/turn.
+#
+# Checked when the file is loaded (app/templates/ui_texts.py): every text has exactly "es" and
+# "pt", both non-empty, with the same {placeholders}. These are interface texts, not commitments:
+# a case reference, a deadline or an outcome is never written here (COM-02).
+#
+# Bump ui_texts_version whenever a text changes.
+
+ui_texts_version: "1.0.0"
+
+texts:
+  app_name:
+    es: "Disputas"
+    pt: "Contestações"
+  app_tagline:
+    es: "Reporte un cargo que no reconoce o que no es correcto."
+    pt: "Conteste uma cobrança que você não reconhece ou que está errada."
+  language_label:
+    es: "Idioma"
+    pt: "Idioma"
+  language_es:
+    es: "Español"
+    pt: "Español"
+  language_pt:
+    es: "Português"
+    pt: "Português"
+
+  # --- Login (document + one-time code) ------------------------------------------
+  login_title:
+    es: "Ingrese para continuar"
+    pt: "Entre para continuar"
+  login_intro:
+    es: "Escriba su número de documento. Le enviaremos un código de un solo uso."
+    pt: "Digite o número do seu documento. Vamos enviar um código de uso único."
+  document_label:
+    es: "Número de documento"
+    pt: "Número do documento"
+  request_code:
+    es: "Enviar código"
+    pt: "Enviar código"
+  otp_title:
+    es: "Ingrese el código"
+    pt: "Digite o código"
+  otp_intro:
+    es: "Escriba el código de un solo uso que recibió."
+    pt: "Digite o código de uso único que você recebeu."
+  otp_label:
+    es: "Código de un solo uso"
+    pt: "Código de uso único"
+  verify_code:
+    es: "Ingresar"
+    pt: "Entrar"
+  back:
+    es: "Volver"
+    pt: "Voltar"
+  login_error_invalid:
+    es: "El documento o el código no son válidos. Revíselos e inténtelo de nuevo."
+    pt: "O documento ou o código não são válidos. Confira e tente novamente."
+  login_error_rate_limited:
+    es: "Demasiados intentos. Espere un momento e inténtelo de nuevo."
+    pt: "Muitas tentativas. Aguarde um momento e tente novamente."
+  login_error_generic:
+    es: "No pudimos verificar sus datos ahora. Inténtelo de nuevo."
+    pt: "Não conseguimos verificar seus dados agora. Tente novamente."
+  session_expired:
+    es: "Su sesión terminó. Ingrese de nuevo para seguir con la misma conversación."
+    pt: "Sua sessão terminou. Entre de novo para continuar a mesma conversa."
+  authentication_requested:
+    es: "Para revisar su cuenta necesitamos verificar su identidad."
+    pt: "Para consultar sua conta precisamos verificar sua identidade."
+  after_login_message:
+    es: "Listo, ya ingresé."
+    pt: "Pronto, já entrei."
+
+  # --- Conversation ----------------------------------------------------------------
+  chat_title:
+    es: "Conversación"
+    pt: "Conversa"
+  welcome:
+    es: "Hola. Cuénteme qué cargo quiere reportar: la fecha, el monto o el comercio nos ayudan a encontrarlo."
+    pt: "Olá. Conte qual cobrança você quer contestar: a data, o valor ou o estabelecimento ajudam a encontrá-la."
+  conversation_label:
+    es: "Historial de la conversación"
+    pt: "Histórico da conversa"
+  assistant_label:
+    es: "Asistente"
+    pt: "Assistente"
+  customer_label:
+    es: "Usted"
+    pt: "Você"
+  input_label:
+    es: "Su mensaje"
+    pt: "Sua mensagem"
+  input_placeholder:
+    es: "Escriba su mensaje"
+    pt: "Escreva sua mensagem"
+  send:
+    es: "Enviar"
+    pt: "Enviar"
+  typing:
+    es: "El asistente está escribiendo"
+    pt: "O assistente está digitando"
+  confirm_hint:
+    es: "Puede responder con un botón o escribir su respuesta."
+    pt: "Você pode responder com um botão ou escrever sua resposta."
+  confirm_yes:
+    es: "Sí, confirmo"
+    pt: "Sim, confirmo"
+  confirm_no:
+    es: "No, hay un error"
+    pt: "Não, tem um erro"
+  case_created_title:
+    es: "Disputa registrada"
+    pt: "Contestação registrada"
+  case_reference_label:
+    es: "Referencia"
+    pt: "Referência"
+  handed_off_title:
+    es: "Transferido a un agente"
+    pt: "Transferido para um atendente"
+  handed_off_notice:
+    es: "Un agente continuará esta conversación. Ya no es necesario escribir aquí."
+    pt: "Um atendente vai continuar esta conversa. Não é mais necessário escrever aqui."
+  network_error:
+    es: "No pudimos enviar su mensaje."
+    pt: "Não conseguimos enviar sua mensagem."
+  retry:
+    es: "Reintentar"
+    pt: "Tentar de novo"
+  new_conversation:
+    es: "Nueva conversación"
+    pt: "Nova conversa"
+  logout:
+    es: "Salir"
+    pt: "Sair"
