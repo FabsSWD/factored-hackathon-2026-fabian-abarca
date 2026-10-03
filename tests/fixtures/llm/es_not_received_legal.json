@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.12.0",
+  "prompt_version": "extract@1.13.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": null,
@@ -37,9 +37,9 @@
     },
     "customer_claims": [
       "El cliente indica que pagó unos audífonos que nunca llegaron.",
-      "El cliente indica que debían entregarlos el 1 de junio de 2026.",
-      "El cliente indica que ya escribió a la tienda.",
-      "El cliente indica que, si no se resuelve, acudirá a un abogado."
+      "El cliente indica que los audífonos debían entregarse el 1 de junio de 2026.",
+      "El cliente indica que ya le escribió a la tienda.",
+      "El cliente indica que, si no se resuelve, irá con un abogado."
     ],
     "side_question": null,
     "wrong_transaction": false,

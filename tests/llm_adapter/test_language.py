@@ -46,7 +46,7 @@ def test_short_sentences(text: str, language: Language | None) -> None:
 
 
 def test_extract_prompt_rules() -> None:
-    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.12.0"
+    assert prompts.EXTRACT_PROMPT_VERSION == "extract@1.13.0"
     text = " ".join(prompts.EXTRACT_SYSTEM.split())
     assert "Always fill transaction_date, amount" in text
     assert "transaction_date is {day, month, year}" in text

@@ -22,6 +22,7 @@ from app.contracts import (
     ModelSignals,
     ModelSource,
     ReasonCode,
+    SideQuestion,
     ToolResult,
     ToolStatus,
     TransactionRef,
@@ -318,3 +319,41 @@ def test_three_unrecognized_charges_in_the_first_message_escalate_at_once(e2e: E
     assert packet.customer_claims == claims  # the three charges reach the agent
     evidence = " ".join(str(e) for r in packet.escalation_reasons for e in r.evidence)
     assert "unrecognized_transactions" in evidence and "3" in evidence
+
+
+# --- No conversation loops (policy §10, 0.4.12) -------------------------------------------------
+
+LOOP_LIMIT = 1 + 4 + 4  # the opening, then MAX_TOTAL_CLARIFICATIONS (4) + 4 turns at most
+
+
+def test_side_questions_without_data_end_in_esc09(e2e: E2E) -> None:
+    # M18 run 1: S060 and S061 reached 15 turns because every "ni idea" was read as flow_help.
+    chat = e2e.conversation()
+    turn = chat.send("Buenas, tengo un problema con un cobro", ext())
+    for _ in range(14):
+        if turn.outcome == "ESCALATE":
+            break
+        turn = chat.send("Ni idea, solo sé que hay algo raro", ext(side=SideQuestion.FLOW_HELP))
+    assert turn.outcome == "ESCALATE" and turn.rules == ["ESC-09"] and turn.handed_off
+    assert len(chat.turns) <= LOOP_LIMIT
+    assert e2e.cases() == []
+
+
+def test_side_questions_never_hold_the_card_block_offer(e2e: E2E) -> None:
+    # M18 run 1: R010 and R017 repeated the block offer until the turn limit.
+    chat = e2e.conversation()
+    offer = chat.send(
+        "No reconozco un cargo de Cafe Sintetico",
+        ext(transaction_ref=CAFE, reason_code=ReasonCode.UNRECOGNIZED, card_in_possession=True,
+            shared_credentials=False),
+    )  # fmt: skip
+    assert offer.trace is not None and offer.trace.reply_kind == "block_offer"
+    turn = offer
+    for _ in range(6):
+        turn = chat.send("No sé qué responder a eso.", ext(side=SideQuestion.FLOW_HELP))
+        if turn.trace is not None and turn.trace.reply_kind != "block_offer":
+            break
+    assert turn.trace is not None and turn.trace.reply_kind == "summary"  # the dispute goes on
+    assert len(chat.turns) <= 5  # two free re-offers, one re-ask, then not done
+    actions = [c.action.value for t in chat.turns if t.trace for c in t.trace.tool_calls]
+    assert "ACT-03" not in actions  # nothing blocked without a clear yes

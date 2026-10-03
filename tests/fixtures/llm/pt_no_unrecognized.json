@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.12.0",
+  "prompt_version": "extract@1.13.0",
   "response_model": "gpt-6-luna",
   "language": "pt",
   "pending_slot": null,
@@ -32,7 +32,8 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "O cliente informa que o valor da compra na Streaming Plus não era o combinado e que o valor acordado era 15 dólares."
+      "O cliente informa que o valor da compra na Streaming Plus não foi o combinado.",
+      "O cliente informa que o valor combinado era 15 dólares."
     ],
     "side_question": null,
     "wrong_transaction": false,

@@ -26,6 +26,7 @@ from app.contracts import (
     ReasonCode,
     SideQuestion,
     SlotName,
+    Slots,
 )
 from app.llm_adapter import prompts
 from app.llm_adapter.adapter import (
@@ -34,6 +35,7 @@ from app.llm_adapter.adapter import (
     enforce_transaction_id,
     parse_extraction,
 )
+from app.orchestrator.corrections import apply_declined_correction
 from tests.llm_adapter.conftest import FakeOpenAI, completion, make_client
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "llm"
@@ -214,9 +216,12 @@ def test_confirmation_replies(name: str, expected: Confirmation) -> None:
     result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
     assert result.slots.confirmation is expected
     if name == "es_confirm_declined_amount":
-        ref = result.slots.transaction_ref
-        corrected = {result.slots.expected_amount, ref.amount if ref else None}
-        assert Decimal("40") in corrected
+        # Validated after the deterministic backup of the Orchestrator (corrections.py): the
+        # model may or may not extract the 40; the corrected amount is 40 either way.
+        established = Slots(reason_code=ReasonCode.INCORRECT_AMOUNT, expected_amount=Decimal("30"))
+        corrected = apply_declined_correction(established, result.slots, None, recorded["message"])
+        ref = corrected.slots.transaction_ref
+        assert Decimal("40") in {corrected.slots.expected_amount, ref.amount if ref else None}
 
 
 # --- Side questions, "ese no es", block requests (extract@1.7.0), flow_help (extract@1.8.0) ---
@@ -382,3 +387,17 @@ CONVERSATION_TALK = ("es_confirm_confirmed", "es_flow_help_what_data", "pt_side_
 @pytest.mark.parametrize("name", CONVERSATION_TALK)
 def test_conversation_talk_is_not_a_claim(name: str) -> None:
     assert claims_of(name) == []
+
+
+# --- A stolen phone is account takeover (extract@1.13.0) ---------------------------------------
+
+
+@pytest.mark.parametrize("name", ["es_stolen_phone", "pt_stolen_phone"])
+def test_a_stolen_phone_is_account_takeover(name: str) -> None:
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    result, _ = extract(name, SMOKE_CONTEXT)
+    assert result.flags.account_takeover_reported  # the model, and the rules besides it

@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.12.0",
+  "prompt_version": "extract@1.13.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": "confirmation",
@@ -8,18 +8,11 @@
     "detected_language": "es",
     "language_ambiguous": false,
     "slots": {
-      "transaction_ref": {
-        "transaction_id": null,
-        "transaction_date": null,
-        "date_from": null,
-        "date_to": null,
-        "amount": null,
-        "merchant": null
-      },
+      "transaction_ref": null,
       "reason_code": "RC_INCORRECT_AMOUNT",
       "card_in_possession": null,
       "shared_credentials": null,
-      "expected_amount": 40,
+      "expected_amount": null,
       "expected_delivery_date": null,
       "merchant_contacted": null,
       "fee_ref": null,
