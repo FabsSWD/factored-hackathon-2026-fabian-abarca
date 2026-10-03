@@ -1,0 +1,12 @@
+# Kev on an NVIDIA GPU (needs the NVIDIA container toolkit, or Docker Desktop with WSL2 GPU
+# support). Without this file Kev runs on CPU. Select it in .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml
+services:
+  kev:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

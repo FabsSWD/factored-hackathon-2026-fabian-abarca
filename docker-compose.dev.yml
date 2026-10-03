@@ -1,0 +1,20 @@
+# Local development only: PostgreSQL and Kev reachable from this machine (127.0.0.1), for the
+# test suite (TEST_DATABASE_URL), scripts/serve.py and the scripts under scripts/. Never use it
+# on a deployment server.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres kev
+#
+# A container only on an internal network cannot publish ports, so both also join edge.
+# Both loopbacks: "localhost" in the .env URLs resolves to ::1 first, and a connection to an
+# unpublished ::1 hangs instead of failing over to 127.0.0.1.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+      - "[::1]:5432:5432"
+    networks: [internal, edge]
+  kev:
+    ports:
+      - "127.0.0.1:8008:8008"
+      - "[::1]:8008:8008"
+    networks: [internal, edge]
