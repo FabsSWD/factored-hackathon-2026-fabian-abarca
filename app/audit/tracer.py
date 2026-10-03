@@ -9,9 +9,10 @@ The contract has no field for secrets or DATA-01/DATA-02 data, so they cannot be
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Select, select
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -38,7 +39,48 @@ class TraceFilter(BaseModel):
     language: Language | None = None
     since: datetime | None = None  # inclusive, on created_at
     until: datetime | None = None  # exclusive
+    # Part of a trace, conversation, session or handoff ID, case-insensitive (the agent console's
+    # single search box).
+    search: str | None = Field(default=None, max_length=64)
+    offset: int = Field(default=0, ge=0)
     limit: int = Field(default=100, ge=1, le=1000)
+
+
+class TraceSummary(BaseModel):
+    """One line of the console's trace list: enough to choose a turn without loading it."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    trace_id: str
+    conversation_id: str
+    session_id: str | None
+    turn_index: int
+    created_at: AwareDatetime
+    language: Language | None
+    outcome: Outcome | None
+    reply_kind: str | None
+    handoff_id: str | None
+    total_latency_ms: float | None
+    estimated_cost_usd: Decimal | None
+
+    @classmethod
+    def of(cls, trace: TraceRecord) -> TraceSummary:
+        return cls.model_validate(trace.model_dump(include=set(cls.model_fields)))
+
+
+class TracePage(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    items: list[TraceSummary]
+    total: int  # matching traces, across all pages
+    offset: int
+    limit: int
+
+
+def _contains(text: str) -> str:
+    """An ILIKE pattern for ``text`` anywhere, with the wildcards in ``text`` taken literally."""
+    escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
 
 
 class DatabaseAuditTracer:
@@ -99,8 +141,23 @@ class DatabaseAuditTracer:
         """Matching traces, newest first."""
         query = self._query(filters).order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
         with self._sessions() as db:
-            payloads = db.scalars(query.limit(filters.limit)).all()
+            payloads = db.scalars(query.offset(filters.offset).limit(filters.limit)).all()
         return [TraceRecord.model_validate(payload) for payload in payloads]
+
+    def count(self, filters: TraceFilter) -> int:
+        """Matching traces, ignoring offset and limit."""
+        with self._sessions() as db:
+            total = db.scalar(select(func.count()).select_from(self._query(filters).subquery()))
+        return total or 0
+
+    def page(self, filters: TraceFilter) -> TracePage:
+        """One page of matching traces, newest first, as summaries, with the total."""
+        return TracePage(
+            items=[TraceSummary.of(trace) for trace in self.list(filters)],
+            total=self.count(filters),
+            offset=filters.offset,
+            limit=filters.limit,
+        )
 
     def metrics(self, filters: TraceFilter) -> AuditMetrics:
         with self._sessions() as db:
@@ -122,4 +179,14 @@ class DatabaseAuditTracer:
             query = query.where(AuditLog.created_at >= filters.since)
         if filters.until is not None:
             query = query.where(AuditLog.created_at < filters.until)
+        if filters.search:
+            pattern = _contains(filters.search.strip())
+            query = query.where(
+                or_(
+                    AuditLog.trace_id.ilike(pattern, escape="\\"),
+                    AuditLog.conversation_id.ilike(pattern, escape="\\"),
+                    AuditLog.session_id.ilike(pattern, escape="\\"),
+                    AuditLog.payload["handoff_id"].astext.ilike(pattern, escape="\\"),
+                )
+            )
         return query

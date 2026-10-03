@@ -1,5 +1,6 @@
-"""Agent console API (M12, for M15): the queue of escalated cases, each handoff packet, and the
-operating metrics. Agent role only, with the same token and access log as the audit API."""
+"""Agent console API (M12, M15): the queue of escalated cases, each handoff packet, the turn
+traces as a searchable list, and the operating metrics. Agent role only, with the same token and
+access log as the audit API. Lists are paged: each page says how many items match in total."""
 
 from __future__ import annotations
 
@@ -10,8 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.api.audit import AgentTracer, Filters
 from app.audit.metrics import AuditMetrics
-from app.contracts import HandoffPacket, Priority, Queue
-from app.handoff.queue import DatabaseHandoffQueue, HandoffFilter, HandoffSummary
+from app.audit.tracer import TraceFilter, TracePage
+from app.contracts import HandoffPacket, Language, Outcome, Priority, Queue
+from app.handoff.queue import DatabaseHandoffQueue, HandoffFilter, HandoffPage
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -26,6 +28,12 @@ def get_queue(request: Request) -> DatabaseHandoffQueue:
 HandoffQueue = Annotated[DatabaseHandoffQueue, Depends(get_queue)]
 
 
+@router.get("/session", status_code=status.HTTP_204_NO_CONTENT)
+def check_session(tracer: AgentTracer) -> None:
+    """204 if the token proves the agent role, 403 otherwise: the console's sign-in check. Recorded
+    like any other read."""
+
+
 @router.get("/handoffs")
 def list_handoffs(
     tracer: AgentTracer,
@@ -33,10 +41,13 @@ def list_handoffs(
     queue: Queue | None = None,
     priority: Priority | None = None,
     since: datetime | None = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-) -> list[HandoffSummary]:
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> HandoffPage:
     """Escalated cases, high priority first, then the oldest."""
-    return handoffs.list(HandoffFilter(queue=queue, priority=priority, since=since, limit=limit))
+    return handoffs.page(
+        HandoffFilter(queue=queue, priority=priority, since=since, offset=offset, limit=limit)
+    )
 
 
 @router.get("/handoffs/{handoff_id}")
@@ -45,6 +56,24 @@ def get_handoff(handoff_id: str, tracer: AgentTracer, handoffs: HandoffQueue) ->
     if packet is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "handoff_not_found")
     return packet
+
+
+@router.get("/traces")
+def search_traces(
+    tracer: AgentTracer,
+    search: Annotated[str | None, Query(max_length=64)] = None,
+    outcome: Outcome | None = None,
+    language: Language | None = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> TracePage:
+    """Turn traces, newest first, as summaries. ``search`` matches part of a trace,
+    conversation, session or handoff ID; the full trace is read from /api/audit/{trace_id}."""
+    return tracer.page(
+        TraceFilter(
+            search=search or None, outcome=outcome, language=language, offset=offset, limit=limit
+        )
+    )
 
 
 @router.get("/metrics")
