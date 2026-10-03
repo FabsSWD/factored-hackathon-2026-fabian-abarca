@@ -1,0 +1,44 @@
+#!/bin/sh
+# Pre-commit guard: no customer, product or transaction identifier and no secret is committed.
+#
+# Install once per clone:   git config core.hooksPath scripts/hooks
+#
+# 1. The identifier test (tests/test_reports.py: reports/*.json and config/eval_scenarios/
+#    outside local/) runs on a copy of the staged files, so it checks exactly what the commit
+#    would contain.
+# 2. gitleaks protect --staged, when gitleaks is installed; without it, a warning.
+# Any failure blocks the commit. HOOK_PYTHON and GITLEAKS override the commands used.
+
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+python=${HOOK_PYTHON:-}
+if [ -z "$python" ]; then
+    for candidate in .venv/Scripts/python.exe .venv/bin/python; do
+        if [ -x "$candidate" ]; then python=$candidate; break; fi
+    done
+fi
+python=${python:-python}
+
+staged=$(mktemp -d) || exit 1
+trap 'rm -rf "$staged"' EXIT
+git checkout-index --all --prefix="$staged/" || exit 1
+
+echo "pre-commit: checking the staged files for identifiers"
+if ! IDENTIFIER_CHECK_ROOT="$staged" "$python" -m pytest tests/test_reports.py -q \
+        -p no:cacheprovider --no-header; then
+    echo "pre-commit: BLOCKED - a staged file holds an identifier (see above)" >&2
+    exit 1
+fi
+
+gitleaks=${GITLEAKS:-gitleaks}
+if command -v "$gitleaks" >/dev/null 2>&1; then
+    echo "pre-commit: gitleaks protect --staged"
+    if ! "$gitleaks" protect --staged --redact; then
+        echo "pre-commit: BLOCKED - gitleaks found a secret in the staged changes" >&2
+        exit 1
+    fi
+else
+    echo "pre-commit: WARNING - gitleaks is not installed; the secret scan was skipped" >&2
+fi
+exit 0

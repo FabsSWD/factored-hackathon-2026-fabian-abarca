@@ -1,0 +1,2 @@
+# Shell hooks keep LF endings on every platform (sh fails on CRLF).
+scripts/hooks/* text eol=lf

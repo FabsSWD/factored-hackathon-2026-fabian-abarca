@@ -1,8 +1,9 @@
 """Core Parquet -> PostgreSQL (Core Banking tables).
 
 Idempotent: rows are copied into a temporary staging table and upserted by primary key, so
-loading the same files twice leaves the same rows. The loader never commits; the caller owns
-the transaction (the CLI commits, tests roll back).
+loading the same files twice leaves the same rows. Seeded evaluation rows (M17: IDs starting
+with ``SEED-``, lineage ``seed:...``) are never inserted from a file nor overwritten. The loader
+never commits; the caller owns the transaction (the CLI commits, tests roll back).
 """
 
 from __future__ import annotations
@@ -19,6 +20,8 @@ from sqlalchemy import Table
 from app.storage.models import CORE_BANKING_TABLES
 
 COPY_CHUNK_BYTES = 1 << 20
+SEED_ID_PATTERN = "SEED-%"  # M17 evaluation rows (app.evaluation.seed)
+SEED_SOURCE_PATTERN = "seed:%"
 NULL_MARKER = r"\N"
 
 
@@ -98,13 +101,18 @@ def _load_table(connection: psycopg.Connection, table: Table, core_dir: Path) ->
     connection.execute(
         sql.SQL(
             "INSERT INTO {target} ({columns}) SELECT {columns} FROM {staging} "
-            "ON CONFLICT ({keys}) DO UPDATE SET {updates}"
+            "WHERE {key} NOT LIKE {seed_id} "
+            "ON CONFLICT ({keys}) DO UPDATE SET {updates} "
+            "WHERE {target}.source_file NOT LIKE {seed_source}"
         ).format(
             target=target,
             columns=column_list,
             staging=staging,
+            key=sql.Identifier(keys[0]),
+            seed_id=sql.Literal(SEED_ID_PATTERN),
             keys=sql.SQL(", ").join(sql.Identifier(name) for name in keys),
             updates=updates,
+            seed_source=sql.Literal(SEED_SOURCE_PATTERN),
         )
     )
     connection.execute(sql.SQL("DROP TABLE {}").format(staging))

@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.4.10 |
-| Last updated | 2026-10-01 |
+| Version | 0.4.11 |
+| Last updated | 2026-10-02 |
 | Related | [Glossary](glossary.md), [Data label validity spike](spikes/2026-09-25-data-label-validity.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
 > **Synthetic policy.** This policy is written for a synthetic bank in a hackathon prototype. It is not legal advice and has not been reviewed against the regulations of Mexico, Colombia, Argentina, or Brazil, nor against card network rules. See [§17](#17-assumptions-limitations-and-open-questions).
@@ -189,7 +189,7 @@ Hard triggers (`ESC-01` to `ESC-10`, `ESC-12` to `ESC-14`) always cause `ESCALAT
 |---|---|---|---|
 | `ESC-01` | High amount | USD-equivalent amount `> AUTO_INTAKE_MAX_USD` (tier `T3`). | Disputes queue |
 | `ESC-02` | Dispute velocity | Including the current dispute, the customer's disputed total in the last 30 days exceeds `AGG_DISPUTED_30D_MAX_USD`, **or** the customer has at least `REPEAT_DISPUTES_90D` cases in the last 90 days. Both windows end at `as_of` and count cases by their business creation date (see [§15](#15-parameters)). The 30-day total includes the current dispute; the 90-day count includes only previous cases. `Draft` cases never count. | Disputes queue |
-| `ESC-03` | Account takeover indicators | The customer reports an unknown login or device, a credential change they did not make, a lost or stolen phone, or sharing credentials or codes with a third party; **or** raises at least `UNRECOGNIZED_BATCH_MAX` unrecognized transactions in one conversation. | Fraud queue, high priority. A card block (`ACT-03`) is offered first. |
+| `ESC-03` | Account takeover indicators | The customer reports that someone else got into the app or the account (an unknown login or device), a credential change they did not make, a lost or stolen phone with the app, or sharing credentials or codes with a third party; **or** reports at least `UNRECOGNIZED_BATCH_MAX` distinct unrecognized charges in the conversation. The charges count when the customer reports them, whether or not they have been evaluated yet: the count is the larger of the distinct charges reported in one message and the unrecognized transactions already evaluated, and it never decreases during the conversation. Several mentions of the same charge count once. A lost or stolen card alone is not an account takeover indicator; it answers `card_in_possession`. | Fraud queue, high priority. A card block (`ACT-03`) is offered first. |
 | `ESC-04` | Fraud score | `transactions.fraud_score >= FRAUD_SCORE_ESCALATE` on the disputed transaction. A null `fraud_score` does not fire this trigger; its absence is recorded in the audit record and, if there is a handoff, in `open_questions`. | Fraud queue |
 | `ESC-05` | Human requested | The customer asks for a human at any point. | Disputes queue. Honored immediately; the system MUST NOT try to retain the customer. |
 | `ESC-06` | Legal, regulatory, or vulnerability signals | The customer mentions legal action, a lawyer, a regulator complaint, or the media, or describes serious hardship or distress caused by the charge. | Disputes queue, high priority |
@@ -494,7 +494,7 @@ The [data label validity spike](spikes/2026-09-25-data-label-validity.md) shows 
 3. A sample of at least 10% of cases (minimum 50) is reviewed by a person against this document. Disagreements are resolved by fixing the specification or, if the policy is unclear, by amending the policy and bumping its version.
 4. The held-out split is created before any prompt, threshold, or model tuning, and it is never used to set `Calibrated` parameters.
 
-The full evaluation design, including case mix and metrics, will be documented separately.
+The evaluation design, including the case mix, the split and the human review, is in [Evaluation design](evaluation-design.md); the metrics are added in M18.
 
 ## 17. Assumptions, limitations, and open questions
 
@@ -558,3 +558,4 @@ The full evaluation design, including case mix and metrics, will be documented s
 | 0.4.8 | 2026-10-01 | `GATE-05`: a merchant named only with generic words is searched by category, or left out when it has none; periods of days match the business days in them; a last relaxed step without the merchant, when an amount or a date remains. |
 | 0.4.9 | 2026-10-02 | Handoff packet (§13): `post_handoff_messages`, the customer's messages after the transfer, masked; the transfer text is sent once and later messages get a neutral notice. |
 | 0.4.10 | 2026-10-02 | `GATE-02`: `AUTH_MAX_ATTEMPTS` counts authentication requests; the turn after the last one without a session gives `INFORM`. |
+| 0.4.11 | 2026-10-02 | `ESC-03`: the `UNRECOGNIZED_BATCH_MAX` threshold applies to the unrecognized charges reported in the conversation, not only to the ones already evaluated. Reason: a customer who reports three unknown charges at once shows the compromise pattern the threshold is meant to catch; evaluating them one by one created cases and provisional-credit flags for the first two before the escalation, and the fraud team then received a partly automated case. The count can only add caution: it is never below the evaluated charges and never decreases. Also stated: a lost or stolen card alone is not an account takeover indicator. |

@@ -303,3 +303,82 @@ def test_the_generic_restaurant_of_the_manual_test_3() -> None:
     assert ref.merchant is not None and "restaurante" in ref.merchant.lower()
     # Whether the model also marks flow_help does not matter: the Orchestrator processes the
     # details and sends no help text (tests/orchestrator/test_manual_3.py).
+
+
+# --- A stolen card is not account takeover (extract@1.11.0) -------------------------------------
+
+
+def test_a_stolen_card_is_not_account_takeover() -> None:
+    name = "pt_card_stolen"  # the words of scenario S013
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    pending = SlotName(recorded["pending_slot"])
+    result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
+    assert result.slots.card_in_possession is False
+    assert result.flags.account_takeover_reported is False
+
+
+# --- Distinct unrecognized charges for the ESC-03 batch (extract@1.11.0) ------------------------
+
+UNRECOGNIZED_CASES = {
+    "es_three_unrecognized": 3,  # three charges in one message
+    "es_same_charge_twice": 1,  # the same charge mentioned three times
+    "pt_no_unrecognized": 0,  # a wrong amount, nothing unrecognized
+}
+
+
+@pytest.mark.parametrize(("name", "expected"), UNRECOGNIZED_CASES.items())
+def test_distinct_unrecognized_charges(name: str, expected: int) -> None:
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    result, _ = extract(name, SMOKE_CONTEXT)
+    assert result.unrecognized_reported == expected
+
+
+# --- Claims: every fact about the dispute, no conversation talk (extract@1.12.0) ----------------
+
+
+def claims_of(name: str) -> list[str]:
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION, name
+    pending = SlotName(recorded["pending_slot"]) if recorded["pending_slot"] else None
+    result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
+    return list(result.customer_claims)
+
+
+FACT_CLAIMS = (
+    "es_approximate_amount",  # "como de 40 dólares en El Buen Sabor"
+    "es_answer_and_refund",  # "sí, la tengo"
+    "es_generic_restaurant",  # "como de 40 dólares, en un restaurante"
+    "pt_no_unrecognized",  # "eram 15 dólares"
+    "pt_card_stolen",  # "acho que roubaram"
+)
+
+
+@pytest.mark.parametrize("name", FACT_CLAIMS)
+def test_facts_about_the_dispute_are_claims(name: str) -> None:
+    assert claims_of(name), f"{name}: the customer asserts a fact and no claim came out"
+
+
+# The claims behind the evidence of ESC-03 (three charges), ESC-05 (the charge and the request
+# for a human) and ESC-06 (the purchase, the contact and the lawyer).
+EVIDENCE_CLAIMS = {"es_three_unrecognized": 3, "pt_duplicate_human": 2, "es_not_received_legal": 3}
+
+
+@pytest.mark.parametrize(("name", "minimum"), EVIDENCE_CLAIMS.items())
+def test_the_claims_behind_the_evidence(name: str, minimum: int) -> None:
+    assert len(claims_of(name)) >= minimum
+
+
+CONVERSATION_TALK = ("es_confirm_confirmed", "es_flow_help_what_data", "pt_side_other")
+
+
+@pytest.mark.parametrize("name", CONVERSATION_TALK)
+def test_conversation_talk_is_not_a_claim(name: str) -> None:
+    assert claims_of(name) == []

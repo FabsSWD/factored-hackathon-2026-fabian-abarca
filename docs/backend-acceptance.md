@@ -163,6 +163,7 @@ Raw results: `reports/m13_load_results.json`.
 
 - **O2:** limit the last relaxation step of `GATE-05` (without the merchant) to merchants given as a category or left out, not to a concrete name that matches nothing.
 - **O3:** decide the use of connecting sentences for the demo (on, off, or only on the first turn and on bad news), against p95 6.9 s with them and 4.6 s without them.
+- **From M17 (outside the window by date):** when the date or the period the customer gives falls before `LATE_WINDOW_DAYS`, inform `outside_window` without searching. Today `GATE-05` only searches within the late window, so `INFORM outside_window` is reached only when the customer gives the transaction's reference.
 
 ## 9. Known limitations
 

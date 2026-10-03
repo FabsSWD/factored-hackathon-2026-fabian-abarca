@@ -132,6 +132,7 @@ def ext(
     side: SideQuestion | None = None,
     wrong_transaction: bool = False,
     block_requested: bool = False,
+    unrecognized: int = 0,
     **slots: Any,
 ) -> ExtractionResult:
     """An extraction as the LLM Adapter returns it."""
@@ -144,6 +145,7 @@ def ext(
         side_question=side,
         wrong_transaction=wrong_transaction,
         block_card_requested=block_requested,
+        unrecognized_reported=unrecognized,
     )
 
 

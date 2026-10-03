@@ -286,3 +286,35 @@ def test_esc11_never_fires_on_kev_signals_while_uncalibrated(e2e: E2E) -> None:
     kev = ModelSignals(source=ModelSource.KEV, ambiguity=0.99, escalation_risk=0.99)
     turn = chat.send("Quiero disputar un cargo", ext(), signals=kev)
     assert turn.outcome == "CLARIFY" and "ESC-11" not in turn.rules
+
+
+def test_three_unrecognized_charges_in_the_first_message_escalate_at_once(e2e: E2E) -> None:
+    # Policy §7 (v0.4.11): the ESC-03 batch counts the charges reported in the conversation,
+    # not only the evaluated ones: three in the first message escalate before any case exists.
+    claims = [
+        "El cliente no reconoce un cargo de 50 dólares en Cafe Sintetico del 16 de junio",
+        "El cliente no reconoce un cargo de 8 dólares en Cafe Sintetico",
+        "El cliente no reconoce un cargo de 12 dólares en Farmacia Noche",
+    ]
+    chat = e2e.conversation()
+    first = chat.send(
+        "No reconozco tres cargos: Cafe Sintetico 50, Cafe Sintetico 8 y Farmacia Noche 12",
+        ext(
+            transaction_ref=CAFE,
+            reason_code=ReasonCode.UNRECOGNIZED,
+            unrecognized=3,
+            claims=claims,
+        ),
+    )
+    assert first.trace is not None
+    assert any("ESC-03" in d.triggered_rules for d in first.trace.decisions)  # the first turn
+    turn = first
+    if first.trace.reply_kind == "block_offer":  # protect first (policy §8), then hand off
+        turn = chat.send("no la bloquee", ext(confirmation=Confirmation.DECLINED))
+    assert turn.outcome == "ESCALATE" and turn.rules == ["ESC-03"]
+    assert e2e.cases() == []  # no case was created
+    packet = e2e.handoff_of(turn)
+    assert packet.queue.value == "fraud" and packet.priority.value == "high"
+    assert packet.customer_claims == claims  # the three charges reach the agent
+    evidence = " ".join(str(e) for r in packet.escalation_reasons for e in r.evidence)
+    assert "unrecognized_transactions" in evidence and "3" in evidence

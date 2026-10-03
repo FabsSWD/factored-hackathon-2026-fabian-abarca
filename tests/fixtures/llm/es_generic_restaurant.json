@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.9.0",
+  "prompt_version": "extract@1.12.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": "transaction_ref",
@@ -32,11 +32,12 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente indica que el monto era como de 40 dólares.",
-      "El cliente informa que la compra fue en un restaurante, pero no recuerda bien el nombre."
+      "El cliente indica que el monto era de unos 40 dólares.",
+      "El cliente indica que la compra fue en un restaurante y que no recuerda bien su nombre."
     ],
     "side_question": "flow_help",
     "wrong_transaction": false,
-    "block_card_requested": false
+    "block_card_requested": false,
+    "unrecognized_reported": 0
   }
 }

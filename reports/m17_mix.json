@@ -1,0 +1,393 @@
+{
+  "all": {
+    "cases": 116,
+    "by_source": {
+      "real": 22,
+      "seeded": 94
+    },
+    "by_language": {
+      "en": 1,
+      "es": 62,
+      "pt": 53
+    },
+    "by_path": {
+      "ambiguous_or_unsupported": 41,
+      "human": 32,
+      "resolution": 43
+    },
+    "by_outcome": {
+      "ESCALATE": 37,
+      "INFORM": 32,
+      "REFUSE": 4,
+      "RESOLVE": 43
+    },
+    "by_rule": {
+      "ESC-01": 3,
+      "ESC-02": 3,
+      "ESC-03": 6,
+      "ESC-04": 2,
+      "ESC-05": 3,
+      "ESC-06": 4,
+      "ESC-07": 4,
+      "ESC-08": 2,
+      "ESC-09": 2,
+      "ESC-10": 1,
+      "ESC-11": 1,
+      "ESC-12": 1,
+      "ESC-13": 3,
+      "ESC-14": 2
+    },
+    "by_failed_gate": {
+      "GATE-01": 1,
+      "GATE-02": 2,
+      "GATE-03": 1,
+      "GATE-04": 4,
+      "GATE-05": 2,
+      "GATE-06": 12,
+      "GATE-07": 6,
+      "GATE-08": 8,
+      "GATE-09": 1,
+      "GATE-10": 11,
+      "GATE-11": 2
+    }
+  },
+  "real": {
+    "cases": 22,
+    "by_source": {
+      "real": 22
+    },
+    "by_language": {
+      "es": 12,
+      "pt": 10
+    },
+    "by_path": {
+      "ambiguous_or_unsupported": 12,
+      "human": 2,
+      "resolution": 8
+    },
+    "by_outcome": {
+      "ESCALATE": 2,
+      "INFORM": 10,
+      "REFUSE": 2,
+      "RESOLVE": 8
+    },
+    "by_rule": {
+      "ESC-07": 2
+    },
+    "by_failed_gate": {
+      "GATE-04": 2,
+      "GATE-06": 6,
+      "GATE-07": 2,
+      "GATE-08": 4
+    }
+  },
+  "seeded": {
+    "cases": 94,
+    "by_source": {
+      "seeded": 94
+    },
+    "by_language": {
+      "en": 1,
+      "es": 50,
+      "pt": 43
+    },
+    "by_path": {
+      "ambiguous_or_unsupported": 29,
+      "human": 30,
+      "resolution": 35
+    },
+    "by_outcome": {
+      "ESCALATE": 35,
+      "INFORM": 22,
+      "REFUSE": 2,
+      "RESOLVE": 35
+    },
+    "by_rule": {
+      "ESC-01": 3,
+      "ESC-02": 3,
+      "ESC-03": 6,
+      "ESC-04": 2,
+      "ESC-05": 3,
+      "ESC-06": 4,
+      "ESC-07": 2,
+      "ESC-08": 2,
+      "ESC-09": 2,
+      "ESC-10": 1,
+      "ESC-11": 1,
+      "ESC-12": 1,
+      "ESC-13": 3,
+      "ESC-14": 2
+    },
+    "by_failed_gate": {
+      "GATE-01": 1,
+      "GATE-02": 2,
+      "GATE-03": 1,
+      "GATE-04": 2,
+      "GATE-05": 2,
+      "GATE-06": 6,
+      "GATE-07": 4,
+      "GATE-08": 4,
+      "GATE-09": 1,
+      "GATE-10": 11,
+      "GATE-11": 2
+    }
+  },
+  "portuguese": {
+    "cases": 53,
+    "by_source": {
+      "real": 10,
+      "seeded": 43
+    },
+    "by_language": {
+      "pt": 53
+    },
+    "by_path": {
+      "ambiguous_or_unsupported": 20,
+      "human": 14,
+      "resolution": 19
+    },
+    "by_outcome": {
+      "ESCALATE": 16,
+      "INFORM": 16,
+      "REFUSE": 2,
+      "RESOLVE": 19
+    },
+    "by_rule": {
+      "ESC-01": 1,
+      "ESC-02": 1,
+      "ESC-03": 3,
+      "ESC-04": 1,
+      "ESC-05": 1,
+      "ESC-06": 2,
+      "ESC-07": 2,
+      "ESC-08": 1,
+      "ESC-09": 1,
+      "ESC-11": 1,
+      "ESC-13": 1,
+      "ESC-14": 1
+    },
+    "by_failed_gate": {
+      "GATE-02": 1,
+      "GATE-04": 2,
+      "GATE-05": 1,
+      "GATE-06": 6,
+      "GATE-07": 3,
+      "GATE-08": 4,
+      "GATE-09": 1,
+      "GATE-10": 5,
+      "GATE-11": 1
+    }
+  },
+  "calibration": {
+    "cases": 37,
+    "by_source": {
+      "real": 7,
+      "seeded": 30
+    },
+    "by_language": {
+      "es": 20,
+      "pt": 17
+    },
+    "by_path": {
+      "ambiguous_or_unsupported": 13,
+      "human": 10,
+      "resolution": 14
+    },
+    "by_outcome": {
+      "ESCALATE": 11,
+      "INFORM": 12,
+      "RESOLVE": 14
+    },
+    "by_rule": {
+      "ESC-01": 1,
+      "ESC-02": 1,
+      "ESC-03": 2,
+      "ESC-05": 1,
+      "ESC-06": 3,
+      "ESC-13": 2,
+      "ESC-14": 1
+    },
+    "by_failed_gate": {
+      "GATE-06": 5,
+      "GATE-07": 3,
+      "GATE-08": 1,
+      "GATE-10": 6
+    }
+  },
+  "evaluation": {
+    "cases": 79,
+    "by_source": {
+      "real": 15,
+      "seeded": 64
+    },
+    "by_language": {
+      "en": 1,
+      "es": 42,
+      "pt": 36
+    },
+    "by_path": {
+      "ambiguous_or_unsupported": 28,
+      "human": 22,
+      "resolution": 29
+    },
+    "by_outcome": {
+      "ESCALATE": 26,
+      "INFORM": 20,
+      "REFUSE": 4,
+      "RESOLVE": 29
+    },
+    "by_rule": {
+      "ESC-01": 2,
+      "ESC-02": 2,
+      "ESC-03": 4,
+      "ESC-04": 2,
+      "ESC-05": 2,
+      "ESC-06": 1,
+      "ESC-07": 4,
+      "ESC-08": 2,
+      "ESC-09": 2,
+      "ESC-10": 1,
+      "ESC-11": 1,
+      "ESC-12": 1,
+      "ESC-13": 1,
+      "ESC-14": 1
+    },
+    "by_failed_gate": {
+      "GATE-01": 1,
+      "GATE-02": 2,
+      "GATE-03": 1,
+      "GATE-04": 4,
+      "GATE-05": 2,
+      "GATE-06": 7,
+      "GATE-07": 3,
+      "GATE-08": 7,
+      "GATE-09": 1,
+      "GATE-10": 5,
+      "GATE-11": 2
+    }
+  },
+  "evaluation_real": {
+    "cases": 15,
+    "by_source": {
+      "real": 15
+    },
+    "by_language": {
+      "es": 8,
+      "pt": 7
+    },
+    "by_path": {
+      "ambiguous_or_unsupported": 8,
+      "human": 2,
+      "resolution": 5
+    },
+    "by_outcome": {
+      "ESCALATE": 2,
+      "INFORM": 6,
+      "REFUSE": 2,
+      "RESOLVE": 5
+    },
+    "by_rule": {
+      "ESC-07": 2
+    },
+    "by_failed_gate": {
+      "GATE-04": 2,
+      "GATE-06": 4,
+      "GATE-07": 1,
+      "GATE-08": 3
+    }
+  },
+  "evaluation_seeded": {
+    "cases": 64,
+    "by_source": {
+      "seeded": 64
+    },
+    "by_language": {
+      "en": 1,
+      "es": 34,
+      "pt": 29
+    },
+    "by_path": {
+      "ambiguous_or_unsupported": 20,
+      "human": 20,
+      "resolution": 24
+    },
+    "by_outcome": {
+      "ESCALATE": 24,
+      "INFORM": 14,
+      "REFUSE": 2,
+      "RESOLVE": 24
+    },
+    "by_rule": {
+      "ESC-01": 2,
+      "ESC-02": 2,
+      "ESC-03": 4,
+      "ESC-04": 2,
+      "ESC-05": 2,
+      "ESC-06": 1,
+      "ESC-07": 2,
+      "ESC-08": 2,
+      "ESC-09": 2,
+      "ESC-10": 1,
+      "ESC-11": 1,
+      "ESC-12": 1,
+      "ESC-13": 1,
+      "ESC-14": 1
+    },
+    "by_failed_gate": {
+      "GATE-01": 1,
+      "GATE-02": 2,
+      "GATE-03": 1,
+      "GATE-04": 2,
+      "GATE-05": 2,
+      "GATE-06": 3,
+      "GATE-07": 2,
+      "GATE-08": 4,
+      "GATE-09": 1,
+      "GATE-10": 5,
+      "GATE-11": 2
+    }
+  },
+  "evaluation_portuguese": {
+    "cases": 36,
+    "by_source": {
+      "real": 7,
+      "seeded": 29
+    },
+    "by_language": {
+      "pt": 36
+    },
+    "by_path": {
+      "ambiguous_or_unsupported": 13,
+      "human": 10,
+      "resolution": 13
+    },
+    "by_outcome": {
+      "ESCALATE": 11,
+      "INFORM": 10,
+      "REFUSE": 2,
+      "RESOLVE": 13
+    },
+    "by_rule": {
+      "ESC-01": 1,
+      "ESC-02": 1,
+      "ESC-03": 2,
+      "ESC-04": 1,
+      "ESC-07": 2,
+      "ESC-08": 1,
+      "ESC-09": 1,
+      "ESC-11": 1,
+      "ESC-13": 1
+    },
+    "by_failed_gate": {
+      "GATE-02": 1,
+      "GATE-04": 2,
+      "GATE-05": 1,
+      "GATE-06": 3,
+      "GATE-07": 1,
+      "GATE-08": 4,
+      "GATE-09": 1,
+      "GATE-10": 4,
+      "GATE-11": 1
+    }
+  }
+}

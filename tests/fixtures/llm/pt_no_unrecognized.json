@@ -1,0 +1,42 @@
+{
+  "prompt_version": "extract@1.12.0",
+  "response_model": "gpt-6-luna",
+  "language": "pt",
+  "pending_slot": null,
+  "message": "O valor da compra na Streaming Plus não é o combinado, eram 15 dólares.",
+  "raw": {
+    "detected_language": "pt",
+    "language_ambiguous": false,
+    "slots": {
+      "transaction_ref": {
+        "transaction_id": null,
+        "transaction_date": null,
+        "date_from": null,
+        "date_to": null,
+        "amount": null,
+        "merchant": "Streaming Plus"
+      },
+      "reason_code": "RC_INCORRECT_AMOUNT",
+      "card_in_possession": null,
+      "shared_credentials": null,
+      "expected_amount": 15,
+      "expected_delivery_date": null,
+      "merchant_contacted": null,
+      "fee_ref": null,
+      "confirmation": null
+    },
+    "flags": {
+      "human_requested": false,
+      "account_takeover_reported": false,
+      "legal_or_vulnerability": false,
+      "authentication_declined": false
+    },
+    "customer_claims": [
+      "O cliente informa que o valor da compra na Streaming Plus não era o combinado e que o valor acordado era 15 dólares."
+    ],
+    "side_question": null,
+    "wrong_transaction": false,
+    "block_card_requested": false,
+    "unrecognized_reported": 0
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.9.0",
+  "prompt_version": "extract@1.12.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": null,
@@ -42,6 +42,7 @@
     ],
     "side_question": null,
     "wrong_transaction": false,
-    "block_card_requested": false
+    "block_card_requested": false,
+    "unrecognized_reported": 1
   }
 }

@@ -2,6 +2,21 @@
 
 AI-first customer service for transaction-dispute intake at a synthetic LATAM bank (Factored AI & Data Hackathon 2026). Design, policy and architecture documents are in [docs/](docs/README.md).
 
+## Pre-commit hook
+
+The repository is public and the dataset is privately distributed, so commits are guarded against customer, product and transaction identifiers and against secrets. Install the hook once per clone:
+
+```
+git config core.hooksPath scripts/hooks
+```
+
+Before each commit, [scripts/hooks/pre-commit](scripts/hooks/pre-commit) does the following, and any failure blocks the commit:
+
+- **Identifier test.** It runs `tests/test_reports.py` (`reports/*.json`, and `config/eval_scenarios/` outside `local/`) on a copy of the staged files, so it checks exactly what the commit would contain.
+- **Secret scan.** It runs `gitleaks protect --staged` when [gitleaks](https://github.com/gitleaks/gitleaks) is installed. Without gitleaks it prints a warning and skips the scan, so installing it is recommended.
+
+It uses `.venv`'s Python. Set `HOOK_PYTHON` to use another interpreter.
+
 ## Database roles
 
 PostgreSQL is used by three roles. Each connection URL in `.env` belongs to exactly one of them, and the owner and the app must be different from the admin.
@@ -62,3 +77,22 @@ Requires the database loaded, `DATABASE_URL`, `OPENAI_API_KEY`, `KEV_*`, `PSEUDO
    ```
 
    Each turn prints the reply, the `trace_id`, the latency seen by the client and, read from the turn's trace with `AGENT_API_TOKEN`, the engine's result: outcome, failed gates, triggered rules, authorized actions, executed tools and model calls. Commands: `/handoff` prints the handoff packet of the conversation (agent API), `/new` starts a new conversation, `/quit` exits. Secrets are never printed.
+
+## Evaluation scenarios (M17)
+
+The evaluation cases are specifications in `config/eval_scenarios/`; their labels come from the policy engine ([docs/evaluation-design.md](docs/evaluation-design.md)). Their records are seeded as `SEED-` rows with the owner role:
+
+```
+python scripts/seed_scenarios.py            # seed (idempotent: resets every case to its specification)
+python scripts/seed_scenarios.py --remove   # delete every SEED- row, nothing else (see below)
+```
+
+It needs `MIGRATION_DATABASE_URL` (the owner role; the application's role is refused), `DOCUMENT_HASH_KEY` and `BUSINESS_DATE=2026-06-17`. A seeded customer logs in with its document number (`SEED-0007` for case `S007`) and `TEST_OTP`. Re-seeding revokes old sessions and never touches `audit_logs`. `--remove` refuses, and removes nothing, while audit records point to sessions of `SEED-` customers: the audit trail is append-only, so seeded customers with traces stay by design. To start from scratch, use a new database. To regenerate the files after changing the archetypes: `python scripts/generate_scenarios.py`, then `python scripts/label_scenarios.py` (it refuses to change the fixed split).
+
+The cases on real records are selected and labeled read-only, and their records are never written. Their identifiers stay in `config/eval_scenarios/local/` (git-ignored). The repository keeps `config/eval_scenarios/real_selection.lock`: the criteria version, the seed, the counts, the expected label per case key and a SHA-256 of the selected identifiers.
+
+```
+python scripts/select_real_scenarios.py           # writes local/ (and the lock, if missing)
+python scripts/select_real_scenarios.py --check   # selects again and compares with the lock
+python scripts/label_scenarios.py --review        # writes reports/m17_review/review_sample.csv (git-ignored)
+```

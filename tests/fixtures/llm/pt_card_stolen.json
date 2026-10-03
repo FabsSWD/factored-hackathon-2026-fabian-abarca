@@ -1,0 +1,35 @@
+{
+  "prompt_version": "extract@1.12.0",
+  "response_model": "gpt-6-luna",
+  "language": "pt",
+  "pending_slot": "card_in_possession",
+  "message": "Não acho, acho que roubaram",
+  "raw": {
+    "detected_language": "pt",
+    "language_ambiguous": false,
+    "slots": {
+      "transaction_ref": null,
+      "reason_code": null,
+      "card_in_possession": false,
+      "shared_credentials": null,
+      "expected_amount": null,
+      "expected_delivery_date": null,
+      "merchant_contacted": null,
+      "fee_ref": null,
+      "confirmation": null
+    },
+    "flags": {
+      "human_requested": false,
+      "account_takeover_reported": false,
+      "legal_or_vulnerability": false,
+      "authentication_declined": false
+    },
+    "customer_claims": [
+      "O cliente informa que acha que roubaram o cartão."
+    ],
+    "side_question": null,
+    "wrong_transaction": false,
+    "block_card_requested": false,
+    "unrecognized_reported": 0
+  }
+}

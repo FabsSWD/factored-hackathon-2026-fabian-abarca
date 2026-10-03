@@ -1,0 +1,42 @@
+{
+  "prompt_version": "extract@1.12.0",
+  "response_model": "gpt-6-luna",
+  "language": "es",
+  "pending_slot": null,
+  "message": "No reconozco el cargo de 50 dólares en Cafe Sintetico. Ese cargo de Cafe Sintetico yo no lo hice, repito, no reconozco ese cobro de Cafe Sintetico.",
+  "raw": {
+    "detected_language": "es",
+    "language_ambiguous": false,
+    "slots": {
+      "transaction_ref": {
+        "transaction_id": null,
+        "transaction_date": null,
+        "date_from": null,
+        "date_to": null,
+        "amount": 50,
+        "merchant": "Cafe Sintetico"
+      },
+      "reason_code": "RC_UNRECOGNIZED",
+      "card_in_possession": null,
+      "shared_credentials": null,
+      "expected_amount": null,
+      "expected_delivery_date": null,
+      "merchant_contacted": null,
+      "fee_ref": null,
+      "confirmation": null
+    },
+    "flags": {
+      "human_requested": false,
+      "account_takeover_reported": false,
+      "legal_or_vulnerability": false,
+      "authentication_declined": false
+    },
+    "customer_claims": [
+      "El cliente indica que no reconoce ni realizó el cargo de 50 dólares en Cafe Sintetico."
+    ],
+    "side_question": null,
+    "wrong_transaction": false,
+    "block_card_requested": false,
+    "unrecognized_reported": 1
+  }
+}

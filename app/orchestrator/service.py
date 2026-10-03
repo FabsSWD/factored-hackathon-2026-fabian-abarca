@@ -536,6 +536,9 @@ class Orchestrator:
             return False
         claims = [c for c in extraction.customer_claims if c not in state.claims]
         state.claims.extend(claims)
+        state.unrecognized_reported = max(
+            state.unrecognized_reported, extraction.unrecognized_reported
+        )
         self._merge_flags(state, extraction.flags, extraction.customer_claims)
         new = self._with_currency(turn, extraction.slots)
         answer = new.confirmation
@@ -925,8 +928,11 @@ class Orchestrator:
             except AccessDeniedError:
                 violation = True  # GATE-04: neither confirmed nor denied
         current = 1 if state.slots.reason_code is ReasonCode.UNRECOGNIZED else 0
+        # Policy §7 (v0.4.11): the ESC-03 batch counts the unrecognized charges reported in
+        # the conversation, not only the evaluated ones; the count can only add caution.
+        evaluated = len(state.unrecognized_ids) + current
         counters = state.counters.model_copy(
-            update={"unrecognized_transactions": len(state.unrecognized_ids) + current}
+            update={"unrecognized_transactions": max(evaluated, state.unrecognized_reported)}
         )
         return PolicyRequest(
             now=self._clock(),

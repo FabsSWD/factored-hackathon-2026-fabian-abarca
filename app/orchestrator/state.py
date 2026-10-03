@@ -69,6 +69,9 @@ class ConversationState:
     evidence_claims: dict[str, list[str]] = field(default_factory=dict)
     tool_results: list[ToolResult] = field(default_factory=list)
     unrecognized_ids: set[str] = field(default_factory=set)
+    # ESC-03 batch: the most distinct unrecognized charges the customer reported in one
+    # message. It only rises; the count the engine sees is never below the evaluated ones.
+    unrecognized_reported: int = 0
     outcomes: dict[str, Outcome] = field(default_factory=dict)  # one per transaction
     tokens_used: int = 0
     last_transaction_id: str | None = None  # the transaction of the last decision

@@ -117,6 +117,17 @@ MESSAGES: list[tuple[str, Language, str, SlotName | None]] = [
     ("es_generic_restaurant", Language.ES,
      "el monto era como de 40 dólares, la compra fue en un restaurante pero no recuerdo bien "
      "su nombre", SlotName.TRANSACTION_REF),
+    # A stolen card is not account takeover; the words of scenario S013 (extract@1.11.0).
+    ("pt_card_stolen", Language.PT, "Não acho, acho que roubaram", SlotName.CARD_IN_POSSESSION),
+    # Distinct unrecognized charges for the ESC-03 batch (extract@1.11.0).
+    ("es_three_unrecognized", Language.ES,
+     "No reconozco tres cargos: uno de 50 dólares en Cafe Sintetico el 16 de junio, otro de 18,90 "
+     "dólares en Streaming Plus el 15 de junio y uno de 12 dólares en Farmacia Noche ayer.", None),
+    ("es_same_charge_twice", Language.ES,
+     "No reconozco el cargo de 50 dólares en Cafe Sintetico. Ese cargo de Cafe Sintetico yo no lo "
+     "hice, repito, no reconozco ese cobro de Cafe Sintetico.", None),
+    ("pt_no_unrecognized", Language.PT,
+     "O valor da compra na Streaming Plus não é o combinado, eram 15 dólares.", None),
 ]  # fmt: skip
 
 
