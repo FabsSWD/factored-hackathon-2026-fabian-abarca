@@ -7,6 +7,11 @@
 # Words are compared case- and accent-insensitively; a word belongs to one category only.
 # The categories are the values of the data (Food, Health, Transport, Entertainment,
 # Services, Other); about 5% of purchases have none and are never found by category.
+#
+# Withdrawal, Deposit and Transfer are not merchant categories but transaction types: an ATM or
+# a deposit has no merchant in the data, so "un retiro en un cajero" or "un depósito" (when the
+# model gives it as the merchant) is compared with transactions.transaction_type instead
+# (app.policy.matching, TRANSACTION_TYPE_CATEGORIES).
 
 categories:
   Food:
@@ -65,3 +70,22 @@ categories:
     - ropa
     - roupa
     - ferreteria
+  Withdrawal:
+    - cajero
+    - cajeros
+    - atm
+    - caixa
+    - autoservicio
+    - automatico
+    - eletronico
+    - retiro
+    - retiros
+    - saque
+    - saques
+  Deposit:
+    - deposito
+    - depositos
+    - consignacion
+  Transfer:
+    - transferencia
+    - transferencias

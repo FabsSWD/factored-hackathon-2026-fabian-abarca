@@ -96,3 +96,19 @@ python scripts/select_real_scenarios.py           # writes local/ (and the lock,
 python scripts/select_real_scenarios.py --check   # selects again and compares with the lock
 python scripts/label_scenarios.py --review        # writes reports/m17_review/review_sample.csv (git-ignored)
 ```
+
+## Evaluation harness (M18)
+
+The harness runs the system and a baseline (GPT-6 Luna deciding alone) on the evaluation split, and writes the metrics. It serves the real application in-process: a simulated customer logs in with the case's document and `TEST_OTP` and plays the case's script over the API. Faults are injected only where a case asks for them (`ESC-10` and `ESC-11`).
+
+```
+python scripts/run_evaluation.py --dry-run                              # guards, cases and estimate; no model call
+python scripts/run_evaluation.py                                        # 3 system runs, 1 with connect off, baseline
+python scripts/run_evaluation.py --cases S001,R005 --runs 1 --skip-baseline   # smoke run
+```
+
+- **Before each run.** The seeded cases are seeded again, and the run refuses if a real customer of the evaluation has a case or a card block.
+- **After each run.** The cases the run created on real customers are removed with the owner role. `audit_logs` is never touched.
+- **When it refuses to run.** It refuses when the evaluation split does not match its fingerprint, when an evaluation case appears in `config/eval_scenarios/calibration_log.yaml`, or when the local real cases are not the locked selection.
+- **Outputs.** `reports/m18/results.csv` (git-ignored), `reports/m18_evaluation.json` (the M16 dashboard) and `docs/evaluation.md`.
+- **Exit code.** It exits with 2 when a system run misses a hard rule.

@@ -1214,7 +1214,7 @@ cases:
     answers:
       transaction_ref: El 3 de junio, 30.000 pesos
       reason_code: Es una comisión del banco que no corresponde
-      fee_ref: la comisión del préstamo
+      fee_ref: la comisión del préstamo, el 3 de junio, 30.000 pesos
       summary: Sí, confirmo, todo está bien
       authentication: Listo, ya ingresé
 - id: S033
@@ -1252,7 +1252,7 @@ cases:
     answers:
       transaction_ref: É dia 1 de junho, 120.000 pesos
       reason_code: Cobraram uma tarifa que não devia
-      fee_ref: uma taxa de manutenção
+      fee_ref: uma taxa de manutenção, dia 1 de junho, 120.000 pesos
       summary: Sim, confirmo
       authentication: Pronto, já entrei
 - id: S034

@@ -1,0 +1,10 @@
+# Every fit of a Calibrated parameter (policy §15, §16.4) is recorded here with the case keys it
+# used. Only calibration cases may appear: the M18 harness refuses to run when an evaluation case
+# is listed, or when a Calibrated parameter is set in config/policy.yaml without an entry here.
+#
+# entries:
+# - parameter: ESCALATION_RISK_THRESHOLD
+#   value: 0.72
+#   date: 2026-10-10
+#   cases: [S001, S004, ...]
+entries: []

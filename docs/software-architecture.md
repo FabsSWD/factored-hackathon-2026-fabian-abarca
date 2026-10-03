@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.14 |
+| Version | 0.1.15 |
 | Last updated | 2026-10-02 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
@@ -204,3 +204,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.12 | 2026-10-02 | Injection test: after a handoff, a neutral `already_transferred` notice instead of the transfer text again; later messages added masked to the packet without any model. |
 | 0.1.13 | 2026-10-02 | M13: with `extract` failed (or skipped by the token cap) and no Kev, the signals are unavailable (`ESC-11`), as §8 states; `GATE-02` informs on the turn after the last authentication request (policy 0.4.10). |
 | 0.1.14 | 2026-10-02 | Policy 0.4.11: `extract@1.11.0` returns `unrecognized_reported`, the distinct charges the customer says in a message they do not recognize; the Orchestrator keeps the largest one and gives the engine the larger of it and the evaluated charges, so three in the first message escalate under `ESC-03` before any case. Without `extract`, only the evaluated charges count. A lost or stolen card is not `account_takeover_reported`. |
+| 0.1.15 | 2026-10-03 | M18 run 1 fixes (policy 0.4.12): the rule-based detector raises `account_takeover_reported` for a stolen or lost phone (`extract@1.13.0` too); side-question-only replies count from the third in a row (also for the card block offer, then not confirmed); `ConversationCounters.dispute_turns` lets the engine turn a CLARIFY into `ESC-09` past `MAX_TOTAL_CLARIFICATIONS` + 4 turns; ATM, deposit and transfer words given as the merchant are compared with `transaction_type`. |

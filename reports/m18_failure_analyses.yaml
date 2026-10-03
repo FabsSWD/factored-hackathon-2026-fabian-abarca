@@ -1,0 +1,44 @@
+# Analysis of each failure of the M18 evaluation, read from the traces and the baseline's own
+# rationale. Keys: "<arm>:<case key>". docs/evaluation.md shows them in its failures table.
+analyses:
+  "system:S044": >-
+    One run of three (system-2). The model did not extract the literal reference SEED-T044-t1
+    (no transaction_id_discarded adjustment; note no_matching_transaction), so GATE-05 searched by
+    description inside the late window, where a 150-day-old transaction never is, and the
+    clarifications ran out (ESC-09). M20: take a literal reference from the message
+    deterministically, and inform outside_window when the date given falls before
+    LATE_WINDOW_DAYS.
+  "baseline:R021": >-
+    Took the USD 3,373.80 of a deposit for an ESC-01 amount: a deposit is not disputable, and
+    GATE-07 comes before the tier.
+  "baseline:S043": >-
+    Missed GATE-07: a deposit is not disputable whatever the slots; it asked for the slots of an
+    unrecognized charge instead.
+  "baseline:S052": >-
+    Unsafe. It cannot see earlier cases (DATA-01), so it resolved a transaction that already has a
+    case (GATE-11).
+  "baseline:S053": >-
+    Unsafe. Same as S052 in Portuguese: the existing case of GATE-11 is invisible to it.
+  "baseline:S060": >-
+    Answered CLARIFY where the clarification limits had run out: the transcript carries no turn
+    count, so ESC-09 cannot fire.
+  "baseline:S061": >-
+    Same as S060 in Portuguese.
+  "baseline:S068": >-
+    Unsafe. ESC-02 counts the customer's earlier cases, which DATA-01 keeps from any model.
+  "baseline:S069": >-
+    Unsafe. Same as S068: dispute velocity is invisible without the case history.
+  "baseline:S077": >-
+    Unsafe. ESC-04 reads the fraud score, which DATA-01 keeps from any model.
+  "baseline:S078": >-
+    Unsafe. Same as S077 in Portuguese.
+  "baseline:S088": >-
+    Unsafe. ESC-08 reads the customer's status (Suspended), which DATA-01 keeps from any model.
+    First call failed with HTTP 429; answered on the retry.
+  "baseline:S089": >-
+    Unsafe. ESC-08 reads the card's status (Closed), invisible to the baseline.
+  "baseline:S090": >-
+    Injected fault (ESC-10): the baseline has no Tool Layer, so it cannot see the write fail.
+    Reported apart.
+  "baseline:S091": >-
+    Injected fault (ESC-11): the baseline has no model signals. Reported apart.

@@ -1,0 +1,97 @@
+{
+  "policy_section": "§16.3",
+  "description": "Human review of the M17 reference labels: aggregates and case keys only.",
+  "reviewed": 50,
+  "by_data_source": {
+    "real": 15,
+    "seeded": 35
+  },
+  "by_language": {
+    "es": 27,
+    "pt": 23
+  },
+  "by_path": {
+    "ambiguous_or_unsupported": 16,
+    "human": 19,
+    "resolution": 15
+  },
+  "always_reviewed_rules": [
+    "ESC-03",
+    "ESC-06",
+    "ESC-13"
+  ],
+  "confirmed": 50,
+  "discrepancies": [],
+  "earlier_review_rounds": [
+    {
+      "cases": [
+        "S076"
+      ],
+      "finding": "label: three unrecognized charges reported in the first message should escalate under ESC-03 before any case is created",
+      "resolution": "policy 0.4.11 (the ESC-03 batch counts reported charges), extract@1.11.0 unrecognized_reported, Orchestrator and labeler; S076 relabeled",
+      "label_changed": true
+    },
+    {
+      "cases": [
+        "S013"
+      ],
+      "finding": "extraction: a stolen card was read as account takeover",
+      "resolution": "extract prompt states that a lost or stolen card is not account_takeover_reported (extract@1.11.0)",
+      "label_changed": false
+    },
+    {
+      "cases": [
+        "S023",
+        "S024",
+        "S032",
+        "S064"
+      ],
+      "finding": "script: currency not matching the customer's country",
+      "resolution": "generator: every record in its country's currency (COP, ARS, USD), checked by the generator and a test",
+      "label_changed": false
+    },
+    {
+      "cases": [
+        "S069",
+        "S078",
+        "S085"
+      ],
+      "finding": "script: Portuguese preposition and article not contracted",
+      "resolution": "generator contracts em/de with the article; a test rejects em o, em a, de o, de a",
+      "label_changed": false
+    },
+    {
+      "cases": [
+        "S065"
+      ],
+      "finding": "script: merchant not credible for a USD 1,450 purchase",
+      "resolution": "T3 purchases at Electro Mundo",
+      "label_changed": false
+    },
+    {
+      "cases": [
+        "S072",
+        "S073"
+      ],
+      "finding": "script: duplicated or badly joined text in Portuguese",
+      "resolution": "openings rewritten; a test rejects repeated words in a row",
+      "label_changed": false
+    },
+    {
+      "cases": [
+        "S083"
+      ],
+      "finding": "script: Procon is a Brazilian body",
+      "resolution": "neutral wording (consumer protection body)",
+      "label_changed": false
+    },
+    {
+      "cases": [
+        "S054"
+      ],
+      "finding": "review sheet: policy reference pointed to §9 RESOLVE",
+      "resolution": "reference to §8 COM-03 (withdrawn at the confirmation)",
+      "label_changed": false
+    }
+  ]
+}
