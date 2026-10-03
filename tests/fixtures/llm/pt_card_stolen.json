@@ -1,22 +1,22 @@
 {
   "prompt_version": "extract@1.11.0",
   "response_model": "gpt-6-luna",
-  "language": "es",
-  "pending_slot": "confirmation",
-  "message": "creo que sí, aunque no estoy seguro",
+  "language": "pt",
+  "pending_slot": "card_in_possession",
+  "message": "Não acho, acho que roubaram",
   "raw": {
-    "detected_language": "es",
+    "detected_language": "pt",
     "language_ambiguous": false,
     "slots": {
       "transaction_ref": null,
       "reason_code": null,
-      "card_in_possession": null,
+      "card_in_possession": false,
       "shared_credentials": null,
       "expected_amount": null,
       "expected_delivery_date": null,
       "merchant_contacted": null,
       "fee_ref": null,
-      "confirmation": "hedged"
+      "confirmation": null
     },
     "flags": {
       "human_requested": false,

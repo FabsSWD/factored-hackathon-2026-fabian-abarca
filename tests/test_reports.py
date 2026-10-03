@@ -7,11 +7,15 @@ that look like identifiers are not.
 The same rule holds for the M17 evaluation files in config/eval_scenarios/, except local/
 (git-ignored), where the cases on real records keep their identifiers. Two keys there hold a
 SHA-256 that is not a document hash: the split's ``fingerprint`` and the lock's ``ids_sha256``.
+
+``IDENTIFIER_CHECK_ROOT`` points the checks at another tree: the pre-commit hook
+(scripts/hooks/pre-commit) sets it to a copy of the staged files.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Iterator
 from pathlib import Path
@@ -19,7 +23,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(os.environ.get("IDENTIFIER_CHECK_ROOT") or Path(__file__).resolve().parent.parent)
 REPORTS = ROOT / "reports"
 EVAL_SCENARIOS = ROOT / "config" / "eval_scenarios"
 DIGEST_KEYS = frozenset({"fingerprint", "ids_sha256"})  # digests of the split and the selection

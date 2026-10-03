@@ -6,6 +6,7 @@ from __future__ import annotations
 import csv
 import importlib.util
 import io
+import re
 import sys
 from collections import Counter
 from decimal import Decimal
@@ -240,6 +241,47 @@ def test_customers_are_spread_over_segments(scenarios: list[Scenario]) -> None:
     assert len({s.customer.country for s in scenarios}) == 3
     assert len({s.customer.age_band for s in scenarios}) == 6
     assert len({s.customer.gender for s in scenarios}) == 3
+
+
+COUNTRY_CURRENCY = {"Colombia": "COP", "Argentina": "ARS", "México": "USD"}
+CONTRACTIBLE = re.compile(r"\b(em|de) (o|a|os|as)\b", re.IGNORECASE)
+
+
+def _texts(s: Scenario) -> list[str]:
+    return [s.script.first, *s.script.answers.values(), *s.script.side_questions]
+
+
+def test_currencies_follow_the_country(scenarios: list[Scenario]) -> None:
+    for s in scenarios:
+        currency = COUNTRY_CURRENCY[s.customer.country]
+        used = {t.currency for t in s.transactions} | {p.currency for p in s.products}
+        assert used == {currency}, s.id
+        units = ("dólares", "USD") if currency == "USD" else ("pesos",)
+        others = ("pesos",) if currency == "USD" else ("dólares", "USD")
+        assert not any(o in text for o in others for text in _texts(s)), s.id
+        amount = re.compile(r"\d+(,\d+)? (dólares|pesos)|USD \d")
+        with_amounts = [text for text in _texts(s) if amount.search(text)]
+        assert all(any(u in text for u in units) for text in with_amounts), s.id
+
+
+def test_portuguese_scripts_use_contractions(scenarios: list[Scenario]) -> None:
+    for s in scenarios:
+        if s.language == "pt":
+            found = [text for text in _texts(s) if CONTRACTIBLE.search(text)]
+            assert found == [], (s.id, found)
+    assert CONTRACTIBLE.search("uma cobrança em o cinema")  # the check itself works
+    assert not CONTRACTIBLE.search("dia 3 de abril, no cinema")
+
+
+def test_a_t3_purchase_has_a_credible_merchant(
+    scenarios: list[Scenario], labels: list[CaseLabel]
+) -> None:
+    by_id = {s.id: s for s in scenarios}
+    for label in labels:
+        if "ESC-01" in label.triggered_rules:
+            disputed = label.disputes[-1].transaction
+            assert disputed is not None
+            assert by_id[label.case_id].transaction(disputed).merchant == "Electro Mundo"
 
 
 # --- Cases on real records ---------------------------------------------------------------------

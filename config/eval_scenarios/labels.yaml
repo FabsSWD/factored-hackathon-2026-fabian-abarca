@@ -1442,32 +1442,6 @@ labels:
   - ESC-03
   disputes:
   - transaction: t1
-    outcome: RESOLVE
-    triggered_rules: []
-    failed_gates: []
-    queue: null
-    priority: null
-    inform_reason: null
-    clarify_target: null
-    tier: T1
-    reason_code: RC_UNRECOGNIZED
-    actions:
-    - ACT-02
-    - ACT-04
-  - transaction: t2
-    outcome: RESOLVE
-    triggered_rules: []
-    failed_gates: []
-    queue: null
-    priority: null
-    inform_reason: null
-    clarify_target: null
-    tier: T1
-    reason_code: RC_UNRECOGNIZED
-    actions:
-    - ACT-02
-    - ACT-04
-  - transaction: t3
     outcome: ESCALATE
     triggered_rules:
     - ESC-03

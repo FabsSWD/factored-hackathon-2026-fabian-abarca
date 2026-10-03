@@ -2,21 +2,21 @@
   "prompt_version": "extract@1.11.0",
   "response_model": "gpt-6-luna",
   "language": "es",
-  "pending_slot": "confirmation",
-  "message": "creo que sí, aunque no estoy seguro",
+  "pending_slot": null,
+  "message": "No reconozco tres cargos: uno de 50 dólares en Cafe Sintetico el 16 de junio, otro de 18,90 dólares en Streaming Plus el 15 de junio y uno de 12 dólares en Farmacia Noche ayer.",
   "raw": {
     "detected_language": "es",
     "language_ambiguous": false,
     "slots": {
       "transaction_ref": null,
-      "reason_code": null,
+      "reason_code": "RC_UNRECOGNIZED",
       "card_in_possession": null,
       "shared_credentials": null,
       "expected_amount": null,
       "expected_delivery_date": null,
       "merchant_contacted": null,
       "fee_ref": null,
-      "confirmation": "hedged"
+      "confirmation": null
     },
     "flags": {
       "human_requested": false,
@@ -24,10 +24,14 @@
       "legal_or_vulnerability": false,
       "authentication_declined": false
     },
-    "customer_claims": [],
+    "customer_claims": [
+      "El cliente indica que no reconoce un cargo de 50 dólares en Cafe Sintetico del 16 de junio.",
+      "El cliente indica que no reconoce un cargo de 18,90 dólares en Streaming Plus del 15 de junio.",
+      "El cliente indica que no reconoce un cargo de 12 dólares en Farmacia Noche del 16 de junio."
+    ],
     "side_question": null,
     "wrong_transaction": false,
     "block_card_requested": false,
-    "unrecognized_reported": 0
+    "unrecognized_reported": 3
   }
 }

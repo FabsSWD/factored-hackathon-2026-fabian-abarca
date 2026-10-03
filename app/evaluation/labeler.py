@@ -6,7 +6,8 @@ the specified final values (the identified transaction, the reason and its slots
 confirmation) and the special conditions held (a session or not, the flags, the counters they
 imply, the Input Guard result, unavailable models, a failed action). It carries over what one
 dispute leaves for the next: the case it created (ESC-02, GATE-11), a card it blocked, an
-unrecognized transaction counted for ESC-03.
+unrecognized transaction counted for ESC-03. The ESC-03 count is never below the unrecognized
+charges the customer reported at once (``conditions.unrecognized_reported``, policy 0.4.11).
 
 The label of a dispute is the engine's outcome, triggered rules, queue, priority, inform reason
 and tier, and the actions the conversation is expected to execute: ACT-03 when the block is
@@ -244,6 +245,8 @@ def build_request(
     if conditions.unresolved is not None:
         by_slot[conditions.unresolved] = p.MAX_CLARIFICATION_TURNS
     current = 1 if slots.reason_code is ReasonCode.UNRECOGNIZED else 0
+    # Policy §7 (v0.4.11): the larger of the reported and the evaluated unrecognized charges.
+    unrecognized = max(unrecognized_before + current, conditions.unrecognized_reported)
     counters = ConversationCounters(
         clarifications_by_slot=by_slot,
         total_clarifications=sum(by_slot.values()),
@@ -252,7 +255,7 @@ def build_request(
         if conditions.authentication_attempts_exhausted
         else 0,
         injection_strikes=conditions.injection_strikes,
-        unrecognized_transactions=unrecognized_before + current,
+        unrecognized_transactions=unrecognized,
     )
     guard = None
     if conditions.injection_strikes >= p.INJECTION_STRIKES_MAX:

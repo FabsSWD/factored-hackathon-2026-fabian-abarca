@@ -145,6 +145,8 @@ class Conditions(_Spec):
     models_unavailable: bool = False  # extract and Kev both down: ESC-11
     tool_failure: bool = False  # ACT-02 fails after its retries: ESC-10
     unresolved: ClarifyTarget | None = None  # never answered: ESC-09 on this target
+    # Distinct unrecognized charges the customer reports in one message (policy §7, v0.4.11).
+    unrecognized_reported: Annotated[int, Field(ge=0)] = 0
 
 
 class ScriptSpec(_Spec):

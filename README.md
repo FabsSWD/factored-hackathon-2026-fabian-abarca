@@ -2,6 +2,21 @@
 
 AI-first customer service for transaction-dispute intake at a synthetic LATAM bank (Factored AI & Data Hackathon 2026). Design, policy and architecture documents are in [docs/](docs/README.md).
 
+## Pre-commit hook
+
+The repository is public and the dataset is privately distributed, so commits are guarded against customer, product and transaction identifiers and against secrets. Install the hook once per clone:
+
+```
+git config core.hooksPath scripts/hooks
+```
+
+Before each commit, [scripts/hooks/pre-commit](scripts/hooks/pre-commit) does the following, and any failure blocks the commit:
+
+- **Identifier test.** It runs `tests/test_reports.py` (`reports/*.json`, and `config/eval_scenarios/` outside `local/`) on a copy of the staged files, so it checks exactly what the commit would contain.
+- **Secret scan.** It runs `gitleaks protect --staged` when [gitleaks](https://github.com/gitleaks/gitleaks) is installed. Without gitleaks it prints a warning and skips the scan, so installing it is recommended.
+
+It uses `.venv`'s Python. Set `HOOK_PYTHON` to use another interpreter.
+
 ## Database roles
 
 PostgreSQL is used by three roles. Each connection URL in `.env` belongs to exactly one of them, and the owner and the app must be different from the admin.

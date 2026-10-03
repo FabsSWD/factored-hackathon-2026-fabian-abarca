@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft: M17 done, M18 pending |
-| Version | 0.3.0 |
+| Version | 0.4.0 |
 | Last updated | 2026-10-02 |
 | Related | [Dispute policy §16](dispute-policy.md#16-deriving-evaluation-labels), [Backend acceptance](backend-acceptance.md), [Software architecture](software-architecture.md) |
 
@@ -55,7 +55,7 @@ Seeded identifiers derive from the case number and always carry the `SEED-` pref
 - **Session, flags and counters.** These are the ones the conditions imply. For example, the strike count at the limit together with the Input Guard result, or the clarification limit reached on the target that was never answered.
 - **Signals.** They are derived from the intended extraction, except that they are `unavailable` when both models are down.
 - **Records.** These are the ones the Tool Layer reads. A seeded case reads its specification. A real case reads the database (section 5).
-- **What one dispute leaves for the next:** the case it created, a card it blocked, and an unrecognized transaction counted for `ESC-03`.
+- **What one dispute leaves for the next:** the case it created, a card it blocked, and an unrecognized transaction counted for `ESC-03`. The `ESC-03` count is never below the distinct unrecognized charges the customer reported at once (`conditions.unrecognized_reported`, policy 0.4.11).
 
 The label stores, per dispute: the outcome, the triggered rules, the failed gates, the queue, the priority, the inform reason, the tier, and the actions the conversation must execute (ACT-03 when the block is confirmed, ACT-02 and ACT-04 on RESOLVE, ACT-05 on ESCALATE). The conversation ends at the first escalation.
 
@@ -73,6 +73,8 @@ Where the labels are kept:
 - **Owner role only.** The script runs only with `MIGRATION_DATABASE_URL` (the owner role). It refuses a URL with the application's user, and checks that the connected user owns the Core Banking tables.
 - **Synthetic rows only.** Every row is synthetic, prefixed `SEED-`, and carries lineage `seed:scenarios@<version>`. Each customer's document number is stored as its HMAC, so M18 logs in through the real Identity Service with the document and the test OTP.
 - **Segments.** Customers are spread over the countries and age bands of the supplied data (Colombia, México and Argentina; six age bands; three genders) for the segment analysis of M18. Cases in Portuguese belong to customers in those countries, because the data has no Brazilian customers and no BRL.
+- **Currency of the country.** Every record of a case is in its customer's currency: Colombia COP, Argentina ARS, México USD. The archetypes set amounts in USD; the generator converts them at fixed rates (COP 4,000 and ARS 1,000 per USD, the rates of the test fixture) and keeps the USD figure in `amount_usd`, so tiers do not depend on the country. The generator refuses a case whose currencies do not match its country.
+- **Portuguese wording.** The scripts contract the preposition and the article (`no cinema`, `da loja`, never `em o` or `de a`); a test checks every Portuguese script.
 - **Idempotent, with the audit trail untouched.** Seeding again puts every case back in the state of its specification:
   - The cases, card blocks, handoffs and OTP challenges left by earlier runs on `SEED-` customers are removed.
   - Their sessions are revoked (`revoked_at`), never deleted.
@@ -173,6 +175,7 @@ Disagreements are resolved by fixing the specification, or, if the policy is unc
 
   Their labels assume those faults (`tool_failure`, `models_unavailable`).
 - **Separate metrics.** Metrics are reported for real and seeded cases separately, as well as together.
+- **Interruptions compare less.** When the case ends at an interruption that comes before the transaction is identified (`ESC-13`, `ESC-12`, and `ESC-05` without a transaction), compare only the outcome, the triggered rules and the queue. The tier and the failed gates of the label come from the specification's records, and the conversation never reaches them.
 - **Real customers keep what a run creates.** A run on real cases writes cases (ACT-02) and audit records on real customers. M18 must remove the cases it created there and record that it did, and must not touch `audit_logs`. Run `scripts/select_real_scenarios.py --check` before a run: after one, those customers have cases and a fresh selection skips them.
 
 ## 10. Limitations
@@ -187,6 +190,7 @@ Disagreements are resolved by fixing the specification, or, if the policy is unc
 
 | Version | Date | Change |
 |---|---|---|
+| 0.4.0 | 2026-10-02 | Review of the seeded cases: every record in its country's currency, Portuguese contractions, a credible merchant for the T3 purchases; what M18 compares on interruptions. Policy 0.4.11: the `ESC-03` batch counts the charges reported at once, so `S076` escalates on its first dispute without creating cases (`conditions.unrecognized_reported`). The split did not change. |
 | 0.3.0 | 2026-10-02 | Real identifiers leave the repository: the cases go to `local/` (git-ignored), and the repository keeps `real_selection.lock` (criteria version, seed, counts, expected labels by case key, SHA-256 of the identifiers). The split uses case keys. The M11 identifier test covers `config/eval_scenarios/`. `--remove` explains why it refuses. |
 | 0.2.0 | 2026-10-02 | 22 cases on real records (section 5) and `data_source` on every case; the split redone and pinned with both sources; re-seeding revokes sessions and never touches `audit_logs`; what the labels measure; fault injection for M18; the review sample with real cases, now git-ignored. |
 | 0.1.0 | 2026-10-02 | M17: scenario specifications, reference labeler, seeding, the 94-case mix, the fixed split and the review sample. |

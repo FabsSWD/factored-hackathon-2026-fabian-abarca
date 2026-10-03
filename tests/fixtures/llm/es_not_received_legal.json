@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.9.0",
+  "prompt_version": "extract@1.11.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": null,
@@ -36,13 +36,13 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente indica que pagó unos audífonos que nunca llegaron.",
-      "El cliente informa que debían entregarlos el 1 de junio de 2026.",
+      "El cliente indica que pagó unos audífonos que nunca llegaron y que debían entregarlos el 1 de junio de 2026.",
       "El cliente indica que ya le escribió a la tienda.",
-      "El cliente afirma que irá con un abogado si no se resuelve."
+      "El cliente indica que irá con un abogado si no se resuelve."
     ],
     "side_question": null,
     "wrong_transaction": false,
-    "block_card_requested": false
+    "block_card_requested": false,
+    "unrecognized_reported": 0
   }
 }

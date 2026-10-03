@@ -17,7 +17,7 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode, SideQuestion
 
-EXTRACT_PROMPT_VERSION = "extract@1.9.0"
+EXTRACT_PROMPT_VERSION = "extract@1.11.0"
 CONNECT_PROMPT_VERSION = "connect@1.2.0"
 
 EXTRACT_SYSTEM = """\
@@ -62,9 +62,11 @@ the customer no longer wants to file the dispute ("no, ya no quiero", "mejor no"
 pra lá").
 - flags (booleans, from the customer's own statements):
   - human_requested: asks to talk to a human agent.
-  - account_takeover_reported: unknown login or device, a credential change they did not \
-make, a lost or stolen phone, or sharing passwords or codes with someone (including a caller \
-who pretended to be the bank).
+  - account_takeover_reported: someone else got into the app or the account (unknown login \
+or device), a credential change they did not make, a lost or stolen phone with the app, or \
+sharing passwords or codes with someone (including a caller who pretended to be the bank). \
+A lost or stolen card is NOT account takeover ("acho que roubaram" about the card): it only \
+answers card_in_possession.
   - legal_or_vulnerability: mentions legal action, a lawyer, a regulator, the media, or \
 serious hardship or distress caused by the charge.
   - authentication_declined: refuses to verify their identity.
@@ -78,9 +80,12 @@ otherwise.
 - wrong_transaction: the customer says the transaction just shown to them is not the one \
 they mean ("ese no es", "esse não é").
 - block_card_requested: the customer asks to block their card.
+- unrecognized_reported: how many distinct charges the customer says in this message they \
+do not recognize (did not make or authorize). Several mentions of the same charge count once; \
+0 when there is none.
 - customer_claims: up to 5 short statements of what the customer asserts, always in the \
 third person and in the conversation's language ("El cliente indica que...", "O cliente \
-informa que...").
+informa que..."); one statement per unrecognized charge, with the details the customer gave.
 
 Today is context.business_date."""
 
@@ -185,6 +190,7 @@ EXTRACT_SCHEMA: dict[str, Any] = _object(
         },
         "wrong_transaction": {"type": "boolean"},
         "block_card_requested": {"type": "boolean"},
+        "unrecognized_reported": {"type": "integer"},
     }
 )
 

@@ -290,6 +290,10 @@ OUT_OF_SCHEMA = [
     extraction(side_question="loan"),
     extraction(wrong_transaction="yes"),
     extraction(block_card_requested=1),
+    extraction(unrecognized_reported=-1),
+    extraction(unrecognized_reported=True),
+    extraction(unrecognized_reported=2.5),
+    extraction(unrecognized_reported="3"),
 ]
 
 
@@ -1236,3 +1240,14 @@ def test_extract_still_retries(adapter: OpenAILLMAdapter, fake: FakeOpenAI) -> N
     fake.responses = [completion({"slots": "broken"}), completion(extraction())]
     extract(adapter, "Hola")
     assert len(fake.requests) == 2  # connect is the only call without retries
+
+
+def test_distinct_unrecognized_charges_are_read(
+    adapter: OpenAILLMAdapter, fake: FakeOpenAI
+) -> None:
+    fake.responses = [
+        completion(extraction(unrecognized_reported=3)),
+        completion(extraction()),
+    ]
+    assert extract(adapter, "No reconozco tres cargos").unrecognized_reported == 3
+    assert extract(adapter, "Hola").unrecognized_reported == 0  # absent: none reported

@@ -12,26 +12,29 @@ cases:
     gender: F
   products:
   - key: card
+    currency: COP
     last4: '7084'
   transactions:
   - key: t1
     product: card
     days_ago: 2
-    amount: '12'
+    amount: '48000'
+    currency: COP
+    amount_usd: '12.00'
     merchant: Super Ahorro
     category: Food
     status: Pending
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '5'
+    expected_amount: '20000'
   script:
-    first: Hola, necesito ayuda con un cargo de mi tarjeta. Es el cobro en Super Ahorro de 12 dólares,
-      el 15 de junio
+    first: Hola, necesito ayuda con un cargo de mi tarjeta. Es el cobro en Super Ahorro de 48.000 pesos,
+      entre el 14 y el 16 de junio
     answers:
-      transaction_ref: Es el cobro en Super Ahorro de 12 dólares, el 15 de junio
+      transaction_ref: Es el cobro en Super Ahorro de 48.000 pesos, entre el 14 y el 16 de junio
       reason_code: El monto no es el que acordamos
-      expected_amount: Habíamos quedado en 5 dólares
+      expected_amount: Habíamos quedado en 20.000 pesos
       summary: Sí, confirmo, todo está bien
       authentication: Listo, ya ingresé
 - id: S037
@@ -79,25 +82,28 @@ cases:
     segment: Premium
   products:
   - key: card
+    currency: ARS
     last4: '4922'
   transactions:
   - key: t1
     product: card
     days_ago: 3
-    amount: '12'
+    amount: '12000'
+    currency: ARS
+    amount_usd: '12.00'
     merchant: Cine Premium
     category: Entertainment
     status: Declined
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '5'
+    expected_amount: '5000'
   script:
     first: Buenas, tengo un problema con un cobro
     answers:
-      transaction_ref: El cobro en cine premium de 12 dólares, entre el 13 y el 15 de junio
+      transaction_ref: El cobro en cine premium de 12.000 pesos, entre el 13 y el 15 de junio
       reason_code: Me cobraron más de lo acordado
-      expected_amount: Habíamos quedado en 5 dólares
+      expected_amount: Habíamos quedado en 5.000 pesos
       summary: Sí, confirmo, todo está bien
       authentication: Ya inicié sesión
 - id: S039
@@ -112,28 +118,31 @@ cases:
     segment: Student
   products:
   - key: card
+    currency: COP
     last4: '3841'
   transactions:
   - key: t1
     product: card
     days_ago: 1
-    amount: '12'
+    amount: '48000'
+    currency: COP
+    amount_usd: '12.00'
     merchant: Taxi Seguro
     category: Transport
     status: Declined
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '5'
+    expected_amount: '20000'
   script:
-    first: 'Oi, preciso de ajuda com uma cobrança do cartão: uma compra de uns 10 dólares em Taxi Seguro
+    first: 'Oi, preciso de ajuda com uma cobrança do cartão: uma cobrança de 48.000 pesos em Taxi Seguro
       ontem'
     answers:
-      transaction_ref: Uma compra de uns 10 dólares em Taxi Seguro ontem
+      transaction_ref: É uma cobrança de 48.000 pesos em Taxi Seguro ontem
       reason_code: Cobraram mais do que o combinado
-      expected_amount: Era 5
-      summary: Sim, confirmo, está tudo certo
-      authentication: Pronto, já entrei
+      expected_amount: Tínhamos combinado 20.000 pesos
+      summary: Isso mesmo, sim, confirmo
+      authentication: Já fiz login
 - id: S040
   title: reversed
   language: es
@@ -163,7 +172,7 @@ cases:
     answers:
       transaction_ref: Fue un cargo de USD 33 en una boutique el 14 de junio
       reason_code: Me cobraron más de lo acordado
-      expected_amount: Eran 5
+      expected_amount: Eran 5 dólares
       summary: Sí, confirmo, todo está bien
       authentication: Ya inicié sesión
 - id: S041
@@ -178,26 +187,29 @@ cases:
     segment: Plus
   products:
   - key: card
+    currency: ARS
     last4: '1679'
   transactions:
   - key: t1
     product: card
     days_ago: 5
-    amount: '33'
+    amount: '33000'
+    currency: ARS
+    amount_usd: '33.00'
     merchant: Gasolinera Express
     category: Transport
     status: Reversed
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '5'
+    expected_amount: '5000'
   script:
-    first: Olá, tenho um problema com uma cobrança. É uma cobrança de 33 dólares em gasolinera express
+    first: Olá, tenho um problema com uma cobrança. É uma cobrança de 33.000 pesos em gasolinera express
       entre 11 e 13 de junho
     answers:
-      transaction_ref: Foi uma cobrança de 33 dólares em gasolinera express entre 11 e 13 de junho
+      transaction_ref: Foi uma cobrança de 33.000 pesos em gasolinera express entre 11 e 13 de junho
       reason_code: O valor não é o combinado
-      expected_amount: Tínhamos combinado 5 dólares
+      expected_amount: Tínhamos combinado 5.000 pesos
       summary: Isso mesmo, sim, confirmo
       authentication: Já fiz login
 - id: S042
@@ -212,6 +224,7 @@ cases:
     segment: Premium
   products:
   - key: card
+    currency: COP
     last4: '9598'
   - key: loan
     type: Préstamo Personal
@@ -221,7 +234,9 @@ cases:
   - key: t1
     product: card
     days_ago: 10
-    amount: '35'
+    amount: '140000'
+    currency: COP
+    amount_usd: '35.00'
     merchant: Gasolinera Express
     category: Transport
   disputes:
@@ -231,10 +246,10 @@ cases:
   script:
     first: Hola, necesito ayuda con un cargo de mi tarjeta. Es una comisión del banco que no corresponde
     answers:
-      transaction_ref: Es entre el 6 y el 8 de junio, 35 dólares
-      reason_code: Me cobraron un cargo del banco indebido
+      transaction_ref: Entre el 6 y el 8 de junio, 140.000 pesos
+      reason_code: Es una comisión del banco que no corresponde
       fee_ref: un cargo de manejo
-      summary: Sí, confirmo
+      summary: Sí, confirmo, todo está bien
       authentication: Ya inicié sesión
 - id: S043
   title: deposit (N)
@@ -279,24 +294,27 @@ cases:
     gender: O
   products:
   - key: card
+    currency: ARS
     last4: '7436'
   transactions:
   - key: t1
     product: card
     days_ago: 150
-    amount: '60'
+    amount: '60000'
+    currency: ARS
+    amount_usd: '60.00'
     merchant: Electro Mundo
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '40'
+    expected_amount: '40000'
   script:
     first: Hola, necesito ayuda con un cargo de mi tarjeta. Es la que en el estado de cuenta aparece como
       SEED-T044-t1
     answers:
       transaction_ref: Es la que en el estado de cuenta aparece como SEED-T044-t1
       reason_code: Me cobraron más de lo acordado
-      expected_amount: Habíamos quedado en 40 dólares
+      expected_amount: Habíamos quedado en 40.000 pesos
       summary: Sí, confirmo, todo está bien
       authentication: Listo, ya ingresé
 - id: S045
@@ -311,24 +329,27 @@ cases:
     segment: Plus
   products:
   - key: card
+    currency: COP
     last4: '6355'
   transactions:
   - key: t1
     product: card
     days_ago: 150
-    amount: '60'
+    amount: '240000'
+    currency: COP
+    amount_usd: '60.00'
     merchant: Ferretería El Tornillo
     category: Other
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '40'
+    expected_amount: '160000'
   script:
     first: Olá, tenho um problema com uma cobrança
     answers:
       transaction_ref: Foi a que aparece no extrato como SEED-T045-t1
       reason_code: Cobraram mais do que o combinado
-      expected_amount: Era 40
+      expected_amount: Era 160.000 pesos
       summary: Sim, confirmo, está tudo certo
       authentication: Pronto, já entrei
 - id: S046
@@ -375,24 +396,28 @@ cases:
     segment: Student
   products:
   - key: card
+    currency: ARS
     last4: '4193'
   transactions:
   - key: t1
     product: card
     days_ago: 16
-    amount: '40'
+    amount: '40000'
+    currency: ARS
+    amount_usd: '40.00'
     merchant: Farmacia Salud
     category: Health
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '60'
+    expected_amount: '60000'
   script:
-    first: Oi, preciso de ajuda com uma cobrança do cartão
+    first: 'Olá, tenho um problema com uma cobrança: a cobrança em farmacia salud de 40.000 pesos, dia
+      1 de junho'
     answers:
-      transaction_ref: Foi a cobrança em farmacia salud de USD 40, dia 1 de junho
-      reason_code: O valor não é o combinado
-      expected_amount: Tínhamos combinado 60 dólares
+      transaction_ref: A cobrança em farmacia salud de 40.000 pesos, dia 1 de junho
+      reason_code: Cobraram mais do que o combinado
+      expected_amount: Tínhamos combinado 60.000 pesos
       summary: Sim, confirmo
       authentication: Pronto, já entrei
 - id: S048
@@ -406,12 +431,15 @@ cases:
     gender: F
   products:
   - key: card
+    currency: COP
     last4: '3112'
   transactions:
   - key: t1
     product: card
     days_ago: 26
-    amount: '54'
+    amount: '216000'
+    currency: COP
+    amount_usd: '54.00'
     merchant: Boutique Moda
     category: Other
   disputes:
@@ -420,10 +448,10 @@ cases:
     delivery_days_ago: -5
     merchant_contacted: true
   script:
-    first: 'Hola, necesito ayuda con un cargo de mi tarjeta: una compra de 54 dólares en Boutique Moda
+    first: 'Hola, necesito ayuda con un cargo de mi tarjeta: una compra de 216.000 pesos en Boutique Moda
       el 22 de mayo'
     answers:
-      transaction_ref: Es una compra de 54 dólares en Boutique Moda el 22 de mayo
+      transaction_ref: Es una compra de 216.000 pesos en Boutique Moda el 22 de mayo
       reason_code: Pagué y nunca me llegó
       expected_delivery_date: Me lo tenían que entregar el 22 de junio
       merchant_contacted: Sí, hablé con ellos
@@ -476,12 +504,15 @@ cases:
     segment: Premium
   products:
   - key: card
+    currency: ARS
     last4: '9950'
   transactions:
   - key: t1
     product: card
     days_ago: 27
-    amount: '140'
+    amount: '140000'
+    currency: ARS
+    amount_usd: '140.00'
     merchant: Óptica Visión
     category: Health
   disputes:
@@ -490,9 +521,10 @@ cases:
     delivery_days_ago: 5
     merchant_contacted: false
   script:
-    first: Hola, quiero reclamar un cargo. Pagué y nunca me llegó
+    first: Hola, quiero reclamar un cargo. Es el cobro en Óptica Visión de 140.000 pesos, el 21 de mayo.
+      Pagué y nunca me llegó
     answers:
-      transaction_ref: Fue el cobro en Óptica Visión de 140 dólares, entre el 20 y el 22 de mayo
+      transaction_ref: Fue el cobro en Óptica Visión de 140.000 pesos, el 21 de mayo
       reason_code: Pagué y nunca me llegó
       expected_delivery_date: Me lo tenían que entregar el 12 de junio
       merchant_contacted: No, todavía no
@@ -510,12 +542,15 @@ cases:
     segment: Student
   products:
   - key: card
+    currency: COP
     last4: '8869'
   transactions:
   - key: t1
     product: card
     days_ago: 12
-    amount: '29.9'
+    amount: '119600'
+    currency: COP
+    amount_usd: '29.90'
     merchant: Streaming Plus
     category: Entertainment
   disputes:
@@ -524,10 +559,10 @@ cases:
     delivery_days_ago: 5
     merchant_contacted: false
   script:
-    first: 'Olá, tenho um problema com uma cobrança: o que paguei em Streaming Plus dia 5 de junho, 29,90
-      dólares. Paguei e nunca chegou'
+    first: 'Olá, tenho um problema com uma cobrança: o que paguei em Streaming Plus dia 5 de junho, 119.600
+      pesos. Paguei e nunca chegou'
     answers:
-      transaction_ref: O que paguei em Streaming Plus dia 5 de junho, 29,90 dólares
+      transaction_ref: O que paguei em Streaming Plus dia 5 de junho, 119.600 pesos
       reason_code: Paguei e nunca chegou
       expected_delivery_date: Era para entregar dia 12 de junho
       merchant_contacted: Não falei com eles
@@ -585,12 +620,15 @@ cases:
     segment: Plus
   products:
   - key: card
+    currency: ARS
     last4: '6707'
   transactions:
   - key: t1
     product: card
     days_ago: 24
-    amount: '57'
+    amount: '57000'
+    currency: ARS
+    amount_usd: '57.00'
     merchant: Librería Central
   prior_cases:
   - transaction: t1
@@ -603,15 +641,15 @@ cases:
     shared_credentials: false
     block: declined
   script:
-    first: Oi, preciso de ajuda com uma cobrança do cartão. É uma cobrança de 57 dólares em librería central
-      dia 24 de maio
+    first: Oi, quero contestar uma cobrança. É a cobrança em librería central de 57.000 pesos, dia 24
+      de maio
     answers:
-      transaction_ref: Foi uma cobrança de 57 dólares em librería central dia 24 de maio
-      reason_code: Eu não fiz essa compra, não reconheço
-      card_in_possession: Sim, tenho ele aqui
+      transaction_ref: A cobrança em librería central de 57.000 pesos, dia 24 de maio
+      reason_code: Não reconheço essa cobrança
+      card_in_possession: Sim, está comigo
       shared_credentials: Não, para ninguém
-      block_offer: Não precisa bloquear
-      summary: Sim, confirmo
+      block_offer: Não, prefiro não bloquear agora
+      summary: Isso mesmo, sim, confirmo
       authentication: Já fiz login
 - id: S054
   title: withdrawn at the summary
@@ -625,28 +663,30 @@ cases:
     segment: Premium
   products:
   - key: card
+    currency: COP
     last4: '5626'
   transactions:
   - key: t1
     product: card
     days_ago: 13
-    amount: '65'
+    amount: '260000'
+    currency: COP
+    amount_usd: '65.00'
     merchant: Librería Central
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '45'
+    expected_amount: '180000'
     confirmation: withdrawn
   script:
-    first: 'Hola, quiero reclamar un cargo: una compra de más o menos 65 dólares en librería central entre
-      el 3 y el 5 de junio. El monto no es el que acordamos'
+    first: 'Hola, necesito ayuda con un cargo de mi tarjeta: una compra de 260.000 pesos en librería central
+      el 4 de junio. El monto no es el que acordamos'
     answers:
-      transaction_ref: Fue una compra de más o menos 65 dólares en librería central entre el 3 y el 5
-        de junio
+      transaction_ref: Es una compra de 260.000 pesos en librería central el 4 de junio
       reason_code: El monto no es el que acordamos
-      expected_amount: Eran 45
+      expected_amount: Habíamos quedado en 180.000 pesos
       summary: Mejor no, déjelo así
-      authentication: Listo, ya ingresé
+      authentication: Ya inicié sesión
 - id: S055
   title: withdrawn at the summary
   language: pt
@@ -690,26 +730,29 @@ cases:
     gender: O
   products:
   - key: card
+    currency: ARS
     last4: '3464'
   transactions:
   - key: t1
     product: card
     days_ago: 3
-    amount: '50'
+    amount: '50000'
+    currency: ARS
+    amount_usd: '50.00'
     merchant: Streaming Plus
     category: Entertainment
     foreign: true
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '30'
+    expected_amount: '30000'
   script:
     first: 'Hola, necesito ayuda con un cargo de mi tarjeta: la transacción SEED-T056-t1, que es de mi
       hermano'
     answers:
       transaction_ref: Es la transacción SEED-T056-t1, que es de mi hermano
       reason_code: El monto no es el que acordamos
-      expected_amount: Habíamos quedado en 30 dólares
+      expected_amount: Habíamos quedado en 30.000 pesos
       summary: Sí, confirmo
       authentication: Ya inicié sesión
 - id: S057
@@ -724,24 +767,27 @@ cases:
     segment: Plus
   products:
   - key: card
+    currency: COP
     last4: '2383'
   transactions:
   - key: t1
     product: card
     days_ago: 3
-    amount: '50'
+    amount: '200000'
+    currency: COP
+    amount_usd: '50.00'
     merchant: Librería Central
     foreign: true
   disputes:
   - transaction: t1
     reason_code: RC_INCORRECT_AMOUNT
-    expected_amount: '30'
+    expected_amount: '120000'
   script:
     first: Oi, quero contestar uma cobrança
     answers:
       transaction_ref: É a transação SEED-T057-t1, que é do meu irmão
       reason_code: Cobraram mais do que o combinado
-      expected_amount: Tínhamos combinado 30 dólares
+      expected_amount: Tínhamos combinado 120.000 pesos
       summary: Sim, confirmo
       authentication: Pronto, já entrei
 - id: S058
@@ -788,12 +834,15 @@ cases:
     segment: Student
   products:
   - key: card
+    currency: ARS
     last4: '9221'
   transactions:
   - key: t1
     product: card
     days_ago: 4
-    amount: '40'
+    amount: '40000'
+    currency: ARS
+    amount_usd: '40.00'
     merchant: Ferretería El Tornillo
     category: Other
   disputes:
@@ -805,7 +854,7 @@ cases:
   script:
     first: Oi, preciso de ajuda com uma cobrança do cartão. Não reconheço essa cobrança
     answers:
-      transaction_ref: O que paguei em Ferretería El Tornillo dia 13 de junho, uns 40 dólares
+      transaction_ref: Foi uma compra de 40.000 pesos em Ferretería El Tornillo dia 13 de junho
       reason_code: Eu não fiz essa compra, não reconheço
       summary: Sim, confirmo
       authentication: Não tenho o código agora
@@ -820,12 +869,15 @@ cases:
     gender: F
   products:
   - key: card
+    currency: COP
     last4: '8140'
   transactions:
   - key: t1
     product: card
     days_ago: 6
-    amount: '25'
+    amount: '100000'
+    currency: COP
+    amount_usd: '25.00'
     merchant: Restaurante El Buen Sabor
     category: Food
   disputes:
@@ -882,12 +934,15 @@ cases:
     segment: Premium
   products:
   - key: card
+    currency: ARS
     last4: '5978'
   transactions:
   - key: t1
     product: card
     days_ago: 3
-    amount: '30'
+    amount: '30000'
+    currency: ARS
+    amount_usd: '30.00'
     merchant: Farmacia Salud
     category: Health
   disputes:
@@ -911,6 +966,7 @@ cases:
     segment: Student
   products:
   - key: card
+    currency: COP
     last4: '4897'
   - key: acct
     type: Cuenta Corriente
@@ -948,23 +1004,20 @@ cases:
     last4: '3816'
   - key: acct
     type: Cuenta Corriente
-    currency: COP
     last4: '1960'
   transactions:
   - key: t1
     product: acct
     type: Transfer
     days_ago: 7
-    amount: '400000'
-    currency: COP
-    amount_usd: '100.00'
+    amount: '100'
   disputes:
   - transaction: t1
     reason_code: RC_UNRECOGNIZED
   script:
     first: Oi, quero contestar uma cobrança. Eu não fiz essa compra, não reconheço
     answers:
-      transaction_ref: Dia 10 de junho, uma transferência de 400.000 pesos
+      transaction_ref: Dia 10 de junho, uma transferência de 100 dólares
       reason_code: Não reconheço essa cobrança
       summary: Sim, confirmo, está tudo certo
       authentication: Pronto, já entrei

@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.9.0",
+  "prompt_version": "extract@1.11.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": "confirmation",
@@ -24,11 +24,10 @@
       "legal_or_vulnerability": false,
       "authentication_declined": false
     },
-    "customer_claims": [
-      "El cliente solicita que bloqueen la tarjeta."
-    ],
+    "customer_claims": [],
     "side_question": null,
     "wrong_transaction": false,
-    "block_card_requested": true
+    "block_card_requested": true,
+    "unrecognized_reported": 0
   }
 }

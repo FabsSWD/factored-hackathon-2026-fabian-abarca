@@ -303,3 +303,39 @@ def test_the_generic_restaurant_of_the_manual_test_3() -> None:
     assert ref.merchant is not None and "restaurante" in ref.merchant.lower()
     # Whether the model also marks flow_help does not matter: the Orchestrator processes the
     # details and sends no help text (tests/orchestrator/test_manual_3.py).
+
+
+# --- A stolen card is not account takeover (extract@1.11.0) -------------------------------------
+
+
+def test_a_stolen_card_is_not_account_takeover() -> None:
+    name = "pt_card_stolen"  # the words of scenario S013
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    pending = SlotName(recorded["pending_slot"])
+    result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
+    assert result.slots.card_in_possession is False
+    assert result.flags.account_takeover_reported is False
+
+
+# --- Distinct unrecognized charges for the ESC-03 batch (extract@1.11.0) ------------------------
+
+UNRECOGNIZED_CASES = {
+    "es_three_unrecognized": 3,  # three charges in one message
+    "es_same_charge_twice": 1,  # the same charge mentioned three times
+    "pt_no_unrecognized": 0,  # a wrong amount, nothing unrecognized
+}
+
+
+@pytest.mark.parametrize(("name", "expected"), UNRECOGNIZED_CASES.items())
+def test_distinct_unrecognized_charges(name: str, expected: int) -> None:
+    assert (FIXTURES / f"{name}.json").exists(), (
+        f"{name} is not recorded yet: run `python scripts/llm_smoke.py --record`"
+    )
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
+    result, _ = extract(name, SMOKE_CONTEXT)
+    assert result.unrecognized_reported == expected

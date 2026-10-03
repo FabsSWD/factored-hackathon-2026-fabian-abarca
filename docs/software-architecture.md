@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.1.13 |
-| Last updated | 2026-10-01 |
+| Version | 0.1.14 |
+| Last updated | 2026-10-02 |
 | Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
 ## Contents
@@ -203,3 +203,4 @@ The data and ML pipelines will be documented separately.
 | 0.1.11 | 2026-10-01 | M12 manual test 3, last fixes: the "card already blocked" notice only for a card blocked before the conversation; after RESOLVE or INFORM, a message with nothing to act on ("gracias") gets a closing reply instead of a new question. |
 | 0.1.12 | 2026-10-02 | Injection test: after a handoff, a neutral `already_transferred` notice instead of the transfer text again; later messages added masked to the packet without any model. |
 | 0.1.13 | 2026-10-02 | M13: with `extract` failed (or skipped by the token cap) and no Kev, the signals are unavailable (`ESC-11`), as §8 states; `GATE-02` informs on the turn after the last authentication request (policy 0.4.10). |
+| 0.1.14 | 2026-10-02 | Policy 0.4.11: `extract@1.11.0` returns `unrecognized_reported`, the distinct charges the customer says in a message they do not recognize; the Orchestrator keeps the largest one and gives the engine the larger of it and the evaluated charges, so three in the first message escalate under `ESC-03` before any case. Without `extract`, only the evaluated charges count. A lost or stolen card is not `account_takeover_reported`. |

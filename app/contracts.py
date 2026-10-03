@@ -471,6 +471,9 @@ class ExtractionResult(Contract):
     # The customer says the transaction just shown is not the one they mean ("ese no es").
     wrong_transaction: bool = False
     block_card_requested: bool = False  # "bloquéela": honored only after an ACT-03 offer
+    # Distinct charges the customer says in this message they do not recognize (ESC-03 batch,
+    # policy §7). The Orchestrator only ever raises the conversation's count with it.
+    unrecognized_reported: NonNegativeInt = 0
 
 
 class LLMTransaction(Contract):

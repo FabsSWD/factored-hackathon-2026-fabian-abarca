@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.9.0",
+  "prompt_version": "extract@1.11.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": null,
@@ -36,12 +36,11 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente indica que no reconoce un cargo de 50 dólares en Cafe Sintetico del 16 de junio.",
-      "El cliente indica que tiene su tarjeta consigo.",
-      "El cliente indica que no le ha dado sus claves a nadie."
+      "El cliente indica que no reconoce un cargo de 50 dólares en Cafe Sintetico del 16 de junio."
     ],
     "side_question": null,
     "wrong_transaction": false,
-    "block_card_requested": false
+    "block_card_requested": false,
+    "unrecognized_reported": 1
   }
 }

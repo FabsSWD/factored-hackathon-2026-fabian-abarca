@@ -347,6 +347,9 @@ def parse_extraction(
             adjustments += (DELIVERY_DATE_DISCARDED,)
     slots = _decimals(slots)
     claims = [str(claim).strip()[:MAX_CLAIM_CHARS] for claim in data.get("customer_claims") or []]
+    reported = data.get("unrecognized_reported", 0)
+    if isinstance(reported, bool) or not isinstance(reported, int) or reported < 0:
+        raise ValueError("extraction outside the schema: unrecognized_reported must be a count")
     try:
         result = ExtractionResult(
             detected_language=data.get("detected_language"),
@@ -357,6 +360,7 @@ def parse_extraction(
             side_question=data.get("side_question"),
             wrong_transaction=data.get("wrong_transaction", False),
             block_card_requested=data.get("block_card_requested", False),
+            unrecognized_reported=reported,
         )
         return result, adjustments
     except ValidationError as exc:
