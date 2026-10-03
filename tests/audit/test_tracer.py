@@ -225,6 +225,70 @@ def test_list_filters_and_order(tracer: DatabaseAuditTracer) -> None:
     assert len(tracer.list(TraceFilter(limit=1))) == 1
 
 
+def test_search_matches_part_of_any_id(tracer: DatabaseAuditTracer, session_id: str) -> None:
+    seed(tracer)
+    tracer.record(
+        trace("TRC-X9", conversation_id="CONV-Z", minutes=3, handoff_id="HO-20261003-000077")
+    )
+    tracer.record(trace("S1", conversation_id="CONV-S", minutes=4, session_id=session_id))
+
+    def found(text: str) -> list[str]:
+        return [t.trace_id for t in tracer.list(TraceFilter(search=text))]
+
+    assert found("conv-a") == ["A2", "A1"]  # conversation ID, any case
+    assert found("b1") == ["B1"]  # trace ID
+    assert found("000077") == ["TRC-X9"]  # handoff ID
+    assert found(session_id[-6:]) == ["S1"]  # session ID
+    assert found("  X9 ") == ["TRC-X9"]  # surrounding spaces ignored
+    assert found("%") == [] and found("_") == []  # wildcards are literal
+    assert found("") == ["S1", "TRC-X9", "B1", "A2", "A1"]
+
+
+def test_pages_and_counts(tracer: DatabaseAuditTracer) -> None:
+    seed(tracer)
+    assert [t.trace_id for t in tracer.list(TraceFilter(offset=1, limit=1))] == ["A2"]
+    assert tracer.count(TraceFilter(limit=1)) == 3
+    assert tracer.count(TraceFilter(search="CONV-A")) == 2
+    page = tracer.page(TraceFilter(offset=2, limit=2))
+    assert (page.total, page.offset, page.limit) == (3, 2, 2)
+    assert [(s.trace_id, s.outcome, s.total_latency_ms) for s in page.items] == [
+        ("A1", Outcome.CLARIFY, 4800.0)
+    ]
+    assert tracer.page(TraceFilter(search="nothing")).model_dump()["items"] == []
+
+
+def test_agent_searches_traces_page_by_page(
+    client: TestClient, tracer: DatabaseAuditTracer
+) -> None:
+    seed(tracer)
+    first = client.get("/api/agent/traces", params={"limit": 2}, headers=AGENT).json()
+    assert first["total"] == 3 and [t["trace_id"] for t in first["items"]] == ["B1", "A2"]
+    assert set(first["items"][0]) == {
+        "trace_id",
+        "conversation_id",
+        "session_id",
+        "turn_index",
+        "created_at",
+        "language",
+        "outcome",
+        "reply_kind",
+        "handoff_id",
+        "total_latency_ms",
+        "estimated_cost_usd",
+    }  # a summary: no message, decisions or model calls
+    second = client.get("/api/agent/traces", params={"limit": 2, "offset": 2}, headers=AGENT)
+    assert [t["trace_id"] for t in second.json()["items"]] == ["A1"]
+    searched = client.get(
+        "/api/agent/traces", params={"search": "conv-a", "outcome": "CLARIFY"}, headers=AGENT
+    ).json()
+    assert searched["total"] == 1 and searched["items"][0]["trace_id"] == "A1"
+    assert (
+        client.get("/api/agent/traces", params={"search": ""}, headers=AGENT).json()["total"] == 3
+    )
+    assert client.get("/api/agent/traces", params={"limit": 101}, headers=AGENT).status_code == 422
+    assert client.get("/api/agent/traces").status_code == 403
+
+
 def test_list_by_session(tracer: DatabaseAuditTracer, session_id: str) -> None:
     tracer.record(trace("S1", session_id=session_id))
     tracer.record(trace("S2"))

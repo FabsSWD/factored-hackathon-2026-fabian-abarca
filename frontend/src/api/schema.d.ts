@@ -61,6 +61,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agent/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check Session
+         * @description 204 if the token proves the agent role, 403 otherwise: the console's sign-in check. Recorded
+         *     like any other read.
+         */
+        get: operations["check_session_api_agent_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/traces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Traces
+         * @description Turn traces, newest first, as summaries. ``search`` matches part of a trace,
+         *     conversation, session or handoff ID; the full trace is read from /api/audit/{trace_id}.
+         */
+        get: operations["search_traces_api_agent_traces_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/audit": {
         parameters: {
             query?: never;
@@ -499,6 +541,17 @@ export interface components {
             /** Verified Facts */
             verified_facts?: components["schemas"]["VerifiedFact"][];
         };
+        /** HandoffPage */
+        HandoffPage: {
+            /** Items */
+            items: components["schemas"]["HandoffSummary"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
         /**
          * HandoffSummary
          * @description One line of the queue: enough to choose a case without opening it.
@@ -851,6 +904,17 @@ export interface components {
          * @enum {string}
          */
         ToolStatus: "success" | "failed" | "access_denied";
+        /** TracePage */
+        TracePage: {
+            /** Items */
+            items: components["schemas"]["TraceSummary"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
         /**
          * TraceRecord
          * @description One record per turn. Optional stages that did not run are recorded as None.
@@ -894,6 +958,35 @@ export interface components {
             tool_calls?: components["schemas"]["ToolResult"][];
             /** Total Latency Ms */
             total_latency_ms?: number | null;
+            /** Trace Id */
+            trace_id: string;
+            /** Turn Index */
+            turn_index: number;
+        };
+        /**
+         * TraceSummary
+         * @description One line of the console's trace list: enough to choose a turn without loading it.
+         */
+        TraceSummary: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Estimated Cost Usd */
+            estimated_cost_usd: string | null;
+            /** Handoff Id */
+            handoff_id: string | null;
+            language: components["schemas"]["Language"] | null;
+            outcome: components["schemas"]["Outcome"] | null;
+            /** Reply Kind */
+            reply_kind: string | null;
+            /** Session Id */
+            session_id: string | null;
+            /** Total Latency Ms */
+            total_latency_ms: number | null;
             /** Trace Id */
             trace_id: string;
             /** Turn Index */
@@ -1000,6 +1093,7 @@ export interface operations {
                 queue?: components["schemas"]["Queue"] | null;
                 priority?: components["schemas"]["Priority"] | null;
                 since?: string | null;
+                offset?: number;
                 limit?: number;
             };
             header?: never;
@@ -1014,7 +1108,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HandoffSummary"][];
+                    "application/json": components["schemas"]["HandoffPage"];
                 };
             };
             /** @description Validation Error */
@@ -1083,6 +1177,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditMetrics"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_session_api_agent_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    search_traces_api_agent_traces_get: {
+        parameters: {
+            query?: {
+                search?: string | null;
+                outcome?: components["schemas"]["Outcome"] | null;
+                language?: components["schemas"]["Language"] | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TracePage"];
                 };
             };
             /** @description Validation Error */
