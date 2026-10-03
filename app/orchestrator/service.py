@@ -214,6 +214,7 @@ class TurnResult:
     outcome: Outcome | None
     language: Language | None
     closed: bool
+    case_reference: str | None = None  # the case ACT-02 created and read back in this turn
 
 
 @dataclass
@@ -233,6 +234,7 @@ class _Turn:
     created_at: datetime
     session: SessionContext | None = None
     tools: ToolLayer | None = None
+    case_reference: str | None = None  # set only after the ACT-02 read-back (COM-04)
     guard: InputGuardResult | None = None
     records: _Records = field(default_factory=_Records)
     context: LLMContext | None = None
@@ -332,6 +334,7 @@ class Orchestrator:
                 outcome=turn.outcome,
                 language=state.language,
                 closed=state.closed,
+                case_reference=turn.case_reference,
             )
 
     # ------------------------------------------------------------------ the turn
@@ -1210,6 +1213,7 @@ class Orchestrator:
         if result.status is ToolStatus.SUCCESS and result.verified and result.record_id:
             self._new_reply(turn).add("case_created", case_ref=result.record_id)
             turn.reply_kind, turn.outcome = "case_created", Outcome.RESOLVE
+            turn.case_reference = result.record_id
             self._close_transaction(turn.state, decision, Outcome.RESOLVE)
             return
         # Failed or unverified (COM-04): evaluate again with the result, ESC-10 escalates.

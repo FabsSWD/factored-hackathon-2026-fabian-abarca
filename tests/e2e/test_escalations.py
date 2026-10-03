@@ -230,6 +230,7 @@ def test_zero_false_negatives_on_hard_rules(e2e: E2E, rule: str) -> None:
     assert turn.outcome == "ESCALATE", f"{rule} did not escalate: {turn.outcome} {turn.rules}"
     assert rule in turn.rules
     assert turn.handed_off and turn.status == 200
+    assert turn.body["status"] == "handed_off"  # M14: the chat disables its input
     packet = e2e.handoff_of(turn)
     assert rule in packet.triggered_rules
     assert packet.queue.value == expected.queue and packet.priority.value == expected.priority

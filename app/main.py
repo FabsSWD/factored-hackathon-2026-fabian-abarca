@@ -13,6 +13,7 @@ from app.api.auth import router as auth_router
 from app.api.dependencies import RateLimits
 from app.api.health import router as health_router
 from app.api.turn import router as turn_router
+from app.api.ui import router as ui_router
 from app.audit.tracer import DatabaseAuditTracer
 from app.config import PolicyConfig, load_policy_config
 from app.handoff.queue import DatabaseHandoffQueue
@@ -94,6 +95,7 @@ def create_app(
     app.include_router(auth_router)
     app.include_router(audit_router)
     app.include_router(turn_router)
+    app.include_router(ui_router)
     app.include_router(agent_router)
     return app
 

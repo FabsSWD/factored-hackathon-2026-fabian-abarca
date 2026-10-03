@@ -87,7 +87,13 @@ def test_a_conversation_through_the_api(client: TestClient, world: World) -> Non
         "language",
         "handed_off",
         "trace_id",
+        "status",  # M14: which state the chat shows; never a rule, threshold or score
+        "case_reference",
     }
+    assert first["status"] == "awaiting_confirmation" and first["case_reference"] is None
+    assert second["status"] == "case_created"
+    assert str(second["case_reference"]).startswith("DSP-")
+    assert str(second["case_reference"]) in str(second["reply"])  # read back, then shown
 
 
 def test_without_a_session_the_turn_runs_without_account_data(
@@ -95,6 +101,7 @@ def test_without_a_session_the_turn_runs_without_account_data(
 ) -> None:
     result = post(client, "Hola, quiero disputar un cargo de mi tarjeta", token=None)
     assert "verificar su identidad" in str(result["reply"])
+    assert result["status"] == "authentication_required"
     assert world.bank.reads == []
 
 
