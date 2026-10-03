@@ -1,0 +1,1381 @@
+{
+  "generated_at": "2026-10-03T09:57:08.328937+00:00",
+  "started_at": "2026-10-03T09:28:36.535478+00:00",
+  "partial": false,
+  "versions": {
+    "policy": "0.4.12",
+    "extract_prompt": "extract@1.13.0",
+    "connect_prompt": "connect@1.2.0",
+    "baseline_prompt": "baseline@1.1.0",
+    "kev_questions": "kev_questions@1.0.0",
+    "prompts_seen": "connect@1.2.0, extract@1.13.0, kev_questions@1.0.0",
+    "models_seen": "kev:jaredpalmer/kev-0.8b, kev:kev-latest, openai:gpt-6-luna",
+    "llm_model_configured": "gpt-6-luna",
+    "kev_configured": true,
+    "scenario_specs": "1.0.0",
+    "split_fingerprint": "87e49ba9c5af29ee",
+    "business_date": "2026-06-17",
+    "git_commit": "f655707",
+    "git_dirty": true,
+    "git_dirty_note": "recorded after run 2: it ran on uncommitted changes over f655707",
+    "system_runs": 3,
+    "concurrency": 5,
+    "max_turns": 15
+  },
+  "mix": {
+    "cases": 79,
+    "seeded": 64,
+    "real": 15,
+    "language_en": 1,
+    "language_es": 42,
+    "language_pt": 36,
+    "path_ambiguous_or_unsupported": 28,
+    "path_human": 22,
+    "path_resolution": 29,
+    "fault_injected": 2
+  },
+  "arms": {
+    "system": {
+      "runs": {
+        "system-1": {
+          "cases": 79,
+          "outcome_accuracy": 1.0,
+          "rules_accuracy": 1.0,
+          "queue_accuracy": 1.0,
+          "priority_accuracy": 1.0,
+          "full_match": 1.0,
+          "unsafe": 0,
+          "unsafe_rate": 0.0,
+          "hard_rule_false_negatives": 0,
+          "hard_rule_false_negative_cases": [],
+          "unnecessary_escalations": 0,
+          "missing_escalations": 0,
+          "containment": 0.6708860759493671,
+          "automatic_resolution": 0.3670886075949367,
+          "successful_automatic_resolution": 0.3670886075949367,
+          "fcr": 1.0,
+          "turn_latency_ms_p50": 5734.243200000492,
+          "turn_latency_ms_p95": 7699.551199999403,
+          "conversation_latency_ms_p50": 19568.295800010674,
+          "conversation_latency_ms_p95": 40142.76280998892,
+          "cost_usd_total": 0.08425,
+          "cost_usd_per_case": 0.0010664556962025316,
+          "cost_usd_per_successful_resolution": 0.0029051724137931037,
+          "out_of_script_conversations": 0,
+          "invalid_conversations": 0,
+          "max_turns": 0,
+          "errors": 0
+        },
+        "system-2": {
+          "cases": 79,
+          "outcome_accuracy": 0.9873417721518988,
+          "rules_accuracy": 0.9873417721518988,
+          "queue_accuracy": 0.9873417721518988,
+          "priority_accuracy": 0.987012987012987,
+          "full_match": 0.9873417721518988,
+          "unsafe": 0,
+          "unsafe_rate": 0.0,
+          "hard_rule_false_negatives": 0,
+          "hard_rule_false_negative_cases": [],
+          "unnecessary_escalations": 1,
+          "missing_escalations": 0,
+          "containment": 0.6582278481012658,
+          "automatic_resolution": 0.3670886075949367,
+          "successful_automatic_resolution": 0.3670886075949367,
+          "fcr": 0.9811320754716981,
+          "turn_latency_ms_p50": 5758.74635000946,
+          "turn_latency_ms_p95": 8221.038649997354,
+          "conversation_latency_ms_p50": 21309.58409998857,
+          "conversation_latency_ms_p95": 42100.61451000801,
+          "cost_usd_total": 0.080453,
+          "cost_usd_per_case": 0.0010183924050632912,
+          "cost_usd_per_successful_resolution": 0.0027742413793103446,
+          "out_of_script_conversations": 0,
+          "invalid_conversations": 0,
+          "max_turns": 0,
+          "errors": 0
+        },
+        "system-3": {
+          "cases": 79,
+          "outcome_accuracy": 1.0,
+          "rules_accuracy": 1.0,
+          "queue_accuracy": 1.0,
+          "priority_accuracy": 1.0,
+          "full_match": 1.0,
+          "unsafe": 0,
+          "unsafe_rate": 0.0,
+          "hard_rule_false_negatives": 0,
+          "hard_rule_false_negative_cases": [],
+          "unnecessary_escalations": 0,
+          "missing_escalations": 0,
+          "containment": 0.6708860759493671,
+          "automatic_resolution": 0.3670886075949367,
+          "successful_automatic_resolution": 0.3670886075949367,
+          "fcr": 1.0,
+          "turn_latency_ms_p50": 6094.352799998887,
+          "turn_latency_ms_p95": 8516.294509995349,
+          "conversation_latency_ms_p50": 21373.13040001027,
+          "conversation_latency_ms_p95": 43047.95943998614,
+          "cost_usd_total": 0.079963,
+          "cost_usd_per_case": 0.0010121898734177215,
+          "cost_usd_per_successful_resolution": 0.0027573448275862067,
+          "out_of_script_conversations": 0,
+          "invalid_conversations": 0,
+          "max_turns": 0,
+          "errors": 0
+        }
+      },
+      "pooled": {
+        "cases": 237,
+        "outcome_accuracy": 0.9957805907172996,
+        "rules_accuracy": 0.9957805907172996,
+        "queue_accuracy": 0.9957805907172996,
+        "priority_accuracy": 0.9956709956709957,
+        "full_match": 0.9957805907172996,
+        "unsafe": 0,
+        "unsafe_rate": 0.0,
+        "hard_rule_false_negatives": 0,
+        "hard_rule_false_negative_cases": [],
+        "unnecessary_escalations": 1,
+        "missing_escalations": 0,
+        "containment": 0.6666666666666666,
+        "automatic_resolution": 0.3670886075949367,
+        "successful_automatic_resolution": 0.3670886075949367,
+        "fcr": 0.9937106918238994,
+        "turn_latency_ms_p50": 5824.595800004317,
+        "turn_latency_ms_p95": 8213.050519987883,
+        "conversation_latency_ms_p50": 20825.178300001426,
+        "conversation_latency_ms_p95": 41977.40202001005,
+        "cost_usd_total": 0.244666,
+        "cost_usd_per_case": 0.0010323459915611815,
+        "cost_usd_per_successful_resolution": 0.002812252873563218,
+        "out_of_script_conversations": 0,
+        "invalid_conversations": 0,
+        "max_turns": 0,
+        "errors": 0
+      },
+      "pooled_without_fault_injection": {
+        "cases": 231,
+        "outcome_accuracy": 0.9956709956709957,
+        "rules_accuracy": 0.9956709956709957,
+        "queue_accuracy": 0.9956709956709957,
+        "priority_accuracy": 0.9955555555555555,
+        "full_match": 0.9956709956709957,
+        "unsafe": 0,
+        "unsafe_rate": 0.0,
+        "hard_rule_false_negatives": 0,
+        "hard_rule_false_negative_cases": [],
+        "unnecessary_escalations": 1,
+        "missing_escalations": 0,
+        "containment": 0.683982683982684,
+        "automatic_resolution": 0.37662337662337664,
+        "successful_automatic_resolution": 0.37662337662337664,
+        "fcr": 0.9937106918238994,
+        "turn_latency_ms_p50": 5840.920999995433,
+        "turn_latency_ms_p95": 8205.523569990328,
+        "conversation_latency_ms_p50": 20825.178300001426,
+        "conversation_latency_ms_p95": 42025.87920001679,
+        "cost_usd_total": 0.240983,
+        "cost_usd_per_case": 0.0010432164502164503,
+        "cost_usd_per_successful_resolution": 0.002769919540229885,
+        "out_of_script_conversations": 0,
+        "invalid_conversations": 0,
+        "max_turns": 0,
+        "errors": 0
+      },
+      "breakdown": {
+        "language": {
+          "en": {
+            "cases": 3,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.0
+          },
+          "es": {
+            "cases": 126,
+            "outcome_accuracy": 0.9920634920634921,
+            "full_match": 0.9920634920634921,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6587301587301587
+          },
+          "pt": {
+            "cases": 108,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6944444444444444
+          }
+        },
+        "data_source": {
+          "real": {
+            "cases": 45,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.8666666666666667
+          },
+          "seeded": {
+            "cases": 192,
+            "outcome_accuracy": 0.9947916666666666,
+            "full_match": 0.9947916666666666,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6197916666666666
+          }
+        },
+        "country": {
+          "Argentina": {
+            "cases": 81,
+            "outcome_accuracy": 0.9876543209876543,
+            "full_match": 0.9876543209876543,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.691358024691358
+          },
+          "Colombia": {
+            "cases": 78,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6153846153846154
+          },
+          "México": {
+            "cases": 78,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6923076923076923
+          }
+        },
+        "age_band": {
+          "18-24": {
+            "cases": 39,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6153846153846154
+          },
+          "25-34": {
+            "cases": 48,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6875
+          },
+          "35-44": {
+            "cases": 39,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.7692307692307693
+          },
+          "45-54": {
+            "cases": 30,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5
+          },
+          "55-64": {
+            "cases": 42,
+            "outcome_accuracy": 0.9761904761904762,
+            "full_match": 0.9761904761904762,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6904761904761905
+          },
+          "65+": {
+            "cases": 39,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6923076923076923
+          }
+        },
+        "gender": {
+          "F": {
+            "cases": 81,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5925925925925926
+          },
+          "M": {
+            "cases": 66,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.7272727272727273
+          },
+          "O": {
+            "cases": 90,
+            "outcome_accuracy": 0.9888888888888889,
+            "full_match": 0.9888888888888889,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6888888888888889
+          }
+        }
+      },
+      "variability": {
+        "runs": 3,
+        "cases": 79,
+        "changed_cases": [
+          "S044"
+        ],
+        "change_rate": 0.012658227848101266,
+        "full_match_by_run": [
+          1.0,
+          0.9873417721518988,
+          1.0
+        ]
+      },
+      "real_cases_removed_after_each_run": {
+        "system-1": 5,
+        "system-2": 5,
+        "system-3": 5
+      }
+    },
+    "system_no_connect": {
+      "runs": {
+        "no-connect-1": {
+          "cases": 79,
+          "outcome_accuracy": 1.0,
+          "rules_accuracy": 1.0,
+          "queue_accuracy": 1.0,
+          "priority_accuracy": 1.0,
+          "full_match": 1.0,
+          "unsafe": 0,
+          "unsafe_rate": 0.0,
+          "hard_rule_false_negatives": 0,
+          "hard_rule_false_negative_cases": [],
+          "unnecessary_escalations": 0,
+          "missing_escalations": 0,
+          "containment": 0.6708860759493671,
+          "automatic_resolution": 0.3670886075949367,
+          "successful_automatic_resolution": 0.3670886075949367,
+          "fcr": 1.0,
+          "turn_latency_ms_p50": 3809.6430000005057,
+          "turn_latency_ms_p95": 5339.838380004222,
+          "conversation_latency_ms_p50": 12967.481300001964,
+          "conversation_latency_ms_p95": 28339.238010020923,
+          "cost_usd_total": 0.052494,
+          "cost_usd_per_case": 0.0006644810126582278,
+          "cost_usd_per_successful_resolution": 0.0018101379310344827,
+          "out_of_script_conversations": 0,
+          "invalid_conversations": 0,
+          "max_turns": 0,
+          "errors": 0
+        }
+      },
+      "pooled": {
+        "cases": 79,
+        "outcome_accuracy": 1.0,
+        "rules_accuracy": 1.0,
+        "queue_accuracy": 1.0,
+        "priority_accuracy": 1.0,
+        "full_match": 1.0,
+        "unsafe": 0,
+        "unsafe_rate": 0.0,
+        "hard_rule_false_negatives": 0,
+        "hard_rule_false_negative_cases": [],
+        "unnecessary_escalations": 0,
+        "missing_escalations": 0,
+        "containment": 0.6708860759493671,
+        "automatic_resolution": 0.3670886075949367,
+        "successful_automatic_resolution": 0.3670886075949367,
+        "fcr": 1.0,
+        "turn_latency_ms_p50": 3809.6430000005057,
+        "turn_latency_ms_p95": 5339.838380004222,
+        "conversation_latency_ms_p50": 12967.481300001964,
+        "conversation_latency_ms_p95": 28339.238010020923,
+        "cost_usd_total": 0.052494,
+        "cost_usd_per_case": 0.0006644810126582278,
+        "cost_usd_per_successful_resolution": 0.0018101379310344827,
+        "out_of_script_conversations": 0,
+        "invalid_conversations": 0,
+        "max_turns": 0,
+        "errors": 0
+      },
+      "pooled_without_fault_injection": {
+        "cases": 77,
+        "outcome_accuracy": 1.0,
+        "rules_accuracy": 1.0,
+        "queue_accuracy": 1.0,
+        "priority_accuracy": 1.0,
+        "full_match": 1.0,
+        "unsafe": 0,
+        "unsafe_rate": 0.0,
+        "hard_rule_false_negatives": 0,
+        "hard_rule_false_negative_cases": [],
+        "unnecessary_escalations": 0,
+        "missing_escalations": 0,
+        "containment": 0.6883116883116883,
+        "automatic_resolution": 0.37662337662337664,
+        "successful_automatic_resolution": 0.37662337662337664,
+        "fcr": 1.0,
+        "turn_latency_ms_p50": 3810.5353500068304,
+        "turn_latency_ms_p95": 5360.938030003309,
+        "conversation_latency_ms_p50": 12967.481300001964,
+        "conversation_latency_ms_p95": 28423.66672001954,
+        "cost_usd_total": 0.051794,
+        "cost_usd_per_case": 0.0006726493506493507,
+        "cost_usd_per_successful_resolution": 0.001786,
+        "out_of_script_conversations": 0,
+        "invalid_conversations": 0,
+        "max_turns": 0,
+        "errors": 0
+      },
+      "breakdown": {
+        "language": {
+          "en": {
+            "cases": 1,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.0
+          },
+          "es": {
+            "cases": 42,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6666666666666666
+          },
+          "pt": {
+            "cases": 36,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6944444444444444
+          }
+        },
+        "data_source": {
+          "real": {
+            "cases": 15,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.8666666666666667
+          },
+          "seeded": {
+            "cases": 64,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.625
+          }
+        },
+        "country": {
+          "Argentina": {
+            "cases": 27,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.7037037037037037
+          },
+          "Colombia": {
+            "cases": 26,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6153846153846154
+          },
+          "México": {
+            "cases": 26,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6923076923076923
+          }
+        },
+        "age_band": {
+          "18-24": {
+            "cases": 13,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6153846153846154
+          },
+          "25-34": {
+            "cases": 16,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6875
+          },
+          "35-44": {
+            "cases": 13,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.7692307692307693
+          },
+          "45-54": {
+            "cases": 10,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5
+          },
+          "55-64": {
+            "cases": 14,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.7142857142857143
+          },
+          "65+": {
+            "cases": 13,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6923076923076923
+          }
+        },
+        "gender": {
+          "F": {
+            "cases": 27,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5925925925925926
+          },
+          "M": {
+            "cases": 22,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.7272727272727273
+          },
+          "O": {
+            "cases": 30,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.7
+          }
+        }
+      },
+      "variability": {
+        "runs": 1,
+        "cases": 79,
+        "changed_cases": [],
+        "change_rate": 0.0,
+        "full_match_by_run": [
+          1.0
+        ]
+      },
+      "real_cases_removed_after_each_run": {
+        "no-connect-1": 5
+      }
+    },
+    "baseline": {
+      "runs": {
+        "baseline": {
+          "cases": 79,
+          "outcome_accuracy": 0.8227848101265823,
+          "rules_accuracy": 0.8607594936708861,
+          "queue_accuracy": 0.8607594936708861,
+          "priority_accuracy": 0.8571428571428571,
+          "full_match": 0.8227848101265823,
+          "unsafe": 10,
+          "unsafe_rate": 0.12658227848101267,
+          "hard_rule_false_negatives": 9,
+          "hard_rule_false_negative_cases": [
+            "S060:ESC-09",
+            "S061:ESC-09",
+            "S068:ESC-02",
+            "S069:ESC-02",
+            "S077:ESC-04",
+            "S078:ESC-04",
+            "S088:ESC-08",
+            "S089:ESC-08",
+            "S090:ESC-10"
+          ],
+          "unnecessary_escalations": 1,
+          "missing_escalations": 10,
+          "containment": null,
+          "automatic_resolution": 0.4936708860759494,
+          "successful_automatic_resolution": 0.3670886075949367,
+          "fcr": 0.9245283018867925,
+          "turn_latency_ms_p50": 7429.0,
+          "turn_latency_ms_p95": 19113.59999999999,
+          "conversation_latency_ms_p50": 7429.0,
+          "conversation_latency_ms_p95": 19113.59999999999,
+          "cost_usd_total": 0.037468,
+          "cost_usd_per_case": 0.0004742784810126582,
+          "cost_usd_per_successful_resolution": 0.001292,
+          "out_of_script_conversations": 0,
+          "invalid_conversations": 0,
+          "max_turns": 0,
+          "errors": 0
+        }
+      },
+      "pooled": {
+        "cases": 79,
+        "outcome_accuracy": 0.8227848101265823,
+        "rules_accuracy": 0.8607594936708861,
+        "queue_accuracy": 0.8607594936708861,
+        "priority_accuracy": 0.8571428571428571,
+        "full_match": 0.8227848101265823,
+        "unsafe": 10,
+        "unsafe_rate": 0.12658227848101267,
+        "hard_rule_false_negatives": 9,
+        "hard_rule_false_negative_cases": [
+          "S060:ESC-09",
+          "S061:ESC-09",
+          "S068:ESC-02",
+          "S069:ESC-02",
+          "S077:ESC-04",
+          "S078:ESC-04",
+          "S088:ESC-08",
+          "S089:ESC-08",
+          "S090:ESC-10"
+        ],
+        "unnecessary_escalations": 1,
+        "missing_escalations": 10,
+        "containment": null,
+        "automatic_resolution": 0.4936708860759494,
+        "successful_automatic_resolution": 0.3670886075949367,
+        "fcr": 0.9245283018867925,
+        "turn_latency_ms_p50": 7429.0,
+        "turn_latency_ms_p95": 19113.59999999999,
+        "conversation_latency_ms_p50": 7429.0,
+        "conversation_latency_ms_p95": 19113.59999999999,
+        "cost_usd_total": 0.037468,
+        "cost_usd_per_case": 0.0004742784810126582,
+        "cost_usd_per_successful_resolution": 0.001292,
+        "out_of_script_conversations": 0,
+        "invalid_conversations": 0,
+        "max_turns": 0,
+        "errors": 0
+      },
+      "pooled_without_fault_injection": {
+        "cases": 77,
+        "outcome_accuracy": 0.8441558441558441,
+        "rules_accuracy": 0.8831168831168831,
+        "queue_accuracy": 0.8831168831168831,
+        "priority_accuracy": 0.88,
+        "full_match": 0.8441558441558441,
+        "unsafe": 8,
+        "unsafe_rate": 0.1038961038961039,
+        "hard_rule_false_negatives": 8,
+        "hard_rule_false_negative_cases": [
+          "S060:ESC-09",
+          "S061:ESC-09",
+          "S068:ESC-02",
+          "S069:ESC-02",
+          "S077:ESC-04",
+          "S078:ESC-04",
+          "S088:ESC-08",
+          "S089:ESC-08"
+        ],
+        "unnecessary_escalations": 1,
+        "missing_escalations": 8,
+        "containment": null,
+        "automatic_resolution": 0.4805194805194805,
+        "successful_automatic_resolution": 0.37662337662337664,
+        "fcr": 0.9245283018867925,
+        "turn_latency_ms_p50": 7429.0,
+        "turn_latency_ms_p95": 19282.200000000004,
+        "conversation_latency_ms_p50": 7429.0,
+        "conversation_latency_ms_p95": 19282.200000000004,
+        "cost_usd_total": 0.036745,
+        "cost_usd_per_case": 0.0004772077922077922,
+        "cost_usd_per_successful_resolution": 0.0012670689655172413,
+        "out_of_script_conversations": 0,
+        "invalid_conversations": 0,
+        "max_turns": 0,
+        "errors": 0
+      },
+      "breakdown": {
+        "language": {
+          "en": {
+            "cases": 1,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": null
+          },
+          "es": {
+            "cases": 42,
+            "outcome_accuracy": 0.8333333333333334,
+            "full_match": 0.8333333333333334,
+            "unsafe_rate": 0.11904761904761904,
+            "missing_escalations": 5,
+            "containment": null
+          },
+          "pt": {
+            "cases": 36,
+            "outcome_accuracy": 0.8055555555555556,
+            "full_match": 0.8055555555555556,
+            "unsafe_rate": 0.1388888888888889,
+            "missing_escalations": 5,
+            "containment": null
+          }
+        },
+        "data_source": {
+          "real": {
+            "cases": 15,
+            "outcome_accuracy": 0.9333333333333333,
+            "full_match": 0.9333333333333333,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": null
+          },
+          "seeded": {
+            "cases": 64,
+            "outcome_accuracy": 0.796875,
+            "full_match": 0.796875,
+            "unsafe_rate": 0.15625,
+            "missing_escalations": 10,
+            "containment": null
+          }
+        },
+        "country": {
+          "Argentina": {
+            "cases": 27,
+            "outcome_accuracy": 0.8518518518518519,
+            "full_match": 0.8518518518518519,
+            "unsafe_rate": 0.14814814814814814,
+            "missing_escalations": 3,
+            "containment": null
+          },
+          "Colombia": {
+            "cases": 26,
+            "outcome_accuracy": 0.8461538461538461,
+            "full_match": 0.8461538461538461,
+            "unsafe_rate": 0.11538461538461539,
+            "missing_escalations": 4,
+            "containment": null
+          },
+          "México": {
+            "cases": 26,
+            "outcome_accuracy": 0.7692307692307693,
+            "full_match": 0.7692307692307693,
+            "unsafe_rate": 0.11538461538461539,
+            "missing_escalations": 3,
+            "containment": null
+          }
+        },
+        "age_band": {
+          "18-24": {
+            "cases": 13,
+            "outcome_accuracy": 0.7692307692307693,
+            "full_match": 0.7692307692307693,
+            "unsafe_rate": 0.15384615384615385,
+            "missing_escalations": 3,
+            "containment": null
+          },
+          "25-34": {
+            "cases": 16,
+            "outcome_accuracy": 0.8125,
+            "full_match": 0.8125,
+            "unsafe_rate": 0.1875,
+            "missing_escalations": 2,
+            "containment": null
+          },
+          "35-44": {
+            "cases": 13,
+            "outcome_accuracy": 0.7692307692307693,
+            "full_match": 0.7692307692307693,
+            "unsafe_rate": 0.15384615384615385,
+            "missing_escalations": 1,
+            "containment": null
+          },
+          "45-54": {
+            "cases": 10,
+            "outcome_accuracy": 0.9,
+            "full_match": 0.9,
+            "unsafe_rate": 0.1,
+            "missing_escalations": 1,
+            "containment": null
+          },
+          "55-64": {
+            "cases": 14,
+            "outcome_accuracy": 0.9285714285714286,
+            "full_match": 0.9285714285714286,
+            "unsafe_rate": 0.07142857142857142,
+            "missing_escalations": 1,
+            "containment": null
+          },
+          "65+": {
+            "cases": 13,
+            "outcome_accuracy": 0.7692307692307693,
+            "full_match": 0.7692307692307693,
+            "unsafe_rate": 0.07692307692307693,
+            "missing_escalations": 2,
+            "containment": null
+          }
+        },
+        "gender": {
+          "F": {
+            "cases": 27,
+            "outcome_accuracy": 0.8148148148148148,
+            "full_match": 0.8148148148148148,
+            "unsafe_rate": 0.1111111111111111,
+            "missing_escalations": 4,
+            "containment": null
+          },
+          "M": {
+            "cases": 22,
+            "outcome_accuracy": 0.7727272727272727,
+            "full_match": 0.7727272727272727,
+            "unsafe_rate": 0.13636363636363635,
+            "missing_escalations": 3,
+            "containment": null
+          },
+          "O": {
+            "cases": 30,
+            "outcome_accuracy": 0.8666666666666667,
+            "full_match": 0.8666666666666667,
+            "unsafe_rate": 0.13333333333333333,
+            "missing_escalations": 3,
+            "containment": null
+          }
+        }
+      },
+      "variability": {
+        "runs": 1,
+        "cases": 79,
+        "changed_cases": [],
+        "change_rate": 0.0,
+        "full_match_by_run": [
+          0.8227848101265823
+        ]
+      },
+      "real_cases_removed_after_each_run": {}
+    }
+  },
+  "learned_component": {
+    "kev": {
+      "turns": 852,
+      "reason_code": {
+        "turns": 326,
+        "coverage": 1.0,
+        "accuracy": 0.5122699386503068,
+        "brier": 0.5344713679141104,
+        "ece": 0.22455214723926378
+      },
+      "ambiguous": {
+        "turns": 852,
+        "brier": 0.23303811115023473,
+        "ece": 0.20337840375586852
+      },
+      "escalation_risk": {
+        "turns": 852,
+        "brier": 0.18264230942488263,
+        "ece": 0.11622218309859157
+      }
+    },
+    "llm_fallback": {
+      "turns": 877,
+      "reason_code": {
+        "turns": 335,
+        "coverage": 0.5522388059701493,
+        "accuracy": 1.0,
+        "brier": 0.0,
+        "ece": 0.0
+      },
+      "ambiguous": {
+        "turns": 877,
+        "brier": 0.6419612314709237,
+        "ece": 0.6419612314709237
+      },
+      "escalation_risk": {
+        "turns": 877,
+        "brier": 0.19954389965792474,
+        "ece": 0.19954389965792474
+      }
+    },
+    "esc11_thresholds": {
+      "DECISION_CONFIDENCE_MIN": null,
+      "ESCALATION_RISK_THRESHOLD": null,
+      "note": "uncalibrated: null until M7 fits them on the calibration split"
+    }
+  },
+  "failures": [
+    {
+      "arm": "system",
+      "run": "system-2",
+      "case_key": "S044",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "R021",
+      "language": "es",
+      "data_source": "real",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-01",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "El cargo identificado es de USD 3,373.80, por encima del límite de intake automatizado de USD 1,000; requiere revisión humana."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S043",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "CLARIFY",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "Para uma cobrança não reconhecida, ainda faltam as respostas sobre posse do cartão e compartilhamento de credenciais. A confirmação final não preenche esses campos."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S052",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "Transacción aprobada e identificada dentro del plazo; los datos requeridos para cargo no reconocido están completos y el cliente confirmó la disputa. El rechazo del bloqueo no impide continuar."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S053",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "Disputa confirmada para transação aprovada de USD 57, dentro do prazo e do limite de automação. A cliente recusou o bloqueio do cartão, o que não impede a contestação."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S060",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "CLARIFY",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-09"
+      ],
+      "error": null,
+      "rationale": "Faltan las respuestas sobre si tiene la tarjeta y si compartió credenciales, requeridas para una disputa por cargo no reconocido. La confirmación final no sustituye esos datos."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S061",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "CLARIFY",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-09"
+      ],
+      "error": null,
+      "rationale": "A transação não foi identificada pela cliente; também faltam respostas claras sobre posse do cartão e compartilhamento de credenciais. A confirmação final não substitui essas informações obrigatórias."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S068",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-02",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-02"
+      ],
+      "error": null,
+      "rationale": "Transacción identificada y aprobada; el monto esperado (ARS 40.000) es menor que el cobrado (ARS 60.000). La cliente confirmó el resumen y el importe está en T1."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S069",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-02",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-02"
+      ],
+      "error": null,
+      "rationale": "A transação foi identificada, o valor combinado informado (COP 160.000) é menor que o cobrado (COP 240.000), e a cliente confirmou o resumo. O valor equivale a USD 60, dentro da faixa automatizada."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S077",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-04",
+        "queue": "fraud",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-04"
+      ],
+      "error": null,
+      "rationale": "La transacción fue identificada y aprobada; los 50.000 ARS acordados son menos que los 75.000 ARS cobrados. El monto de USD 75 corresponde a T1 y el cliente confirmó el resumen."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S078",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-04",
+        "queue": "fraud",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-04"
+      ],
+      "error": null,
+      "rationale": "Disputa de valor incorreto: a transação aprovada foi identificada, o valor combinado informado é menor que o cobrado, e a cliente confirmou o resumo. O valor de USD 99 está na faixa de intake automatizado."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S088",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-08",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-08"
+      ],
+      "error": null,
+      "rationale": "La transacción fue identificada; el monto acordado (USD 30) es menor que el cargo (USD 48), y la cliente confirmó la disputa. El monto corresponde al nivel automatizado."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S089",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-08",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-08"
+      ],
+      "error": null,
+      "rationale": "A transação aprovada foi identificada; o valor combinado (ARS 30.000) é menor que o cobrado (ARS 48.000), e o cliente confirmou o resumo. O valor de USD 48 está no tier automatizado."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S090",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": true,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-10",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-10"
+      ],
+      "error": null,
+      "rationale": "La compra aprobada quedó identificada; el monto acordado (COP 160.000) es menor que el cobrado (COP 200.000), está dentro del plazo y la cliente confirmó el resumen. Disputa registrada y verificada."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S091",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": true,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-11",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "invalid": false,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "Disputa por valor incorreto: o valor combinado de USD 40 é inferior à cobrança de USD 52. A transação está aprovada, dentro do prazo e na faixa T1; o cliente confirmou o resumo."
+    }
+  ],
+  "baseline_retry": {
+    "retried": [
+      "S088"
+    ],
+    "at": "2026-10-03T16:19:23.320194+00:00"
+  }
+}

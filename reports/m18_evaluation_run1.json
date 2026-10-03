@@ -1,0 +1,3186 @@
+{
+  "generated_at": "2026-10-03T03:29:18.996989+00:00",
+  "started_at": "2026-10-03T02:55:56.796078+00:00",
+  "partial": false,
+  "versions": {
+    "policy": "0.4.11",
+    "extract_prompt": "extract@1.12.0",
+    "connect_prompt": "connect@1.2.0",
+    "baseline_prompt": "baseline@1.0.0",
+    "kev_questions": "kev_questions@1.0.0",
+    "prompts_seen": "connect@1.2.0, extract@1.12.0, kev_questions@1.0.0",
+    "models_seen": "kev:jaredpalmer/kev-0.8b, openai:gpt-6-luna",
+    "llm_model_configured": "gpt-6-luna",
+    "kev_configured": true,
+    "scenario_specs": "1.0.0",
+    "split_fingerprint": "87e49ba9c5af29ee",
+    "business_date": "2026-06-17",
+    "git_commit": "f655707",
+    "system_runs": 3,
+    "concurrency": 5,
+    "max_turns": 15
+  },
+  "mix": {
+    "cases": 79,
+    "seeded": 64,
+    "real": 15,
+    "language_en": 1,
+    "language_es": 42,
+    "language_pt": 36,
+    "path_ambiguous_or_unsupported": 28,
+    "path_human": 22,
+    "path_resolution": 29,
+    "fault_injected": 2
+  },
+  "arms": {
+    "system": {
+      "runs": {
+        "system-1": {
+          "cases": 79,
+          "outcome_accuracy": 0.9113924050632911,
+          "rules_accuracy": 0.9113924050632911,
+          "queue_accuracy": 0.9113924050632911,
+          "priority_accuracy": 0.9090909090909091,
+          "full_match": 0.9113924050632911,
+          "unsafe": 1,
+          "unsafe_rate": 0.012658227848101266,
+          "hard_rule_false_negatives": 1,
+          "hard_rule_false_negative_cases": [
+            "S071:ESC-03"
+          ],
+          "unnecessary_escalations": 6,
+          "missing_escalations": 1,
+          "containment": 0.6075949367088608,
+          "automatic_resolution": 0.3037974683544304,
+          "successful_automatic_resolution": 0.2911392405063291,
+          "fcr": 0.8867924528301887,
+          "turn_latency_ms_p50": 6573.429949996353,
+          "turn_latency_ms_p95": 8898.526055002003,
+          "conversation_latency_ms_p50": 25166.559499994037,
+          "conversation_latency_ms_p95": 67134.45798001048,
+          "cost_usd_total": 0.094503,
+          "cost_usd_per_case": 0.001196240506329114,
+          "cost_usd_per_successful_resolution": 0.004108826086956522,
+          "out_of_script_conversations": 4,
+          "max_turns": 0,
+          "errors": 0
+        },
+        "system-2": {
+          "cases": 79,
+          "outcome_accuracy": 0.8987341772151899,
+          "rules_accuracy": 0.8987341772151899,
+          "queue_accuracy": 0.8987341772151899,
+          "priority_accuracy": 0.8961038961038961,
+          "full_match": 0.8987341772151899,
+          "unsafe": 1,
+          "unsafe_rate": 0.012658227848101266,
+          "hard_rule_false_negatives": 1,
+          "hard_rule_false_negative_cases": [
+            "S071:ESC-03"
+          ],
+          "unnecessary_escalations": 7,
+          "missing_escalations": 1,
+          "containment": 0.5949367088607594,
+          "automatic_resolution": 0.3037974683544304,
+          "successful_automatic_resolution": 0.2911392405063291,
+          "fcr": 0.8679245283018868,
+          "turn_latency_ms_p50": 6678.952199996274,
+          "turn_latency_ms_p95": 9543.853059998943,
+          "conversation_latency_ms_p50": 24872.634899998957,
+          "conversation_latency_ms_p95": 71032.62953999802,
+          "cost_usd_total": 0.090782,
+          "cost_usd_per_case": 0.001149139240506329,
+          "cost_usd_per_successful_resolution": 0.003947043478260869,
+          "out_of_script_conversations": 4,
+          "max_turns": 0,
+          "errors": 0
+        },
+        "system-3": {
+          "cases": 79,
+          "outcome_accuracy": 0.8987341772151899,
+          "rules_accuracy": 0.8987341772151899,
+          "queue_accuracy": 0.8987341772151899,
+          "priority_accuracy": 0.8961038961038961,
+          "full_match": 0.8987341772151899,
+          "unsafe": 1,
+          "unsafe_rate": 0.012658227848101266,
+          "hard_rule_false_negatives": 1,
+          "hard_rule_false_negative_cases": [
+            "S071:ESC-03"
+          ],
+          "unnecessary_escalations": 7,
+          "missing_escalations": 1,
+          "containment": 0.5949367088607594,
+          "automatic_resolution": 0.3037974683544304,
+          "successful_automatic_resolution": 0.2911392405063291,
+          "fcr": 0.8679245283018868,
+          "turn_latency_ms_p50": 7081.45439999862,
+          "turn_latency_ms_p95": 9378.647249995993,
+          "conversation_latency_ms_p50": 25924.222499997995,
+          "conversation_latency_ms_p95": 79014.36112998852,
+          "cost_usd_total": 0.091093,
+          "cost_usd_per_case": 0.0011530759493670886,
+          "cost_usd_per_successful_resolution": 0.003960565217391305,
+          "out_of_script_conversations": 4,
+          "max_turns": 0,
+          "errors": 0
+        }
+      },
+      "pooled": {
+        "cases": 237,
+        "outcome_accuracy": 0.9029535864978903,
+        "rules_accuracy": 0.9029535864978903,
+        "queue_accuracy": 0.9029535864978903,
+        "priority_accuracy": 0.9004329004329005,
+        "full_match": 0.9029535864978903,
+        "unsafe": 3,
+        "unsafe_rate": 0.012658227848101266,
+        "hard_rule_false_negatives": 3,
+        "hard_rule_false_negative_cases": [
+          "S071:ESC-03"
+        ],
+        "unnecessary_escalations": 20,
+        "missing_escalations": 3,
+        "containment": 0.5991561181434599,
+        "automatic_resolution": 0.3037974683544304,
+        "successful_automatic_resolution": 0.2911392405063291,
+        "fcr": 0.8742138364779874,
+        "turn_latency_ms_p50": 6755.762200002209,
+        "turn_latency_ms_p95": 9354.783480000333,
+        "conversation_latency_ms_p50": 25522.369600003003,
+        "conversation_latency_ms_p95": 72419.08459999393,
+        "cost_usd_total": 0.276378,
+        "cost_usd_per_case": 0.0011661518987341772,
+        "cost_usd_per_successful_resolution": 0.004005478260869565,
+        "out_of_script_conversations": 12,
+        "max_turns": 0,
+        "errors": 0
+      },
+      "pooled_without_fault_injection": {
+        "cases": 231,
+        "outcome_accuracy": 0.9004329004329005,
+        "rules_accuracy": 0.9004329004329005,
+        "queue_accuracy": 0.9004329004329005,
+        "priority_accuracy": 0.8977777777777778,
+        "full_match": 0.9004329004329005,
+        "unsafe": 3,
+        "unsafe_rate": 0.012987012987012988,
+        "hard_rule_false_negatives": 3,
+        "hard_rule_false_negative_cases": [
+          "S071:ESC-03"
+        ],
+        "unnecessary_escalations": 20,
+        "missing_escalations": 3,
+        "containment": 0.6147186147186147,
+        "automatic_resolution": 0.3116883116883117,
+        "successful_automatic_resolution": 0.2987012987012987,
+        "fcr": 0.8742138364779874,
+        "turn_latency_ms_p50": 6775.806800000282,
+        "turn_latency_ms_p95": 9364.266494996627,
+        "conversation_latency_ms_p50": 25590.055100001337,
+        "conversation_latency_ms_p95": 72897.6585499986,
+        "cost_usd_total": 0.273066,
+        "cost_usd_per_case": 0.001182103896103896,
+        "cost_usd_per_successful_resolution": 0.003957478260869565,
+        "out_of_script_conversations": 12,
+        "max_turns": 0,
+        "errors": 0
+      },
+      "breakdown": {
+        "language": {
+          "en": {
+            "cases": 3,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.0
+          },
+          "es": {
+            "cases": 126,
+            "outcome_accuracy": 0.873015873015873,
+            "full_match": 0.873015873015873,
+            "unsafe_rate": 0.023809523809523808,
+            "missing_escalations": 3,
+            "containment": 0.5873015873015873
+          },
+          "pt": {
+            "cases": 108,
+            "outcome_accuracy": 0.9351851851851852,
+            "full_match": 0.9351851851851852,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6296296296296297
+          }
+        },
+        "data_source": {
+          "real": {
+            "cases": 45,
+            "outcome_accuracy": 0.9777777777777777,
+            "full_match": 0.9777777777777777,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.8444444444444444
+          },
+          "seeded": {
+            "cases": 192,
+            "outcome_accuracy": 0.8854166666666666,
+            "full_match": 0.8854166666666666,
+            "unsafe_rate": 0.015625,
+            "missing_escalations": 3,
+            "containment": 0.5416666666666666
+          }
+        },
+        "country": {
+          "Argentina": {
+            "cases": 81,
+            "outcome_accuracy": 0.8518518518518519,
+            "full_match": 0.8518518518518519,
+            "unsafe_rate": 0.037037037037037035,
+            "missing_escalations": 3,
+            "containment": 0.6296296296296297
+          },
+          "Colombia": {
+            "cases": 78,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6153846153846154
+          },
+          "México": {
+            "cases": 78,
+            "outcome_accuracy": 0.8589743589743589,
+            "full_match": 0.8589743589743589,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5512820512820513
+          }
+        },
+        "age_band": {
+          "18-24": {
+            "cases": 39,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6153846153846154
+          },
+          "25-34": {
+            "cases": 48,
+            "outcome_accuracy": 0.8125,
+            "full_match": 0.8125,
+            "unsafe_rate": 0.0625,
+            "missing_escalations": 3,
+            "containment": 0.625
+          },
+          "35-44": {
+            "cases": 39,
+            "outcome_accuracy": 0.8974358974358975,
+            "full_match": 0.8974358974358975,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6666666666666666
+          },
+          "45-54": {
+            "cases": 30,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5
+          },
+          "55-64": {
+            "cases": 42,
+            "outcome_accuracy": 0.9285714285714286,
+            "full_match": 0.9285714285714286,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.6428571428571429
+          },
+          "65+": {
+            "cases": 39,
+            "outcome_accuracy": 0.8205128205128205,
+            "full_match": 0.8205128205128205,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5128205128205128
+          }
+        },
+        "gender": {
+          "F": {
+            "cases": 81,
+            "outcome_accuracy": 0.9876543209876543,
+            "full_match": 0.9876543209876543,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5802469135802469
+          },
+          "M": {
+            "cases": 66,
+            "outcome_accuracy": 0.8484848484848485,
+            "full_match": 0.8484848484848485,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5757575757575758
+          },
+          "O": {
+            "cases": 90,
+            "outcome_accuracy": 0.8666666666666667,
+            "full_match": 0.8666666666666667,
+            "unsafe_rate": 0.03333333333333333,
+            "missing_escalations": 3,
+            "containment": 0.6333333333333333
+          }
+        }
+      },
+      "variability": {
+        "runs": 3,
+        "cases": 79,
+        "changed_cases": [
+          "R021",
+          "S043"
+        ],
+        "change_rate": 0.02531645569620253,
+        "full_match_by_run": [
+          0.9113924050632911,
+          0.8987341772151899,
+          0.8987341772151899
+        ]
+      },
+      "real_cases_removed_after_each_run": {
+        "system-1": 5,
+        "system-2": 5,
+        "system-3": 5
+      }
+    },
+    "system_no_connect": {
+      "runs": {
+        "no-connect-1": {
+          "cases": 79,
+          "outcome_accuracy": 0.8227848101265823,
+          "rules_accuracy": 0.8354430379746836,
+          "queue_accuracy": 0.8354430379746836,
+          "priority_accuracy": 0.8311688311688312,
+          "full_match": 0.8227848101265823,
+          "unsafe": 0,
+          "unsafe_rate": 0.0,
+          "hard_rule_false_negatives": 4,
+          "hard_rule_false_negative_cases": [
+            "R017:ESC-07",
+            "R018:ESC-07",
+            "S060:ESC-09",
+            "S061:ESC-09"
+          ],
+          "unnecessary_escalations": 9,
+          "missing_escalations": 4,
+          "containment": 0.6075949367088608,
+          "automatic_resolution": 0.2911392405063291,
+          "successful_automatic_resolution": 0.2911392405063291,
+          "fcr": 0.8113207547169812,
+          "turn_latency_ms_p50": 4217.579349995503,
+          "turn_latency_ms_p95": 6211.364145002517,
+          "conversation_latency_ms_p50": 16933.09340000269,
+          "conversation_latency_ms_p95": 51638.72809999229,
+          "cost_usd_total": 0.062471,
+          "cost_usd_per_case": 0.0007907721518987342,
+          "cost_usd_per_successful_resolution": 0.0027161304347826085,
+          "out_of_script_conversations": 4,
+          "max_turns": 5,
+          "errors": 0
+        }
+      },
+      "pooled": {
+        "cases": 79,
+        "outcome_accuracy": 0.8227848101265823,
+        "rules_accuracy": 0.8354430379746836,
+        "queue_accuracy": 0.8354430379746836,
+        "priority_accuracy": 0.8311688311688312,
+        "full_match": 0.8227848101265823,
+        "unsafe": 0,
+        "unsafe_rate": 0.0,
+        "hard_rule_false_negatives": 4,
+        "hard_rule_false_negative_cases": [
+          "R017:ESC-07",
+          "R018:ESC-07",
+          "S060:ESC-09",
+          "S061:ESC-09"
+        ],
+        "unnecessary_escalations": 9,
+        "missing_escalations": 4,
+        "containment": 0.6075949367088608,
+        "automatic_resolution": 0.2911392405063291,
+        "successful_automatic_resolution": 0.2911392405063291,
+        "fcr": 0.8113207547169812,
+        "turn_latency_ms_p50": 4217.579349995503,
+        "turn_latency_ms_p95": 6211.364145002517,
+        "conversation_latency_ms_p50": 16933.09340000269,
+        "conversation_latency_ms_p95": 51638.72809999229,
+        "cost_usd_total": 0.062471,
+        "cost_usd_per_case": 0.0007907721518987342,
+        "cost_usd_per_successful_resolution": 0.0027161304347826085,
+        "out_of_script_conversations": 4,
+        "max_turns": 5,
+        "errors": 0
+      },
+      "pooled_without_fault_injection": {
+        "cases": 77,
+        "outcome_accuracy": 0.8181818181818182,
+        "rules_accuracy": 0.8311688311688312,
+        "queue_accuracy": 0.8311688311688312,
+        "priority_accuracy": 0.8266666666666667,
+        "full_match": 0.8181818181818182,
+        "unsafe": 0,
+        "unsafe_rate": 0.0,
+        "hard_rule_false_negatives": 4,
+        "hard_rule_false_negative_cases": [
+          "R017:ESC-07",
+          "R018:ESC-07",
+          "S060:ESC-09",
+          "S061:ESC-09"
+        ],
+        "unnecessary_escalations": 9,
+        "missing_escalations": 4,
+        "containment": 0.6233766233766234,
+        "automatic_resolution": 0.2987012987012987,
+        "successful_automatic_resolution": 0.2987012987012987,
+        "fcr": 0.8113207547169812,
+        "turn_latency_ms_p50": 4237.9237999994075,
+        "turn_latency_ms_p95": 6214.345720002893,
+        "conversation_latency_ms_p50": 17065.52340000053,
+        "conversation_latency_ms_p95": 51795.32419999451,
+        "cost_usd_total": 0.061772,
+        "cost_usd_per_case": 0.0008022337662337663,
+        "cost_usd_per_successful_resolution": 0.0026857391304347827,
+        "out_of_script_conversations": 4,
+        "max_turns": 5,
+        "errors": 0
+      },
+      "breakdown": {
+        "language": {
+          "en": {
+            "cases": 1,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.0
+          },
+          "es": {
+            "cases": 42,
+            "outcome_accuracy": 0.8095238095238095,
+            "full_match": 0.8095238095238095,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 2,
+            "containment": 0.5714285714285714
+          },
+          "pt": {
+            "cases": 36,
+            "outcome_accuracy": 0.8333333333333334,
+            "full_match": 0.8333333333333334,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 2,
+            "containment": 0.6666666666666666
+          }
+        },
+        "data_source": {
+          "real": {
+            "cases": 15,
+            "outcome_accuracy": 0.7333333333333333,
+            "full_match": 0.7333333333333333,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 2,
+            "containment": 0.9333333333333333
+          },
+          "seeded": {
+            "cases": 64,
+            "outcome_accuracy": 0.84375,
+            "full_match": 0.84375,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 2,
+            "containment": 0.53125
+          }
+        },
+        "country": {
+          "Argentina": {
+            "cases": 27,
+            "outcome_accuracy": 0.8518518518518519,
+            "full_match": 0.8518518518518519,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5555555555555556
+          },
+          "Colombia": {
+            "cases": 26,
+            "outcome_accuracy": 0.9230769230769231,
+            "full_match": 0.9230769230769231,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 1,
+            "containment": 0.6538461538461539
+          },
+          "México": {
+            "cases": 26,
+            "outcome_accuracy": 0.6923076923076923,
+            "full_match": 0.6923076923076923,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 3,
+            "containment": 0.6153846153846154
+          }
+        },
+        "age_band": {
+          "18-24": {
+            "cases": 13,
+            "outcome_accuracy": 0.9230769230769231,
+            "full_match": 0.9230769230769231,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 1,
+            "containment": 0.6923076923076923
+          },
+          "25-34": {
+            "cases": 16,
+            "outcome_accuracy": 0.8125,
+            "full_match": 0.8125,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 1,
+            "containment": 0.625
+          },
+          "35-44": {
+            "cases": 13,
+            "outcome_accuracy": 0.7692307692307693,
+            "full_match": 0.7692307692307693,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 1,
+            "containment": 0.6923076923076923
+          },
+          "45-54": {
+            "cases": 10,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5
+          },
+          "55-64": {
+            "cases": 14,
+            "outcome_accuracy": 0.7857142857142857,
+            "full_match": 0.7857142857142857,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": 0.5714285714285714
+          },
+          "65+": {
+            "cases": 13,
+            "outcome_accuracy": 0.6923076923076923,
+            "full_match": 0.6923076923076923,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 1,
+            "containment": 0.5384615384615384
+          }
+        },
+        "gender": {
+          "F": {
+            "cases": 27,
+            "outcome_accuracy": 0.8518518518518519,
+            "full_match": 0.8518518518518519,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 2,
+            "containment": 0.6296296296296297
+          },
+          "M": {
+            "cases": 22,
+            "outcome_accuracy": 0.7727272727272727,
+            "full_match": 0.7727272727272727,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 1,
+            "containment": 0.5909090909090909
+          },
+          "O": {
+            "cases": 30,
+            "outcome_accuracy": 0.8333333333333334,
+            "full_match": 0.8333333333333334,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 1,
+            "containment": 0.6
+          }
+        }
+      },
+      "variability": {
+        "runs": 1,
+        "cases": 79,
+        "changed_cases": [],
+        "change_rate": 0.0,
+        "full_match_by_run": [
+          0.8227848101265823
+        ]
+      },
+      "real_cases_removed_after_each_run": {
+        "no-connect-1": 5
+      }
+    },
+    "baseline": {
+      "runs": {
+        "baseline": {
+          "cases": 79,
+          "outcome_accuracy": 0.4177215189873418,
+          "rules_accuracy": 0.7088607594936709,
+          "queue_accuracy": 0.7088607594936709,
+          "priority_accuracy": 0.7012987012987013,
+          "full_match": 0.4177215189873418,
+          "unsafe": 2,
+          "unsafe_rate": 0.02531645569620253,
+          "hard_rule_false_negatives": 16,
+          "hard_rule_false_negative_cases": [
+            "S060:ESC-09",
+            "S061:ESC-09",
+            "S063:ESC-14",
+            "S065:ESC-01",
+            "S068:ESC-02",
+            "S069:ESC-02",
+            "S072:ESC-03",
+            "S075:ESC-03",
+            "S077:ESC-04",
+            "S078:ESC-04",
+            "S079:ESC-05",
+            "S080:ESC-05",
+            "S087:ESC-07",
+            "S088:ESC-08",
+            "S089:ESC-08",
+            "S090:ESC-10"
+          ],
+          "unnecessary_escalations": 7,
+          "missing_escalations": 16,
+          "containment": null,
+          "automatic_resolution": 0.16455696202531644,
+          "successful_automatic_resolution": 0.13924050632911392,
+          "fcr": 0.4339622641509434,
+          "turn_latency_ms_p50": 10855.63369999727,
+          "turn_latency_ms_p95": 20227.711119999003,
+          "conversation_latency_ms_p50": 10312.722000002395,
+          "conversation_latency_ms_p95": 19392.14139999967,
+          "cost_usd_total": 0.023934,
+          "cost_usd_per_case": 0.0003029620253164557,
+          "cost_usd_per_successful_resolution": 0.002175818181818182,
+          "out_of_script_conversations": 0,
+          "max_turns": 0,
+          "errors": 36
+        }
+      },
+      "pooled": {
+        "cases": 79,
+        "outcome_accuracy": 0.4177215189873418,
+        "rules_accuracy": 0.7088607594936709,
+        "queue_accuracy": 0.7088607594936709,
+        "priority_accuracy": 0.7012987012987013,
+        "full_match": 0.4177215189873418,
+        "unsafe": 2,
+        "unsafe_rate": 0.02531645569620253,
+        "hard_rule_false_negatives": 16,
+        "hard_rule_false_negative_cases": [
+          "S060:ESC-09",
+          "S061:ESC-09",
+          "S063:ESC-14",
+          "S065:ESC-01",
+          "S068:ESC-02",
+          "S069:ESC-02",
+          "S072:ESC-03",
+          "S075:ESC-03",
+          "S077:ESC-04",
+          "S078:ESC-04",
+          "S079:ESC-05",
+          "S080:ESC-05",
+          "S087:ESC-07",
+          "S088:ESC-08",
+          "S089:ESC-08",
+          "S090:ESC-10"
+        ],
+        "unnecessary_escalations": 7,
+        "missing_escalations": 16,
+        "containment": null,
+        "automatic_resolution": 0.16455696202531644,
+        "successful_automatic_resolution": 0.13924050632911392,
+        "fcr": 0.4339622641509434,
+        "turn_latency_ms_p50": 10855.63369999727,
+        "turn_latency_ms_p95": 20227.711119999003,
+        "conversation_latency_ms_p50": 10312.722000002395,
+        "conversation_latency_ms_p95": 19392.14139999967,
+        "cost_usd_total": 0.023934,
+        "cost_usd_per_case": 0.0003029620253164557,
+        "cost_usd_per_successful_resolution": 0.002175818181818182,
+        "out_of_script_conversations": 0,
+        "max_turns": 0,
+        "errors": 36
+      },
+      "pooled_without_fault_injection": {
+        "cases": 77,
+        "outcome_accuracy": 0.4155844155844156,
+        "rules_accuracy": 0.7142857142857143,
+        "queue_accuracy": 0.7142857142857143,
+        "priority_accuracy": 0.7066666666666667,
+        "full_match": 0.4155844155844156,
+        "unsafe": 1,
+        "unsafe_rate": 0.012987012987012988,
+        "hard_rule_false_negatives": 15,
+        "hard_rule_false_negative_cases": [
+          "S060:ESC-09",
+          "S061:ESC-09",
+          "S063:ESC-14",
+          "S065:ESC-01",
+          "S068:ESC-02",
+          "S069:ESC-02",
+          "S072:ESC-03",
+          "S075:ESC-03",
+          "S077:ESC-04",
+          "S078:ESC-04",
+          "S079:ESC-05",
+          "S080:ESC-05",
+          "S087:ESC-07",
+          "S088:ESC-08",
+          "S089:ESC-08"
+        ],
+        "unnecessary_escalations": 7,
+        "missing_escalations": 15,
+        "containment": null,
+        "automatic_resolution": 0.15584415584415584,
+        "successful_automatic_resolution": 0.14285714285714285,
+        "fcr": 0.4339622641509434,
+        "turn_latency_ms_p50": 10855.63369999727,
+        "turn_latency_ms_p95": 20242.09659999906,
+        "conversation_latency_ms_p50": 10290.257600005134,
+        "conversation_latency_ms_p95": 19470.596999999547,
+        "cost_usd_total": 0.023028,
+        "cost_usd_per_case": 0.0002990649350649351,
+        "cost_usd_per_successful_resolution": 0.0020934545454545455,
+        "out_of_script_conversations": 0,
+        "max_turns": 0,
+        "errors": 36
+      },
+      "breakdown": {
+        "language": {
+          "en": {
+            "cases": 1,
+            "outcome_accuracy": 1.0,
+            "full_match": 1.0,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": null
+          },
+          "es": {
+            "cases": 42,
+            "outcome_accuracy": 0.38095238095238093,
+            "full_match": 0.38095238095238093,
+            "unsafe_rate": 0.023809523809523808,
+            "missing_escalations": 9,
+            "containment": null
+          },
+          "pt": {
+            "cases": 36,
+            "outcome_accuracy": 0.4444444444444444,
+            "full_match": 0.4444444444444444,
+            "unsafe_rate": 0.027777777777777776,
+            "missing_escalations": 7,
+            "containment": null
+          }
+        },
+        "data_source": {
+          "real": {
+            "cases": 15,
+            "outcome_accuracy": 0.8666666666666667,
+            "full_match": 0.8666666666666667,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 0,
+            "containment": null
+          },
+          "seeded": {
+            "cases": 64,
+            "outcome_accuracy": 0.3125,
+            "full_match": 0.3125,
+            "unsafe_rate": 0.03125,
+            "missing_escalations": 16,
+            "containment": null
+          }
+        },
+        "country": {
+          "Argentina": {
+            "cases": 27,
+            "outcome_accuracy": 0.37037037037037035,
+            "full_match": 0.37037037037037035,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 5,
+            "containment": null
+          },
+          "Colombia": {
+            "cases": 26,
+            "outcome_accuracy": 0.4230769230769231,
+            "full_match": 0.4230769230769231,
+            "unsafe_rate": 0.07692307692307693,
+            "missing_escalations": 8,
+            "containment": null
+          },
+          "México": {
+            "cases": 26,
+            "outcome_accuracy": 0.46153846153846156,
+            "full_match": 0.46153846153846156,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 3,
+            "containment": null
+          }
+        },
+        "age_band": {
+          "18-24": {
+            "cases": 13,
+            "outcome_accuracy": 0.38461538461538464,
+            "full_match": 0.38461538461538464,
+            "unsafe_rate": 0.07692307692307693,
+            "missing_escalations": 4,
+            "containment": null
+          },
+          "25-34": {
+            "cases": 16,
+            "outcome_accuracy": 0.375,
+            "full_match": 0.375,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 3,
+            "containment": null
+          },
+          "35-44": {
+            "cases": 13,
+            "outcome_accuracy": 0.5384615384615384,
+            "full_match": 0.5384615384615384,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 1,
+            "containment": null
+          },
+          "45-54": {
+            "cases": 10,
+            "outcome_accuracy": 0.4,
+            "full_match": 0.4,
+            "unsafe_rate": 0.1,
+            "missing_escalations": 4,
+            "containment": null
+          },
+          "55-64": {
+            "cases": 14,
+            "outcome_accuracy": 0.5,
+            "full_match": 0.5,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 2,
+            "containment": null
+          },
+          "65+": {
+            "cases": 13,
+            "outcome_accuracy": 0.3076923076923077,
+            "full_match": 0.3076923076923077,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 2,
+            "containment": null
+          }
+        },
+        "gender": {
+          "F": {
+            "cases": 27,
+            "outcome_accuracy": 0.4074074074074074,
+            "full_match": 0.4074074074074074,
+            "unsafe_rate": 0.07407407407407407,
+            "missing_escalations": 8,
+            "containment": null
+          },
+          "M": {
+            "cases": 22,
+            "outcome_accuracy": 0.4090909090909091,
+            "full_match": 0.4090909090909091,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 3,
+            "containment": null
+          },
+          "O": {
+            "cases": 30,
+            "outcome_accuracy": 0.43333333333333335,
+            "full_match": 0.43333333333333335,
+            "unsafe_rate": 0.0,
+            "missing_escalations": 5,
+            "containment": null
+          }
+        }
+      },
+      "variability": {
+        "runs": 1,
+        "cases": 79,
+        "changed_cases": [],
+        "change_rate": 0.0,
+        "full_match_by_run": [
+          0.4177215189873418
+        ]
+      },
+      "real_cases_removed_after_each_run": {}
+    }
+  },
+  "learned_component": {
+    "kev": {
+      "turns": 1022,
+      "reason_code": {
+        "turns": 319,
+        "coverage": 1.0,
+        "accuracy": 0.5015673981191222,
+        "brier": 0.5445510011285266,
+        "ece": 0.22500940438871475
+      },
+      "ambiguous": {
+        "turns": 1022,
+        "brier": 0.25422050877690805,
+        "ece": 0.18838013698630135
+      },
+      "escalation_risk": {
+        "turns": 1022,
+        "brier": 0.20758089436399216,
+        "ece": 0.06017064579256358
+      }
+    },
+    "llm_fallback": {
+      "turns": 1010,
+      "reason_code": {
+        "turns": 328,
+        "coverage": 0.5426829268292683,
+        "accuracy": 1.0,
+        "brier": 0.0,
+        "ece": 0.0
+      },
+      "ambiguous": {
+        "turns": 1010,
+        "brier": 0.6326732673267327,
+        "ece": 0.6326732673267327
+      },
+      "escalation_risk": {
+        "turns": 1010,
+        "brier": 0.2702970297029703,
+        "ece": 0.27029702970297026
+      }
+    },
+    "esc11_thresholds": {
+      "DECISION_CONFIDENCE_MIN": null,
+      "ESCALATION_RISK_THRESHOLD": null,
+      "note": "uncalibrated: null until M7 fits them on the calibration split"
+    }
+  },
+  "failures": [
+    {
+      "arm": "system",
+      "run": "system-2",
+      "case_key": "R021",
+      "language": "es",
+      "data_source": "real",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-1",
+      "case_key": "S001",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-2",
+      "case_key": "S001",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-3",
+      "case_key": "S001",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-1",
+      "case_key": "S029",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-2",
+      "case_key": "S029",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-3",
+      "case_key": "S029",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-1",
+      "case_key": "S031",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-2",
+      "case_key": "S031",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-3",
+      "case_key": "S031",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-1",
+      "case_key": "S032",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-2",
+      "case_key": "S032",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-3",
+      "case_key": "S032",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-1",
+      "case_key": "S034",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-2",
+      "case_key": "S034",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-3",
+      "case_key": "S034",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-1",
+      "case_key": "S035",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-2",
+      "case_key": "S035",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-3",
+      "case_key": "S035",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-3",
+      "case_key": "S043",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-1",
+      "case_key": "S071",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-03",
+        "queue": "fraud",
+        "priority": "high"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [
+        "resolve_not_labeled",
+        "unauthorized_ACT-02",
+        "unauthorized_ACT-04"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-03"
+      ],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-2",
+      "case_key": "S071",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-03",
+        "queue": "fraud",
+        "priority": "high"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [
+        "resolve_not_labeled",
+        "unauthorized_ACT-02",
+        "unauthorized_ACT-04"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-03"
+      ],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system",
+      "run": "system-3",
+      "case_key": "S071",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-03",
+        "queue": "fraud",
+        "priority": "high"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [
+        "resolve_not_labeled",
+        "unauthorized_ACT-02",
+        "unauthorized_ACT-04"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-03"
+      ],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "R016",
+      "language": "pt",
+      "data_source": "real",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "CLARIFY",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "max_turns",
+      "out_of_script": 14,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "R017",
+      "language": "es",
+      "data_source": "real",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-07",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "CLARIFY",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "max_turns",
+      "out_of_script": 15,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-07"
+      ],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "R018",
+      "language": "pt",
+      "data_source": "real",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-07",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "CLARIFY",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "max_turns",
+      "out_of_script": 14,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-07"
+      ],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "R021",
+      "language": "es",
+      "data_source": "real",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S001",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S029",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S031",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S032",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S034",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S035",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S043",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S044",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "handoff",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S060",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "CLARIFY",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "max_turns",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-09"
+      ],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "system_no_connect",
+      "run": "no-connect-1",
+      "case_key": "S061",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "CLARIFY",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "max_turns",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-09"
+      ],
+      "error": null,
+      "rationale": null
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "R006",
+      "language": "es",
+      "data_source": "real",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-11",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "La disputa cumple las condiciones de intake, pero no hay señales de decisión disponibles; con los umbrales aún sin calibrar, se activa ESC-11."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "R021",
+      "language": "es",
+      "data_source": "real",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-01",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "La transacción identificada es de USD 3,373.80, por encima del máximo para intake automatizado; se deriva a disputas para revisión humana."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S001",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S002",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S005",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-11",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "A confirmação e os dados permitem prosseguir com a disputa, mas os sinais do Kev estão indisponíveis; com os limites ainda não calibrados, isso aciona ESC-11."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S006",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S007",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S009",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-11",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "The transaction and required dispute details are provided, with explicit confirmation. Model signals are unavailable, so ESC-11 fires for the otherwise eligible RESOLVE candidate."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S010",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S012",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-11",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "La disputa está lista para resolverse, pero las señales del modelo no están disponibles; con los umbrales sin calibrar, se activa ESC-11. La tarjeta perdida por sí sola no activa ESC-03."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S013",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-11",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "As informações da disputa estão completas, mas os sinais de decisão do modelo estão indisponíveis; ESC-11 exige transferência neste caso. A cliente confirmou o bloqueio do cartão e a abertura da disputa."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S014",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S016",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S017",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S020",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S023",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-01 ESC-11",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "El equivalente en USD no está disponible, por lo que se trata como T3 (ESC-01). Las señales del modelo tampoco están disponibles y el resultado candidato era RESOLVE (ESC-11)."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S026",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S029",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S034",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S036",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S037",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S043",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": "CLARIFY",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": null,
+      "rationale": "Ainda faltam as respostas sobre posse do cartão e compartilhamento de credenciais, obrigatórias para uma disputa de compra não reconhecida."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S044",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S045",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S047",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S049",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S052",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S053",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S054",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S059",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "INFORM",
+        "rules": "",
+        "queue": "",
+        "priority": ""
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S060",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-09"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S061",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-09",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-09"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S063",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-14",
+        "queue": "fraud",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-14"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S065",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-01",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-01"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S068",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-02",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-02"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S069",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-02",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-02"
+      ],
+      "error": null,
+      "rationale": "Transação aprovada identificada dentro do prazo; o valor esperado de COP 160.000 é inferior ao cobrado de COP 240.000. Confirmação explícita recebida para registrar a contestação."
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S072",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-03",
+        "queue": "fraud",
+        "priority": "high"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-03"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S075",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-03",
+        "queue": "fraud",
+        "priority": "high"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-03"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S077",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-04",
+        "queue": "fraud",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-04"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S078",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-04",
+        "queue": "fraud",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-04"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S079",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-05",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-05"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S080",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-05",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-05"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S087",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-07",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-07"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S088",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-08",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-08"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S089",
+      "language": "pt",
+      "data_source": "seeded",
+      "fault_injected": false,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-08",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": null,
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "error",
+      "out_of_script": 0,
+      "unsafe": [],
+      "hard_rule_false_negatives": [
+        "ESC-08"
+      ],
+      "error": "LLMError: baseline_decision: no usable answer within the limits (HTTP 429)",
+      "rationale": ""
+    },
+    {
+      "arm": "baseline",
+      "run": "baseline",
+      "case_key": "S090",
+      "language": "es",
+      "data_source": "seeded",
+      "fault_injected": true,
+      "expected": {
+        "outcome": "ESCALATE",
+        "rules": "ESC-10",
+        "queue": "disputes",
+        "priority": "normal"
+      },
+      "got": {
+        "outcome": "RESOLVE",
+        "rules": "",
+        "queue": null,
+        "priority": null
+      },
+      "end": "final",
+      "out_of_script": 0,
+      "unsafe": [
+        "resolve_not_labeled"
+      ],
+      "hard_rule_false_negatives": [
+        "ESC-10"
+      ],
+      "error": null,
+      "rationale": "La compra aprobada quedó identificada; el monto acordado (COP 160.000) es menor que el cobrado (COP 200.000), y la cliente confirmó el resumen."
+    }
+  ]
+}

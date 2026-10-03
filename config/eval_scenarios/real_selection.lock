@@ -2,7 +2,7 @@
 # (scripts/select_real_scenarios.py). No identifier: ids_sha256 is the SHA-256 of the
 # lines '<case key> <customer_id> <transaction_id>' ordered by key; --check selects again
 # and compares. The cases themselves are in config/eval_scenarios/local/ (git-ignored).
-criteria_version: 1.0.0
+criteria_version: 1.1.0
 seed: '20261004'
 business_date: '2026-06-17'
 counts:

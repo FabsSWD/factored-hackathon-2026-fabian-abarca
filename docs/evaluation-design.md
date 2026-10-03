@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft: M17 done, M18 pending |
-| Version | 0.4.0 |
+| Version | 0.5.0 |
 | Last updated | 2026-10-02 |
 | Related | [Dispute policy §16](dispute-policy.md#16-deriving-evaluation-labels), [Backend acceptance](backend-acceptance.md), [Software architecture](software-architecture.md) |
 
@@ -167,6 +167,17 @@ Two columns are left for the reviewer's verdict and notes. This review is the in
 
 Disagreements are resolved by fixing the specification, or, if the policy is unclear, by amending the policy and bumping its version (§16.3).
 
+**Result (evidence of §16.3).** [`reports/m17_review_summary.json`](../reports/m17_review_summary.json) (`python scripts/summarize_review.py`):
+
+- **Confirmed:** 50 of 50 labels, with no discrepancy. The sample has 15 real and 35 seeded cases, 27 in Spanish and 23 in Portuguese, and covers every `ESC-03`, `ESC-06` and `ESC-13` case.
+- **Earlier review rounds.** Before the final verdicts, the review rounds found:
+  - one label to change: `S076`, which led to policy 0.4.11;
+  - one extraction rule: `S013`;
+  - script issues: currency, Portuguese contractions, a merchant, duplicated text and a country-specific body;
+  - one reference in the review sheet: `S054`.
+
+  All were resolved, and the summary lists each one with its resolution.
+
 ## 9. Notes for M18
 
 - **Fault injection.** `ESC-10` and `ESC-11` need fault injection in the harness, because the conversation cannot cause them:
@@ -177,6 +188,18 @@ Disagreements are resolved by fixing the specification, or, if the policy is unc
 - **Separate metrics.** Metrics are reported for real and seeded cases separately, as well as together.
 - **Interruptions compare less.** When the case ends at an interruption that comes before the transaction is identified (`ESC-13`, `ESC-12`, and `ESC-05` without a transaction), compare only the outcome, the triggered rules and the queue. The tier and the failed gates of the label come from the specification's records, and the conversation never reaches them.
 - **Real customers keep what a run creates.** A run on real cases writes cases (ACT-02) and audit records on real customers. M18 must remove the cases it created there and record that it did, and must not touch `audit_logs`. Run `scripts/select_real_scenarios.py --check` before a run: after one, those customers have cases and a fresh selection skips them.
+- **Implemented in `app/evaluation/harness/`.** The harness does the following (`scripts/run_evaluation.py`):
+  - It injects the two faults per conversation.
+  - It compares interruptions without the priority.
+  - It removes, after each run, the cases that run created on real customers. It reads their IDs from the traces, deletes them with the owner role, and records the count per run.
+  - It refuses to start while a real customer of the evaluation has a case or a block.
+  - It records calibration in `config/eval_scenarios/calibration_log.yaml`. A Calibrated parameter can only be set with an entry there, and an evaluation case in an entry stops the run.
+- **After run 1.** The changes made after reading the traces of run 1:
+  - The simulated customer picks its own transaction when candidates are shown.
+  - The real cases answer every question: real selection criteria 1.1.0, same cases and same labels.
+  - A conversation with more than 3 turns out of script is invalid, not correct.
+  - The baseline runs at concurrency 2 with 5 attempts per call, and its prompt is `baseline@1.1.0`: it gets the USD amounts, and it is told that ESC-11 does not apply to it.
+  - The report keeps run 1 in its own section.
 
 ## 10. Limitations
 
@@ -190,6 +213,7 @@ Disagreements are resolved by fixing the specification, or, if the policy is unc
 
 | Version | Date | Change |
 |---|---|---|
+| 0.5.0 | 2026-10-03 | M18 run 1 analysed from the traces and fixed (policy 0.4.12, `extract@1.13.0`, `baseline@1.1.0`, real criteria 1.1.0); the evaluation report keeps run 1 apart. |
 | 0.4.0 | 2026-10-02 | Review of the seeded cases: every record in its country's currency, Portuguese contractions, a credible merchant for the T3 purchases; what M18 compares on interruptions. Policy 0.4.11: the `ESC-03` batch counts the charges reported at once, so `S076` escalates on its first dispute without creating cases (`conditions.unrecognized_reported`). The split did not change. |
 | 0.3.0 | 2026-10-02 | Real identifiers leave the repository: the cases go to `local/` (git-ignored), and the repository keeps `real_selection.lock` (criteria version, seed, counts, expected labels by case key, SHA-256 of the identifiers). The split uses case keys. The M11 identifier test covers `config/eval_scenarios/`. `--remove` explains why it refuses. |
 | 0.2.0 | 2026-10-02 | 22 cases on real records (section 5) and `data_source` on every case; the split redone and pinned with both sources; re-seeding revokes sessions and never touches `audit_logs`; what the labels measure; fault injection for M18; the review sample with real cases, now git-ignored. |
