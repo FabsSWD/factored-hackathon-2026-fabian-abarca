@@ -1,24 +1,163 @@
-# Local development services. M19 extends this file with frontend, api and kev.
-# Usage: docker compose up -d db   (reads POSTGRES_* from .env)
+# The whole system (M19): frontend, api, kev and postgres, plus the one-shot database bootstrap.
+#
+#   docker compose up -d --wait      # build missing images, start, wait until every service is healthy
+#
+# After changing the code, rebuild only what changed: docker compose build api frontend.
+# (--build would also rebuild Kev's image, about 16 GB, which takes the Docker VM's memory.)
+#
+# Reads .env (see .env.example, "Docker Compose"). Only the frontend publishes a port
+# (FRONTEND_PORT, default 8080): it serves the app and proxies /api, /auth and /health to the
+# API. Kev and PostgreSQL sit on the internal network, which has no route to the host or the
+# internet; the API joins both networks (it calls OpenAI). Overrides:
+#   docker-compose.gpu.yml   Kev on an NVIDIA GPU (otherwise it runs on CPU)
+#   docker-compose.dev.yml   local development: PostgreSQL on 127.0.0.1:5432, Kev on 127.0.0.1:8008
+# COMPOSE_FILE in .env selects them, so the command above stays the same.
+
+x-database: &database
+  # Role passwords are written into URLs: use URL-safe characters (letters, digits, - _ .).
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_APP_USER:-disputes_app}:${POSTGRES_APP_PASSWORD:?set POSTGRES_APP_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-disputes}
+  BUSINESS_DATE: ${BUSINESS_DATE:-2026-06-17}
+  BUSINESS_DAY_CUTOFF: ${BUSINESS_DAY_CUTOFF:-06:00}
+  DOCUMENT_HASH_KEY: ${DOCUMENT_HASH_KEY:?set DOCUMENT_HASH_KEY in .env}
 
 services:
-  db:
+  postgres:
     image: postgres:16
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-disputes}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-disputes}
-    ports:
-      # Published for local development only; M19 keeps the database on the internal network.
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Migrations, roles, Core Banking load and seeded scenarios (app/storage/bootstrap.py).
+  # Runs on every start, is idempotent, and exits; the API starts only if it succeeded.
+  migrate:
+    # The api service builds this image; building it here too would run two builds at once.
+    image: dispute-intake-api
+    pull_policy: never
+    command: ["python", "scripts/bootstrap_db.py"]
+    restart: "no"
+    environment:
+      <<: *database
+      ADMIN_DATABASE_URL: postgresql://${POSTGRES_USER:-disputes}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/postgres
+      MIGRATION_DATABASE_URL: postgresql+psycopg://${POSTGRES_OWNER_USER:-disputes_owner}:${POSTGRES_OWNER_PASSWORD:?set POSTGRES_OWNER_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-disputes}
+      CORE_LOAD: ${CORE_LOAD:-auto}
+      SEED_SCENARIOS: ${SEED_SCENARIOS:-true}
+    volumes:
+      # Core Banking Parquet files (python scripts/load_core_banking.py --build-only).
+      - ${CORE_DATA_DIR:-./data/core}:/srv/data/core:ro
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  kev:
+    build: ./docker/kev
+    image: dispute-intake-kev
+    restart: unless-stopped
+    environment:
+      # TorchInductor starts one compiler process per CPU by default; a few are enough and
+      # keep the first compilation from taking the host's memory.
+      TORCHINDUCTOR_COMPILE_THREADS: ${KEV_COMPILE_THREADS:-4}
+    mem_limit: ${KEV_MEMORY_LIMIT:-6g}
+    volumes:
+      # The warm-up asks the questions the API sends.
+      - ./config/kev_questions.yaml:/etc/kev/questions.yaml:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "/kev/.venv/bin/python", "/usr/local/bin/kev-entrypoint.py", "--healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 600s
+      start_interval: 5s
+
+  # Without Kev the API still answers: the Decision Client falls back (architecture §8), so the
+  # API does not wait for it.
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    image: dispute-intake-api
+    restart: unless-stopped
+    environment:
+      <<: *database
+      PSEUDONYM_KEY: ${PSEUDONYM_KEY:?set PSEUDONYM_KEY in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      TEST_OTP: ${TEST_OTP:?set TEST_OTP in .env}
+      OTP_TTL_MIN: ${OTP_TTL_MIN:-5}
+      OTP_MAX_FAILURES: ${OTP_MAX_FAILURES:-3}
+      OTP_FAILURE_WINDOW_MIN: ${OTP_FAILURE_WINDOW_MIN:-15}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
+      LLM_MODEL: ${LLM_MODEL:?set LLM_MODEL in .env}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-20}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      LLM_TURN_DEADLINE_SECONDS: ${LLM_TURN_DEADLINE_SECONDS:-20}
+      LLM_CONNECT_ENABLED: ${LLM_CONNECT_ENABLED:-true}
+      LLM_MAX_TOKENS_PER_CONVERSATION: ${LLM_MAX_TOKENS_PER_CONVERSATION:-}
+      LLM_INPUT_USD_PER_MTOK: ${LLM_INPUT_USD_PER_MTOK:-}
+      LLM_OUTPUT_USD_PER_MTOK: ${LLM_OUTPUT_USD_PER_MTOK:-}
+      LLM_CACHED_INPUT_USD_PER_MTOK: ${LLM_CACHED_INPUT_USD_PER_MTOK:-}
+      KEV_BASE_URL: http://kev:8008
+      KEV_TIMEOUT_SECONDS: ${KEV_TIMEOUT_SECONDS:-2}
+      AGENT_API_TOKEN: ${AGENT_API_TOKEN:-}
+      AUDIT_MESSAGE_MODE: ${AUDIT_MESSAGE_MODE:-masked}
+      RATE_LIMIT_REQUESTS_PER_MINUTE: ${RATE_LIMIT_REQUESTS_PER_MINUTE:-20}
+      AUTH_RATE_LIMIT_PER_MINUTE: ${AUTH_RATE_LIMIT_PER_MINUTE:-10}
+      # The API publishes no port: only the frontend's nginx reaches it on the edge network,
+      # and it replaces X-Forwarded-For with the client IP. So the forwarded IP is trusted.
+      FORWARDED_ALLOW_IPS: "*"
+    networks: [internal, edge]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+      start_interval: 2s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+      additional_contexts:
+        nginx: ./docker/frontend
+    image: dispute-intake-frontend
+    restart: unless-stopped
+    environment:
+      PUBLIC_API_RATE_PER_SECOND: ${PUBLIC_API_RATE_PER_SECOND:-10}
+      PUBLIC_API_BURST: ${PUBLIC_API_BURST:-40}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    networks: [edge]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+      start_interval: 2s
+    depends_on:
+      api:
+        condition: service_healthy
+
+networks:
+  # No route to the host or the internet: Kev and PostgreSQL are reachable only from here.
+  internal:
+    internal: true
+  edge: {}
 
 volumes:
   pgdata:

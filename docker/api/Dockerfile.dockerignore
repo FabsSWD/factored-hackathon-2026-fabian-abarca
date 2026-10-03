@@ -1,0 +1,14 @@
+# Allowlist: only what the API image copies. Never data/, .env or the local evaluation cases.
+*
+!pyproject.toml
+!alembic.ini
+!app/
+!config/
+!migrations/
+!scripts/serve.py
+!scripts/bootstrap_db.py
+!scripts/sql/
+!docker/api/constraints.txt
+**/__pycache__
+config/eval_scenarios/local/
+config/**/config.local.*

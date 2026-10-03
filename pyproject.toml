@@ -66,7 +66,7 @@ ignore = ["SIM300"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["app", "tests", "migrations", "scripts/load_core_banking.py", "scripts/m1_reconciliation.py", "scripts/llm_smoke.py"]
+files = ["app", "tests", "migrations", "scripts/load_core_banking.py", "scripts/m1_reconciliation.py", "scripts/llm_smoke.py", "scripts/bootstrap_db.py", "scripts/smoke_stack.py", "docker/kev/entrypoint.py"]
 explicit_package_bases = true
 
 [tool.pydantic-mypy]
