@@ -33,6 +33,9 @@ _VAGUE_WORDS = frozenset(
     {
         "tienda", "almacen", "local", "negocio", "comercio", "lugar", "sitio", "loja",
         "estabelecimento", "establecimiento",
+        # A charge in general, not a merchant (the model sometimes gives these as one).
+        "compra", "compras", "cobro", "cobros", "cargo", "cargos", "cobranca", "cobrancas",
+        "pago", "pagamento", "transaccion", "transacao", "movimiento", "movimento",
     }
 )  # fmt: skip
 # Kinds of business ignored when two names are compared word by word; with the categories of
@@ -52,6 +55,11 @@ class Tolerance:
 
     percent: Decimal
     usd: Decimal
+
+
+TRANSACTION_TYPE_CATEGORIES = frozenset({"Withdrawal", "Deposit", "Transfer"})
+"""Words of config/merchant_categories.yaml that name a transaction type, not a merchant
+category: "un cajero" is compared with ``transaction_type``."""
 
 
 class MerchantKind(StrEnum):
@@ -163,6 +171,8 @@ def consistent(
     words = categories or {}
     merchant = merchant_criterion(ref.merchant, words)
     if merchant.kind is MerchantKind.CATEGORY:
+        if merchant.category in TRANSACTION_TYPE_CATEGORIES:  # an ATM: no merchant in the data
+            return txn.transaction_type == merchant.category
         return txn.merchant_category == merchant.category
     if merchant.kind is MerchantKind.ABSENT:
         return True

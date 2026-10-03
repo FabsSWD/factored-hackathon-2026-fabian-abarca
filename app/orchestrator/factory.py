@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.audit.cost import rates_from_settings
@@ -30,6 +32,18 @@ def orchestrator_from_settings(
     identity: IdentityService | None,
     tracer: DatabaseAuditTracer,
 ) -> Orchestrator:
+    return Orchestrator(**orchestrator_parts(settings, policy, session_factory, identity, tracer))
+
+
+def orchestrator_parts(
+    settings: Settings,
+    policy: PolicyConfig,
+    session_factory: sessionmaker[Session],
+    identity: IdentityService | None,
+    tracer: DatabaseAuditTracer,
+) -> dict[str, Any]:
+    """The Orchestrator's modules built from settings, as its keyword arguments. The M18 harness
+    wraps some of them (fault injection, signal capture) before building it."""
     parameters = policy.parameters
     pseudonym_key = settings.require_pseudonym_key()
     tool_config = ToolConfig(as_of=settings.as_of, parameters=parameters)
@@ -39,7 +53,7 @@ def orchestrator_from_settings(
             session_factory, session, tool_config, conversation_id=conversation_id
         )
 
-    return Orchestrator(
+    return dict(
         identity=identity,
         guard=RuleBasedInputGuard(session_factory, parameters.INJECTION_STRIKES_MAX),
         llm=adapter_from_settings(settings, recorder=record_call),

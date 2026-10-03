@@ -1,8 +1,9 @@
-"""Deterministic backup for the interrupt signals of ESC-05 and ESC-06.
+"""Deterministic backup for the interrupt signals of ESC-03, ESC-05 and ESC-06.
 
-``human_requested`` and ``legal_or_vulnerability`` must never depend on the language model
-alone: the final signal is the union of these rules and the model, and when the model fails
-the rules still reach the Policy Engine (see the LLMAdapter contract in ``app.interfaces``).
+``human_requested``, ``legal_or_vulnerability`` and the stolen or lost phone of
+``account_takeover_reported`` must never depend on the language model alone: the final signal
+is the union of these rules and the model, and when the model fails the rules still reach the
+Policy Engine (see the LLMAdapter contract in ``app.interfaces``).
 
 - ``human_requested`` matches only requests in the present or future addressed to the
   assistant ("quiero hablar con una persona", "pásame con un agente", "quero falar com um
@@ -11,6 +12,9 @@ the rules still reach the Policy Engine (see the LLMAdapter contract in ``app.in
 - ``legal_or_vulnerability`` matches legal action, a lawyer, a regulator, the media, and
   statements of serious hardship. Policy ESC-06 counts a mention of a lawyer or a regulator
   itself, so these nouns match in any tense.
+- ``account_takeover_reported`` matches a stolen or lost phone ("me robaron el celular",
+  "perdí mi teléfono", "roubaram meu celular"), with or without the app mentioned (policy
+  0.4.12). A stolen or lost card alone does not match: it answers ``card_in_possession``.
 """
 
 from __future__ import annotations
@@ -80,7 +84,20 @@ _LEGAL = [
     r"|nao consigo pagar (?:o aluguel|a comida|meus remedios)|me quiero morir|quero morrer)\b",
 ]
 
+_PHONE = _any("celular", "celulares", "telefono", "telefone", "movil", "smartphone", "iphone")
+_TAKEOVER = [
+    # Spanish: stolen or lost phone
+    rf"\b(?:me (?:robaron|quitaron|hurtaron|han robado)|robaron|se me (?:perdio|cayo|extravio)"
+    rf"|perdi|he perdido|extravie)\b(?: \w+){{0,2}} {_PHONE}\b",
+    rf"\b{_PHONE}\b(?: \w+){{0,2}} (?:fue robado|me lo robaron|me lo quitaron|se perdio"
+    rf"|lo perdi|esta perdido|robado)\b",
+    # Portuguese
+    rf"\b(?:me roubaram|roubaram|furtaram|levaram|perdi|eu perdi)\b(?: \w+){{0,2}} {_PHONE}\b",
+    rf"\b{_PHONE}\b(?: \w+){{0,2}} (?:foi roubado|foi furtado|sumiu|roubado|furtado)\b",
+]
+
 _HUMAN_RE = [re.compile(pattern) for pattern in _HUMAN]
+_TAKEOVER_RE = [re.compile(pattern) for pattern in _TAKEOVER]
 _LEGAL_RE = [re.compile(pattern) for pattern in _LEGAL]
 
 
@@ -90,6 +107,7 @@ class RuleBasedSignalDetector:
         return ConversationFlags(
             human_requested=any(pattern.search(text) for pattern in _HUMAN_RE),
             legal_or_vulnerability=any(pattern.search(text) for pattern in _LEGAL_RE),
+            account_takeover_reported=any(pattern.search(text) for pattern in _TAKEOVER_RE),
         )
 
 

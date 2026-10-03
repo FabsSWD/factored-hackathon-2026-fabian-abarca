@@ -72,6 +72,9 @@ class ConversationState:
     # ESC-03 batch: the most distinct unrecognized charges the customer reported in one
     # message. It only rises; the count the engine sees is never below the evaluated ones.
     unrecognized_reported: int = 0
+    # Replies in a row that were only a side question, without new information (policy §10):
+    # from the third, the turn counts as a clarification.
+    side_streak: int = 0
     outcomes: dict[str, Outcome] = field(default_factory=dict)  # one per transaction
     tokens_used: int = 0
     last_transaction_id: str | None = None  # the transaction of the last decision
@@ -106,8 +109,10 @@ class ConversationState:
                 "total_clarifications": 0,
                 "duplicate_reason_reasked": False,
                 "unresolved_contradiction": False,
+                "dispute_turns": 0,
             }
         )
+        self.side_streak = 0
 
 
 class ConversationStore(Protocol):

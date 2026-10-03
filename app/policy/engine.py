@@ -111,6 +111,7 @@ from app.storage.data_contract import CARD_PRODUCT_TYPES
 
 SUPPORTED_LANGUAGES = frozenset(language.value for language in Language)
 LANGUAGE_CLARIFICATIONS_MAX = 1  # GATE-01: one clarification, then ESC-12
+DISPUTE_TURNS_MARGIN = 4  # §10: a dispute's turns beyond MAX_TOTAL_CLARIFICATIONS, then ESC-09
 VELOCITY_AMOUNT_DAYS = 30  # ESC-02 window of the disputed total
 VELOCITY_COUNT_DAYS = 90  # ESC-02 window of the case count
 ELIGIBLE_PRODUCT_STATUSES = frozenset({"Active", "Blocked"})  # GATE-09
@@ -232,8 +233,9 @@ class DeterministicPolicyEngine:
             queue = self._esc14_queue(request, state) if verdict.rule == "ESC-14" else None
             state.fire(verdict.rule, list(verdict.evidence), queue)
 
-        if verdict is not None and verdict.outcome is Outcome.CLARIFY and verdict.counts:
-            exhausted = self._clarifications_exhausted(request, verdict)
+        if verdict is not None and verdict.outcome is Outcome.CLARIFY:
+            exhausted = self._clarifications_exhausted(request, verdict) if verdict.counts else []
+            exhausted += self._too_many_turns(request)
             if exhausted:
                 state.fire("ESC-09", exhausted)
         if (
@@ -754,6 +756,15 @@ class DeterministicPolicyEngine:
                 )
             )
         return found
+
+    def _too_many_turns(self, request: PolicyRequest) -> list[Evidence]:
+        """§10 (0.4.12): no dispute stays in clarification past MAX_TOTAL_CLARIFICATIONS + 4
+        turns, whatever the replies were (side questions, new details, other limits)."""
+        limit = self._p.MAX_TOTAL_CLARIFICATIONS + DISPUTE_TURNS_MARGIN
+        turns = request.counters.dispute_turns
+        if turns < limit:
+            return []
+        return [ev.counter("dispute_turns", f"{turns} (limit {limit})")]
 
     def _model_uncertain(self, request: PolicyRequest) -> list[Evidence]:
         """ESC-11. Unavailable signals are unknown uncertainty and always fire. The thresholds
