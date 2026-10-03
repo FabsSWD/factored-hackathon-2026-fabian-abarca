@@ -31,7 +31,7 @@ If `MIGRATION_DATABASE_URL` is empty, migrations and the load fall back to `DATA
 
 ### Setting up the roles
 
-1. Start the database (`docker compose up db`) with `POSTGRES_USER` and `POSTGRES_PASSWORD` set.
+1. Start the database on `127.0.0.1:5432` (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres`) with `POSTGRES_USER` and `POSTGRES_PASSWORD` set. In the full stack ([Docker Compose](#docker-compose-m19)) the `migrate` service does steps 3 to 5 by itself.
 2. Set `DATABASE_URL` and `MIGRATION_DATABASE_URL` in `.env` with the names and passwords the app and owner roles should have.
 3. On a new database only, create the tables once as the admin, overriding the variable for that command alone (PowerShell: `$env:MIGRATION_DATABASE_URL = "<admin url>"; alembic upgrade head; Remove-Item Env:MIGRATION_DATABASE_URL`). A database whose tables already exist skips this step.
 4. Create the roles and transfer ownership:
@@ -142,3 +142,40 @@ python scripts/run_evaluation.py --cases S001,R005 --runs 1 --skip-baseline   # 
 - **When it refuses to run.** It refuses when the evaluation split does not match its fingerprint, when an evaluation case appears in `config/eval_scenarios/calibration_log.yaml`, or when the local real cases are not the locked selection.
 - **Outputs.** `reports/m18/results.csv` (git-ignored), `reports/m18_evaluation.json` (the M16 dashboard) and `docs/evaluation.md`.
 - **Exit code.** It exits with 2 when a system run misses a hard rule.
+
+## Docker Compose (M19)
+
+The whole system starts with one command, from the repository root:
+
+```
+docker compose up -d --wait
+```
+
+It builds the images that are missing, starts five services and returns when every one is healthy. After changing the code, rebuild only what changed (`docker compose build api frontend`), then run the same command. Avoid `--build` on the whole stack: it reprocesses Kev's image (about 16 GB with CUDA and the weights), which can take most of the Docker VM's memory.
+
+| Service | What it runs | Network | Port on the host |
+|---|---|---|---|
+| `frontend` | nginx with the built app; proxies `/api`, `/auth` and `/health` to the API on the same origin | edge | `FRONTEND_PORT` (8080) |
+| `api` | `scripts/serve.py` (one worker) | internal + edge (edge reaches OpenAI) | none |
+| `kev` | Kev 0.8B, TypeSafe API on 8008, pinned weights baked into the image | internal | none |
+| `postgres` | PostgreSQL 16, data in the `pgdata` volume | internal | none |
+| `migrate` | `scripts/bootstrap_db.py`, once per start, then exits | internal | none |
+
+- **Networks.** `internal` has no route to the host or the internet: Kev and PostgreSQL are reachable only from the API and the bootstrap. Only the frontend publishes a port.
+- **Start order.** `migrate` waits for a healthy PostgreSQL. It runs the migrations (as the admin on a new database, as the owner afterwards), applies and verifies the roles, loads Core Banking from `CORE_DATA_DIR` (default `data/core`) when no real customer is loaded yet (`CORE_LOAD`), and seeds the M17 scenarios (`SEED_SCENARIOS`). The API starts only if it succeeded; the frontend waits for a healthy API. The API does not wait for Kev: without it, the Decision Client falls back (architecture §8).
+- **Kev.** The image pins the repository commit and the model revision (architecture §6) and downloads the weights at build time (the first build takes a while and the image is large, CUDA included). On start the container makes warm-up calls with the questions of `config/kev_questions.yaml` and reports healthy only after them. It runs on CPU unless `docker-compose.gpu.yml` is selected.
+- **Rate limits.** nginx limits every `/api` and `/auth` request per client IP (`PUBLIC_API_RATE_PER_SECOND`, `PUBLIC_API_BURST`; 429 past it), in front of the API's own limits per session and per IP on the login. nginx replaces `X-Forwarded-For` with the client IP, so the API's per-IP limits see the real client. Behind another proxy that terminates TLS, set nginx's `real_ip` to it.
+- **Configuration.** Everything comes from `.env` ([.env.example](.env.example), "Docker Compose"). The stack builds its own database URLs for the host `postgres` from `POSTGRES_USER`/`POSTGRES_PASSWORD` (admin), `POSTGRES_OWNER_*` and `POSTGRES_APP_*`. The API gets only the app role. A missing secret stops `docker compose` with its name. `COMPOSE_FILE` selects the overrides:
+  - `docker-compose.gpu.yml`: Kev on an NVIDIA GPU.
+  - `docker-compose.dev.yml`: development only, PostgreSQL on `127.0.0.1:5432` and Kev on `127.0.0.1:8008` for the test suite and the local scripts.
+
+Smoke test (one real OpenAI and Kev turn):
+
+```
+python scripts/smoke_stack.py --up     # brings the stack up, then checks it
+python scripts/smoke_stack.py          # checks a running stack
+```
+
+It checks that `docker compose config` is valid, that every service is healthy and `migrate` exited with 0, that no service but the frontend publishes a port, and then, through the frontend: `/health`, the app (a client-side route), a login with `SMOKE_DOCUMENT` (default `SEED-0001`) and `TEST_OTP`, and one turn. With `AGENT_API_TOKEN` it reads the turn's trace and fails unless Kev answered (`--allow-kev-fallback` makes that a warning). Against a remote server: `python scripts/smoke_stack.py --no-docker --base-url http://<server>:8080`.
+
+The conversation state is in the API's memory: `docker compose restart api` (or a new deployment) loses open conversations. `docker compose down` keeps the database; `docker compose down -v` deletes it.
