@@ -529,6 +529,8 @@ describe("route", () => {
     ["/agent/handoffs/HO-1", { view: "handoff", id: "HO-1" }],
     ["/agent/traces", { view: "traces" }],
     ["/agent/traces/TRC%2F1", { view: "trace", id: "TRC/1" }],
+    ["/agent/metrics", { view: "metrics" }],
+    ["/agent/metrics/", { view: "metrics" }],
   ])("%s", (path, expected) => {
     expect(route(path)).toEqual(expected);
   });

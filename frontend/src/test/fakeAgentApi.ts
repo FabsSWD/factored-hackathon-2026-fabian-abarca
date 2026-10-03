@@ -4,7 +4,7 @@
 import { vi } from "vitest";
 
 import { ApiError } from "../api/client";
-import type { AgentApi, HandoffPacket, HandoffSummary, Paging, TraceRecord, TraceSummary } from "../agent/client";
+import type { AgentApi, AuditMetrics, HandoffPacket, HandoffSummary, Paging, TraceRecord, TraceSummary } from "../agent/client";
 
 export const AGENT_TOKEN = "agent-secret-token-xyz";
 
@@ -214,13 +214,79 @@ export function moreTraces(count: number): TraceSummary[] {
   );
 }
 
+/** The metrics endpoint's answer over a few invented conversations (numbers chosen so every
+ * derived figure is easy to check by hand). */
+export const metrics: AuditMetrics = {
+  turns: 412,
+  conversations: 80,
+  outcomes: { ESCALATE: 22, RESOLVE: 30, INFORM: 16, CLARIFY: 8, REFUSE: 4 },
+  attempted_cases: 60,
+  ended_before_transaction: { authentication: 12, language: 3, no_decision: 5 },
+  abandoned: 8,
+  automated_resolutions: 29,
+  contained: 46,
+  containment_rate: 0.575,
+  escalated: 22,
+  escalation_rate: 0.275,
+  escalations_by_queue: { disputes: 12, fraud: 6, security_review: 4 },
+  escalations_by_rule: { "ESC-01": 7, "ESC-04": 5 },
+  turn_latency: { count: 412, p50_ms: 5812.4, p95_ms: 8231 },
+  stage_latency: {
+    extraction: { count: 380, p50_ms: 1840, p95_ms: 3120.5 },
+    input_guard: { count: 412, p50_ms: 2, p95_ms: 6 },
+    never_ran: { count: 0, p50_ms: null, p95_ms: null },
+  },
+  total_cost_usd: "0.081200",
+  cost_per_attempted_case_usd: "0.001353",
+  cost_per_automated_resolution_usd: "0.002800",
+  turns_without_cost: 3,
+  outcomes_by_language: {
+    es: { RESOLVE: 16, ESCALATE: 12, INFORM: 10, CLARIFY: 4 },
+    pt: { RESOLVE: 14, ESCALATE: 9, INFORM: 6, CLARIFY: 4, REFUSE: 4 },
+    unknown: { ESCALATE: 1 },
+  },
+  outcomes_by_tier: {
+    T1: { RESOLVE: 18, ESCALATE: 2 },
+    T2: { RESOLVE: 12, ESCALATE: 4, INFORM: 4 },
+    T3: { ESCALATE: 7 },
+    unknown: { CLARIFY: 8 },
+  },
+};
+
+/** The metrics endpoint's answer before any trace is stored. */
+export const emptyMetrics: AuditMetrics = {
+  turns: 0,
+  conversations: 0,
+  outcomes: {},
+  attempted_cases: 0,
+  ended_before_transaction: {},
+  abandoned: 0,
+  automated_resolutions: 0,
+  contained: 0,
+  containment_rate: null,
+  escalated: 0,
+  escalation_rate: null,
+  escalations_by_queue: {},
+  escalations_by_rule: {},
+  turn_latency: { count: 0, p50_ms: null, p95_ms: null },
+  stage_latency: {},
+  total_cost_usd: null,
+  cost_per_attempted_case_usd: null,
+  cost_per_automated_resolution_usd: null,
+  turns_without_cost: 0,
+  outcomes_by_language: {},
+  outcomes_by_tier: {},
+};
+
 function paged<T>(rows: T[], paging: Paging) {
   const offset = paging.offset ?? 0;
   const limit = paging.limit ?? 20;
   return { items: rows.slice(offset, offset + limit), total: rows.length, offset, limit };
 }
 
-export function fakeAgentApi(options: { handoffs?: HandoffSummary[]; traces?: TraceSummary[] } = {}) {
+export function fakeAgentApi(
+  options: { handoffs?: HandoffSummary[]; traces?: TraceSummary[]; metrics?: AuditMetrics } = {},
+) {
   const handoffRows = options.handoffs ?? summaries;
   const traceRows = options.traces ?? [summary(trace)];
   const api = {
@@ -257,6 +323,7 @@ export function fakeAgentApi(options: { handoffs?: HandoffSummary[]; traces?: Tr
       if (id !== trace.trace_id) throw new ApiError(404);
       return trace;
     }),
+    metrics: vi.fn<AgentApi["metrics"]>(async () => options.metrics ?? metrics),
   };
   return api;
 }

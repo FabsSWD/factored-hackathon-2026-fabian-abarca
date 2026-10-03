@@ -1,6 +1,7 @@
 // The agent console's way to the backend: the handoff queue and the trace list (/api/agent, both
-// paged), and each full trace (/api/audit/{trace_id}). The agent token travels in the Authorization header only; the console keeps it
-// in memory and never in a URL or in browser storage.
+// paged), the operating metrics (/api/agent/metrics), and each full trace (/api/audit/{trace_id}).
+// The agent token travels in the Authorization header only; the console keeps it in memory and
+// never in a URL or in browser storage.
 import { defaultFetch, request, type Fetch } from "../api/client";
 import type { components } from "../api/schema";
 
@@ -15,6 +16,8 @@ export type Queue = Schemas["Queue"];
 export type Priority = Schemas["Priority"];
 export type Outcome = Schemas["Outcome"];
 export type Evidence = Schemas["Evidence"];
+export type AuditMetrics = Schemas["AuditMetrics"];
+export type LatencySummary = Schemas["LatencySummary"];
 
 /** Which page of a list: `offset` items skipped, at most `limit` returned. */
 export interface Paging {
@@ -40,6 +43,8 @@ export interface AgentApi {
   handoff(handoffId: string, token: string): Promise<HandoffPacket>;
   traces(filters: TraceFilters, token: string): Promise<TracePage>;
   trace(traceId: string, token: string): Promise<TraceRecord>;
+  /** The metrics over every stored turn trace (definitions in app/audit/metrics.py). */
+  metrics(token: string): Promise<AuditMetrics>;
 }
 
 function query(values: object): string {
@@ -62,5 +67,6 @@ export function httpAgentApi(fetchImpl: Fetch = defaultFetch, base = ""): AgentA
     handoff: (id, token) => get(`/api/agent/handoffs/${encodeURIComponent(id)}`, token),
     traces: (filters, token) => get(`/api/agent/traces${query(filters)}`, token),
     trace: (id, token) => get(`/api/audit/${encodeURIComponent(id)}`, token),
+    metrics: (token) => get("/api/agent/metrics", token),
   };
 }

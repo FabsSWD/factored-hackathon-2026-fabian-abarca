@@ -38,16 +38,18 @@ describe("httpAgentApi", () => {
     expect(sent(fetchMock, 1).url).toBe("http://api/api/agent/handoffs");
   });
 
-  it("reads a packet, the traces and a trace, escaping the IDs", async () => {
+  it("reads a packet, the traces, a trace and the metrics, escaping the IDs", async () => {
     const fetchMock = answering(200, {});
     const api = httpAgentApi(fetchMock);
     await api.handoff("HO-1/x", TOKEN);
     await api.traces({ search: "CONV 1", outcome: "ESCALATE", offset: 20, limit: 20 }, TOKEN);
     await api.trace("TRC?1", TOKEN);
+    await api.metrics(TOKEN);
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       "/api/agent/handoffs/HO-1%2Fx",
       "/api/agent/traces?search=CONV+1&outcome=ESCALATE&offset=20&limit=20",
       "/api/audit/TRC%3F1",
+      "/api/agent/metrics",
     ]);
     for (const [url, init] of fetchMock.mock.calls) {
       expect(String(url)).not.toContain(TOKEN);
