@@ -136,6 +136,13 @@ def _conditions(c: AnyCase) -> str:
     )
 
 
+def _no_rule_reference(inform_reason: str | None) -> str:
+    """The policy section of an outcome no rule or gate gives."""
+    if inform_reason == "dispute_withdrawn":
+        return "§8 COM-03 (withdrawn at the confirmation)"
+    return "§9 RESOLVE"
+
+
 def review_csv(
     cases: Sequence[AnyCase],
     labels: list[CaseLabel],
@@ -173,7 +180,7 @@ def review_csv(
             records, intent, _conditions(c), first, label.outcome.value,
             " ".join(label.triggered_rules), " ".join(gates), last.queue or "", last.priority or "",
             last.inform_reason or "", " ".join(a for d in label.disputes for a in d.actions),
-            reference or "§9 RESOLVE", "", "",
+            reference or _no_rule_reference(last.inform_reason), "", "",
         ])  # fmt: skip
     return out.getvalue()
 

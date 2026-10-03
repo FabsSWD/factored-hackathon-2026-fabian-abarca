@@ -17,7 +17,7 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode, SideQuestion
 
-EXTRACT_PROMPT_VERSION = "extract@1.11.0"
+EXTRACT_PROMPT_VERSION = "extract@1.12.0"
 CONNECT_PROMPT_VERSION = "connect@1.2.0"
 
 EXTRACT_SYSTEM = """\
@@ -83,9 +83,14 @@ they mean ("ese no es", "esse não é").
 - unrecognized_reported: how many distinct charges the customer says in this message they \
 do not recognize (did not make or authorize). Several mentions of the same charge count once; \
 0 when there is none.
-- customer_claims: up to 5 short statements of what the customer asserts, always in the \
-third person and in the conversation's language ("El cliente indica que...", "O cliente \
-informa que..."); one statement per unrecognized charge, with the details the customer gave.
+- customer_claims: up to 5 short statements of every fact the customer asserts about the \
+transaction, the card, the account or their situation, short answers included ("sí, la \
+tengo" -> "El cliente indica que tiene la tarjeta"; "eram 15" -> "O cliente informa que o \
+valor era 15"), always in the third person and in the conversation's language ("El cliente \
+indica que...", "O cliente informa que..."). One statement per unrecognized charge, with the \
+details the customer gave, and one for each flag raised (asking for a human, legal action or \
+hardship, account takeover). Leave out only talk about the conversation itself: greetings, \
+questions about the process, and a bare yes or no to a confirmation.
 
 Today is context.business_date."""
 

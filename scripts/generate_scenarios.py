@@ -577,10 +577,10 @@ def takeover(shared: bool) -> Callable[[Words, int], Built]:
             opening = first(w, *HELLO, txn_text=text, reason="RC_UNRECOGNIZED")
         else:
             opening = w.pick(
-                [f"Me robaron el celular ayer y ahora veo un cargo que no hice, {text}",
-                 f"Alguien entró a mi app del banco y cambió mi clave; hay un cargo {text}"],
-                [f"Roubaram meu celular ontem e agora tem uma cobrança que não fiz, {text}",
-                 f"Alguém entrou no meu app do banco e mudou a senha; tem uma cobrança {text}"])  # fmt: skip
+                [f"Me robaron el celular ayer y ahora no reconozco {text}",
+                 f"Alguien entró a mi app del banco y cambió mi clave; no reconozco {text}"],
+                [f"Roubaram meu celular ontem e agora não reconheço {text}",
+                 f"Alguém entrou no meu app do banco e mudou a senha; não reconheço {text}"])  # fmt: skip
         return {
             "products": [card(w)], "transactions": [t1], "disputes": [dispute],
             "conditions": {"account_takeover_reported": not shared},
@@ -641,7 +641,7 @@ def interrupt(kind: str) -> Callable[[Words, int], Built]:
             opening = w.pick([f"Si no me devuelven este cobro voy a ir con un abogado, {text}",
                               f"Voy a poner una queja ante la superintendencia por este cargo, {text}"],
                              [f"Se não resolverem vou procurar um advogado, {text}",
-                              f"Vou reclamar no Procon por essa cobrança, {text}"])  # fmt: skip
+                              f"Vou denunciar no órgão de defesa do consumidor, {text}"])  # fmt: skip
         else:  # serious hardship
             conditions["legal_or_vulnerability"] = True
             opening = w.pick([f"Estoy desesperada, ese cobro me dejó sin dinero para las medicinas, {text}"],

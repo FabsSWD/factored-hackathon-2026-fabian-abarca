@@ -320,8 +320,8 @@ cases:
   conditions:
     account_takeover_reported: true
   script:
-    first: Me robaron el celular ayer y ahora veo un cargo que no hice, el cobro en una ferretería de
-      65.000 pesos, el 16 de junio
+    first: Me robaron el celular ayer y ahora no reconozco el cobro en una ferretería de 65.000 pesos,
+      el 16 de junio
     answers:
       transaction_ref: El cobro en una ferretería de 65.000 pesos, el 16 de junio
       reason_code: Yo no hice esa compra, no la reconozco
@@ -361,8 +361,8 @@ cases:
   conditions:
     account_takeover_reported: true
   script:
-    first: Alguém entrou no meu app do banco e mudou a senha; tem uma cobrança uma cobrança de 480.000
-      pesos em Restaurante El Buen Sabor dia 13 de junho
+    first: Alguém entrou no meu app do banco e mudou a senha; não reconheço uma cobrança de 480.000 pesos
+      em Restaurante El Buen Sabor dia 13 de junho
     answers:
       transaction_ref: Foi uma cobrança de 480.000 pesos em Restaurante El Buen Sabor dia 13 de junho
       reason_code: Eu não fiz essa compra, não reconheço
@@ -400,7 +400,7 @@ cases:
   conditions:
     account_takeover_reported: true
   script:
-    first: Alguém entrou no meu app do banco e mudou a senha; tem uma cobrança o que paguei em super ahorro
+    first: Alguém entrou no meu app do banco e mudou a senha; não reconheço o que paguei em super ahorro
       ontem, 120 dólares
     answers:
       transaction_ref: Foi o que paguei em super ahorro ontem, 120 dólares
@@ -796,8 +796,8 @@ cases:
   conditions:
     legal_or_vulnerability: true
   script:
-    first: Vou reclamar no Procon por essa cobrança, a cobrança em Super Ahorro de 70.000 pesos, entre
-      12 e 14 de junho
+    first: Vou denunciar no órgão de defesa do consumidor, a cobrança em Super Ahorro de 70.000 pesos,
+      entre 12 e 14 de junho
     answers:
       transaction_ref: A cobrança em Super Ahorro de 70.000 pesos, entre 12 e 14 de junho
       reason_code: Cobraram mais do que o combinado

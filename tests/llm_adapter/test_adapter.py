@@ -1251,3 +1251,10 @@ def test_distinct_unrecognized_charges_are_read(
     ]
     assert extract(adapter, "No reconozco tres cargos").unrecognized_reported == 3
     assert extract(adapter, "Hola").unrecognized_reported == 0  # absent: none reported
+
+
+def test_extract_leaves_room_for_a_long_answer(adapter: OpenAILLMAdapter, fake: FakeOpenAI) -> None:
+    # 800 cut a real answer short and the retry cost 10 s.
+    fake.responses = [completion(extraction())]
+    extract(adapter, "Hola")
+    assert json.loads(fake.requests[0].content)["max_completion_tokens"] == 1200

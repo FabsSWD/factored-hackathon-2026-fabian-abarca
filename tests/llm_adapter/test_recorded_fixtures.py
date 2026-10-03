@@ -339,3 +339,46 @@ def test_distinct_unrecognized_charges(name: str, expected: int) -> None:
     assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION
     result, _ = extract(name, SMOKE_CONTEXT)
     assert result.unrecognized_reported == expected
+
+
+# --- Claims: every fact about the dispute, no conversation talk (extract@1.12.0) ----------------
+
+
+def claims_of(name: str) -> list[str]:
+    recorded = fixture(name)
+    assert recorded["prompt_version"] == prompts.EXTRACT_PROMPT_VERSION, name
+    pending = SlotName(recorded["pending_slot"]) if recorded["pending_slot"] else None
+    result, _ = extract(name, SMOKE_CONTEXT.model_copy(update={"pending_slot": pending}))
+    return list(result.customer_claims)
+
+
+FACT_CLAIMS = (
+    "es_approximate_amount",  # "como de 40 dólares en El Buen Sabor"
+    "es_answer_and_refund",  # "sí, la tengo"
+    "es_generic_restaurant",  # "como de 40 dólares, en un restaurante"
+    "pt_no_unrecognized",  # "eram 15 dólares"
+    "pt_card_stolen",  # "acho que roubaram"
+)
+
+
+@pytest.mark.parametrize("name", FACT_CLAIMS)
+def test_facts_about_the_dispute_are_claims(name: str) -> None:
+    assert claims_of(name), f"{name}: the customer asserts a fact and no claim came out"
+
+
+# The claims behind the evidence of ESC-03 (three charges), ESC-05 (the charge and the request
+# for a human) and ESC-06 (the purchase, the contact and the lawyer).
+EVIDENCE_CLAIMS = {"es_three_unrecognized": 3, "pt_duplicate_human": 2, "es_not_received_legal": 3}
+
+
+@pytest.mark.parametrize(("name", "minimum"), EVIDENCE_CLAIMS.items())
+def test_the_claims_behind_the_evidence(name: str, minimum: int) -> None:
+    assert len(claims_of(name)) >= minimum
+
+
+CONVERSATION_TALK = ("es_confirm_confirmed", "es_flow_help_what_data", "pt_side_other")
+
+
+@pytest.mark.parametrize("name", CONVERSATION_TALK)
+def test_conversation_talk_is_not_a_claim(name: str) -> None:
+    assert claims_of(name) == []

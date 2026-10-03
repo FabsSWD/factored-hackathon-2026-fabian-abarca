@@ -273,6 +273,24 @@ def test_portuguese_scripts_use_contractions(scenarios: list[Scenario]) -> None:
     assert not CONTRACTIBLE.search("dia 3 de abril, no cinema")
 
 
+REPEATED = re.compile(r"\b(\w+(?:\s+\w+){0,2})\s+\1\b", re.IGNORECASE)
+
+
+def test_scripts_never_repeat_words_in_a_row(scenarios: list[Scenario]) -> None:
+    for s in scenarios:
+        found = [text for text in _texts(s) if REPEATED.search(text)]
+        assert found == [], (s.id, found)
+    assert REPEATED.search("tem uma cobrança uma cobrança de 50 dólares")  # the check works
+    assert REPEATED.search("no no reconozco")
+    assert not REPEATED.search("uma cobrança de 50 dólares, dia 5 de junho")
+
+
+def test_a_withdrawal_points_to_the_confirmation_rule() -> None:
+    labeler = _script("label_scenarios")
+    assert labeler._no_rule_reference("dispute_withdrawn").startswith("§8 COM-03")
+    assert labeler._no_rule_reference(None) == "§9 RESOLVE"
+
+
 def test_a_t3_purchase_has_a_credible_merchant(
     scenarios: list[Scenario], labels: list[CaseLabel]
 ) -> None:

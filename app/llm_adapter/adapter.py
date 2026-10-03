@@ -81,7 +81,7 @@ CONNECT_PURPOSE = "connect_sentences"
 MAX_CLAIMS = 5
 MAX_CLAIM_CHARS = 200
 MAX_CONNECTING_CHARS = 160
-EXTRACT_MAX_TOKENS = 800
+EXTRACT_MAX_TOKENS = 1200  # 800 cut a real answer short and the retry cost 10 s
 CONNECT_MAX_TOKENS = 300  # 150 cut the JSON short in real runs
 
 _BOOLEAN_SLOTS = ("card_in_possession", "shared_credentials", "merchant_contacted")
