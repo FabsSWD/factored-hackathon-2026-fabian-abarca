@@ -94,6 +94,17 @@ npm run dev        # http://localhost:5173, proxies /api and /auth to http://127
 - `/api/turn` returns a `status` (`in_progress`, `awaiting_confirmation`, `authentication_required`, `case_created`, `handed_off`) and, once the case is created and read back, its `case_reference`. The chat follows that status.
 - The session token is kept in memory only and sent in the `Authorization` header; it never goes in a URL or in browser storage. Only the language preference is stored (`localStorage`).
 
+## Agent Console and Audit Viewer (M15)
+
+The same app serves the agent views under `/agent` (with `npm run dev`: `http://localhost:5173/agent`):
+
+- `/agent`: the queue of escalated cases, high priority first, filtered by queue and priority, 20 per page.
+- `/agent/handoffs/{handoff_id}`: the handoff packet. Verified facts with their source table and record ID, the customer's claims (never verified), the actions taken, the open questions, the reasons with their evidence, and the model signals (informative only).
+- `/agent/traces`: the latest turns, 20 per page, with one search box that matches part of a trace, conversation, session or handoff ID (any case), and an outcome filter. From a handoff, "turn traces" searches its conversation.
+- `/agent/traces/{trace_id}`: the turn's input guard, gates, rules and decision, model calls, decision signals, tool calls, latencies, tokens and cost.
+
+Access needs the agent role. The sign-in screen asks for `AGENT_API_TOKEN`, checked with `GET /api/agent/session`. The lists come paged from `GET /api/agent/handoffs` and `GET /api/agent/traces` (`offset`, `limit` up to 100, and the `total` that matches). The token is kept only in the tab's memory, never in a URL, browser storage or the bundle. A refused token (403) at any point clears the views and asks for it again. Every read, granted or refused, is recorded as an `audit_access` event. The console is in English, the language of the handoff packet (policy §13). It shows only the contract's fields, and the customer's message as the audit record kept it (masked by default).
+
 Checks: `npm run lint`, `npm run typecheck`, `npm test` (or `npm run coverage`), `npm run build`. The TypeScript types come from the API: after changing it, run `python scripts/export_openapi.py` and `npm run gen:api` (a backend test fails if `frontend/openapi.json` is out of date).
 
 ## Evaluation scenarios (M17)
