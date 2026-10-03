@@ -33,43 +33,52 @@ export interface Api {
   logout(token: string): Promise<void>;
 }
 
-type Fetch = typeof fetch;
+export type Fetch = typeof fetch;
 
 const TURN_TIMEOUT_MS = 90_000; // a turn calls the language model: up to tens of seconds
 const DEFAULT_TIMEOUT_MS = 15_000;
 
-export function httpApi(fetchImpl: Fetch = (...args) => fetch(...args), base = ""): Api {
-  async function call(
-    path: string,
-    init: RequestInit & { token?: string | null; timeoutMs?: number } = {},
-  ): Promise<Response> {
-    const { token, timeoutMs = DEFAULT_TIMEOUT_MS, ...rest } = init;
-    const headers = new Headers(rest.headers);
-    if (rest.body !== undefined) headers.set("Content-Type", "application/json");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    let response: Response;
-    try {
-      response = await fetchImpl(`${base}${path}`, {
-        ...rest,
-        headers,
-        signal: controller.signal,
-        credentials: "same-origin",
-        cache: "no-store",
-        referrerPolicy: "no-referrer",
-      });
-    } catch (error) {
-      throw new NetworkError(error instanceof Error ? error.message : "network error");
-    } finally {
-      clearTimeout(timer);
-    }
-    if (response.status >= 500 || response.status === 429) {
-      throw new NetworkError(`HTTP ${response.status}`);
-    }
-    if (!response.ok) throw new ApiError(response.status);
-    return response;
+export type RequestOptions = RequestInit & { token?: string | null; timeoutMs?: number };
+
+/** One request to the API: JSON body, the token in the Authorization header, a timeout, and
+ * the failure mapped to ApiError (an answer to act on) or NetworkError (send it again). */
+export async function request(
+  fetchImpl: Fetch,
+  url: string,
+  init: RequestOptions = {},
+): Promise<Response> {
+  const { token, timeoutMs = DEFAULT_TIMEOUT_MS, ...rest } = init;
+  const headers = new Headers(rest.headers);
+  if (rest.body !== undefined) headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetchImpl(url, {
+      ...rest,
+      headers,
+      signal: controller.signal,
+      credentials: "same-origin",
+      cache: "no-store",
+      referrerPolicy: "no-referrer",
+    });
+  } catch (error) {
+    throw new NetworkError(error instanceof Error ? error.message : "network error");
+  } finally {
+    clearTimeout(timer);
   }
+  if (response.status >= 500 || response.status === 429) {
+    throw new NetworkError(`HTTP ${response.status}`);
+  }
+  if (!response.ok) throw new ApiError(response.status);
+  return response;
+}
+
+export const defaultFetch: Fetch = (...args) => fetch(...args);
+
+export function httpApi(fetchImpl: Fetch = defaultFetch, base = ""): Api {
+  const call = (path: string, init?: RequestOptions) => request(fetchImpl, `${base}${path}`, init);
 
   return {
     async texts(language) {

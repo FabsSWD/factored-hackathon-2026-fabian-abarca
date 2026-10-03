@@ -31,6 +31,12 @@ export default tseslint.config(
     },
   },
   {
+    // M15: the agent console is in English only, the language the system writes the handoff
+    // packet and the traces in (policy §13), so its texts are written here.
+    files: ["src/agent/**"],
+    rules: { "react/jsx-no-literals": "off", "no-restricted-syntax": "off" },
+  },
+  {
     // Tests write the fake backend's texts; the one bilingual fallback is documented there.
     files: ["src/test/**", "src/**/*.test.tsx", "src/components/Unreachable.tsx"],
     rules: { "react/jsx-no-literals": "off" },
