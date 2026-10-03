@@ -72,8 +72,37 @@ def test_past_narratives_are_not_interrupts(message: str) -> None:
 
 def test_rules_never_raise_model_only_signals() -> None:
     flags = detector.detect("Me robaron el celular y no quiero identificarme")
-    assert flags.account_takeover_reported is False
-    assert flags.authentication_declined is False
+    assert flags.authentication_declined is False  # declining stays with the model
+
+
+# Policy 0.4.12: a stolen or lost phone is an account takeover indicator even without the app,
+# and the rules raise it on their own (S071 of M18 was missed when only the model could).
+STOLEN_PHONES = [
+    "Me robaron el celular ayer y ahora no reconozco el cobro en una ferretería",
+    "Perdí mi teléfono el lunes",
+    "Se me perdió el celular en el bus",
+    "Mi celular fue robado",
+    "Roubaram meu celular ontem e agora não reconheço uma cobrança",
+    "Perdi o celular",
+    "Meu celular foi roubado",
+]
+NOT_TAKEOVER = [
+    "Me robaron la tarjeta",
+    "Não acho, acho que roubaram",
+    "Perdí la tarjeta y el celular no",
+    "Pago mi teléfono con la tarjeta",
+    "Tengo el celular conmigo",
+]
+
+
+@pytest.mark.parametrize("message", STOLEN_PHONES)
+def test_a_stolen_or_lost_phone_raises_account_takeover(message: str) -> None:
+    assert detector.detect(message).account_takeover_reported
+
+
+@pytest.mark.parametrize("message", NOT_TAKEOVER)
+def test_a_stolen_card_alone_is_not_account_takeover(message: str) -> None:
+    assert not detector.detect(message).account_takeover_reported
 
 
 def test_merge_is_a_union() -> None:

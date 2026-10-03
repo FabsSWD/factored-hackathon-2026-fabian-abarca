@@ -1,22 +1,26 @@
 {
   "prompt_version": "extract@1.13.0",
   "response_model": "gpt-6-luna",
-  "language": "pt",
+  "language": "es",
   "pending_slot": null,
-  "message": "Fui cobrado duas vezes pela Streaming Plus, 18,90 dólares. Quero falar com um atendente.",
+  "message": "Me robaron el celular ayer y ahora no reconozco el cobro en una ferretería de 65.000 pesos, el 16 de junio",
   "raw": {
-    "detected_language": "pt",
+    "detected_language": "es",
     "language_ambiguous": false,
     "slots": {
       "transaction_ref": {
         "transaction_id": null,
-        "transaction_date": null,
+        "transaction_date": {
+          "day": 16,
+          "month": 6,
+          "year": null
+        },
         "date_from": null,
         "date_to": null,
-        "amount": 18.9,
-        "merchant": "Streaming Plus"
+        "amount": 65000,
+        "merchant": "una ferretería"
       },
-      "reason_code": "RC_DUPLICATE",
+      "reason_code": "RC_UNRECOGNIZED",
       "card_in_possession": null,
       "shared_credentials": null,
       "expected_amount": null,
@@ -26,18 +30,18 @@
       "confirmation": null
     },
     "flags": {
-      "human_requested": true,
-      "account_takeover_reported": false,
+      "human_requested": false,
+      "account_takeover_reported": true,
       "legal_or_vulnerability": false,
       "authentication_declined": false
     },
     "customer_claims": [
-      "O cliente informa que foi cobrado duas vezes pela Streaming Plus, no valor de 18,90 dólares.",
-      "O cliente solicita falar com um atendente."
+      "El cliente indica que no reconoce un cobro de 65.000 pesos en una ferretería del 16 de junio.",
+      "El cliente indica que le robaron el celular ayer."
     ],
     "side_question": null,
     "wrong_transaction": false,
     "block_card_requested": false,
-    "unrecognized_reported": 0
+    "unrecognized_reported": 1
   }
 }

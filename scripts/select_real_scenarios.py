@@ -62,7 +62,7 @@ from app.settings import get_settings  # noqa: E402
 from app.storage.data_contract import CARD_PRODUCT_TYPES  # noqa: E402
 from generate_scenarios import HELLO, Words, answers, first  # noqa: E402
 
-CRITERIA_VERSION = "1.0.0"  # bump with any change to BASE, CRITERIA, OWNERS, PLAN or the slots
+CRITERIA_VERSION = "1.1.0"  # bump with any change to BASE, CRITERIA, OWNERS, PLAN or the slots
 SEED = "20261004"
 SCRIPT_SEED = 20261004
 
@@ -201,9 +201,10 @@ def select(conn: Connection) -> list[dict[str, Any]]:
 def specification(number: int, picked: dict[str, Any], rng: random.Random) -> RealScenario:
     category = CATEGORY[picked["category"]]
     w = Words(picked["language"], random.Random(rng.random()))
-    dispute: dict[str, Any] = {"reason_code": "RC_UNRECOGNIZED"}
-    if category.outcome.value == "RESOLVE":
-        dispute |= {"card_in_possession": True, "shared_credentials": False, "block": "declined"}
+    # Every case gives the same final slots, so its script answers whatever the assistant asks
+    # (1.1.0: in M18 run 1 the cases that do not resolve had no answer to the card block offer).
+    dispute: dict[str, Any] = {"reason_code": "RC_UNRECOGNIZED", "card_in_possession": True,
+                               "shared_credentials": False, "block": "declined"}  # fmt: skip
     if category.reference == "id":
         txn_text = w.pick(*REFERENCE_TEXT[category.name])
     else:

@@ -3,20 +3,24 @@
   "response_model": "gpt-6-luna",
   "language": "pt",
   "pending_slot": null,
-  "message": "Fui cobrado duas vezes pela Streaming Plus, 18,90 dólares. Quero falar com um atendente.",
+  "message": "Roubaram meu celular ontem e agora não reconheço uma cobrança de 50 dólares na Cafe Sintetico",
   "raw": {
     "detected_language": "pt",
     "language_ambiguous": false,
     "slots": {
       "transaction_ref": {
         "transaction_id": null,
-        "transaction_date": null,
+        "transaction_date": {
+          "day": 16,
+          "month": 6,
+          "year": 2026
+        },
         "date_from": null,
         "date_to": null,
-        "amount": 18.9,
-        "merchant": "Streaming Plus"
+        "amount": 50,
+        "merchant": "Cafe Sintetico"
       },
-      "reason_code": "RC_DUPLICATE",
+      "reason_code": "RC_UNRECOGNIZED",
       "card_in_possession": null,
       "shared_credentials": null,
       "expected_amount": null,
@@ -26,18 +30,18 @@
       "confirmation": null
     },
     "flags": {
-      "human_requested": true,
-      "account_takeover_reported": false,
+      "human_requested": false,
+      "account_takeover_reported": true,
       "legal_or_vulnerability": false,
       "authentication_declined": false
     },
     "customer_claims": [
-      "O cliente informa que foi cobrado duas vezes pela Streaming Plus, no valor de 18,90 dólares.",
-      "O cliente solicita falar com um atendente."
+      "O cliente informa que não reconhece uma cobrança de 50 dólares na Cafe Sintetico.",
+      "O cliente informa que roubaram seu celular ontem."
     ],
     "side_question": null,
     "wrong_transaction": false,
     "block_card_requested": false,
-    "unrecognized_reported": 0
+    "unrecognized_reported": 1
   }
 }

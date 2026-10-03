@@ -312,6 +312,24 @@ def test_esc09_hedged_confirmation_counts() -> None:
     assert evaluate(req).triggered_rules == ["ESC-09"]
 
 
+@pytest.mark.parametrize(("turns", "fires"), [(7, False), (8, True)])
+def test_esc09_no_dispute_stays_in_clarification(turns: int, fires: bool) -> None:
+    # Policy §10 (0.4.12): past MAX_TOTAL_CLARIFICATIONS (4) + 4 turns, the next CLARIFY is
+    # ESC-09, even when no clarification counted (side questions, new details every turn).
+    req = request(slots=slots(expected_amount=None), counters=counters(dispute_turns=turns))
+    decision = evaluate(req)
+    assert (decision.triggered_rules == ["ESC-09"]) is fires
+    if fires:
+        assert any("dispute_turns" in str(e) for e in decision.evidence)
+
+
+def test_the_turn_cap_never_replaces_a_final_outcome() -> None:
+    resolved = request(
+        slots=slots(confirmation=Confirmation.CONFIRMED), counters=counters(dispute_turns=30)
+    )
+    assert evaluate(resolved).outcome is Outcome.RESOLVE
+
+
 def test_esc09_unresolved_contradiction() -> None:
     decision = evaluate(request(counters=counters(unresolved_contradiction=True)))
     assert decision.triggered_rules == ["ESC-09"]

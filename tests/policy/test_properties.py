@@ -50,11 +50,11 @@ DATA02_FIELDS = {
 
 def test_implements_the_protocol() -> None:
     assert isinstance(engine(), PolicyEngine)
-    assert engine().policy_version == "0.4.11"
+    assert engine().policy_version == "0.4.12"
 
 
 def test_decision_carries_the_policy_version() -> None:
-    assert evaluate(request()).policy_version == "0.4.11"
+    assert evaluate(request()).policy_version == "0.4.12"
 
 
 # --- Purity ----------------------------------------------------------------------------------
@@ -202,7 +202,7 @@ def test_explain_names_rules_and_records() -> None:
     )
     lines = engine().explain(evaluate(req))
     text = "\n".join(lines)
-    assert lines[0] == "Outcome ESCALATE under policy 0.4.11."
+    assert lines[0] == "Outcome ESCALATE under policy 0.4.12."
     assert "GATE-11 (No duplicate case) passed." in lines
     assert "Transaction TXN-1, RC_UNRECOGNIZED." in lines
     assert "Tier T3 (unknown USD amount)." in lines
@@ -272,7 +272,7 @@ def test_explain_without_transaction() -> None:
 
     lines = engine().explain(evaluate(unauthenticated()))
     assert lines == [
-        "Outcome CLARIFY under policy 0.4.11.",
+        "Outcome CLARIFY under policy 0.4.12.",
         "GATE-01 (Supported language) passed.",
         "GATE-02 (Authenticated session) did not pass.",
         "Clarify: authentication.",

@@ -12,6 +12,7 @@ from app.policy.matching import (
     MerchantKind,
     Tolerance,
     amount_matches,
+    consistent,
     disputed_of,
     duplicate_twins,
     given_details,
@@ -506,3 +507,40 @@ def test_the_last_step_keeps_the_exact_amount_without_a_tolerance() -> None:
     exact = TransactionRef(merchant="un restaurante", amount=Decimal("38.50"))
     assert match_transaction(near, [other], AS_OF, 120, None, CATEGORIES).candidates == []
     assert match_transaction(exact, [other], AS_OF, 120, None, CATEGORIES).candidates == [other]
+
+
+# --- Transaction types named as the merchant (M18 run 1: S034 "cajero", S043/R021 "depósito") --
+
+ATM = txn("TXN-ATM", transaction_type="Withdrawal", merchant=None, amount="80")
+DEPOSIT = txn("TXN-DEP", transaction_type="Deposit", merchant=None, amount="200")
+SHOP = txn("TXN-SHOP", amount="80")
+TYPES_POOL = [ATM, DEPOSIT, SHOP]
+WORDS = load_merchant_categories()
+
+
+@pytest.mark.parametrize(
+    ("merchant", "amount", "expected"),
+    [
+        ("un cajero", "80", "TXN-ATM"),
+        ("el cajero automático", "80", "TXN-ATM"),
+        ("caixa eletrônico", "80", "TXN-ATM"),
+        ("depósito", "200", "TXN-DEP"),
+        ("transferência", "80", None),  # no transfer in the pool: never the purchase
+    ],
+)
+def test_a_transaction_type_given_as_merchant(
+    merchant: str, amount: str, expected: str | None
+) -> None:
+    ref = TransactionRef(
+        transaction_date=TXN_DATE.date(), amount=Decimal(amount), merchant=merchant
+    )
+    found = match_transaction(ref, TYPES_POOL, AS_OF, 120, None, WORDS)
+    assert (found.transaction.transaction_id if found.transaction else None) == expected
+    assert not consistent(SHOP, ref, AS_OF, categories=WORDS)
+
+
+def test_a_charge_in_general_is_not_a_merchant() -> None:
+    ref = TransactionRef(
+        transaction_date=TXN_DATE.date(), amount=Decimal("80"), merchant="la compra"
+    )
+    assert consistent(SHOP, ref, AS_OF, categories=WORDS)

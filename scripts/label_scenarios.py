@@ -294,6 +294,17 @@ def real_review_rows(keys: list[str]) -> dict[str, tuple[str, str, str]]:
     return rows
 
 
+def has_verdicts(path: Path) -> bool:
+    """A review sample a person has started to fill in: never overwritten."""
+    if not path.exists():
+        return False
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        return any(
+            (row.get("reviewer_verdict") or "").strip() or (row.get("reviewer_notes") or "").strip()
+            for row in csv.DictReader(handle)
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
@@ -316,6 +327,11 @@ def main() -> None:
     if stale:
         raise SystemExit(f"out of date: {stale}")
     if args.review:
+        if has_verdicts(REVIEW_FILE):
+            raise SystemExit(
+                f"{REVIEW_FILE.relative_to(ROOT)} already holds reviewer verdicts or notes: "
+                "nothing written. Move it away to draw the sample again."
+            )
         cases, labels, split = everything()
         chosen = review_sample(cases, labels, review_size(cases))
         real = [c.id for c in cases if isinstance(c, LockedCase) and c.id in chosen]

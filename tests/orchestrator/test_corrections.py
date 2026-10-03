@@ -29,11 +29,43 @@ def recorded_slots() -> Slots:
     return parse_extraction(data["raw"], date(2026, 6, 17))[0].slots
 
 
+def recorded_message() -> str:
+    return str(json.loads(FIXTURE.read_text(encoding="utf-8"))["message"])
+
+
+# What the model extracts when it does give the amount of a declined reply (extract@1.12.0).
+MODEL_AMOUNT = Slots(
+    reason_code=ReasonCode.INCORRECT_AMOUNT,
+    transaction_ref=TransactionRef(amount=Decimal("40")),
+    confirmation=Confirmation.DECLINED,
+)
+
+
 def test_fixture_is_the_case_found() -> None:
     proposed = recorded_slots()
     assert proposed.confirmation is Confirmation.DECLINED
     assert proposed.reason_code is ReasonCode.INCORRECT_AMOUNT
-    assert proposed.expected_amount == Decimal("40")
+    # extract@1.13.0 no longer extracts the 40: the deterministic backup reads it.
+    assert proposed.expected_amount is None and proposed.transaction_ref is None
+
+
+def test_the_backup_takes_the_one_number_of_the_message() -> None:
+    established = Slots(
+        transaction_ref=TransactionRef(transaction_id="TXN-1"),
+        reason_code=ReasonCode.INCORRECT_AMOUNT,
+        expected_amount=Decimal("30"),
+        confirmation=Confirmation.DECLINED,
+    )
+    correction = apply_declined_correction(
+        established, recorded_slots(), message=recorded_message()
+    )
+    assert correction.slots.expected_amount == Decimal("40")  # "eran 40"
+    assert not correction.rematch and correction.slots.confirmation is None
+    two = apply_declined_correction(established, recorded_slots(), message="eran 40 el 5 de junio")
+    assert two.slots.expected_amount == Decimal("30")  # two numbers: ambiguous, nothing taken
+    fee = established.model_copy(update={"reason_code": ReasonCode.FEE})
+    other = apply_declined_correction(fee, Slots(confirmation=Confirmation.DECLINED), message="40")
+    assert other.slots.expected_amount == Decimal("30")  # only for RC_INCORRECT_AMOUNT
 
 
 def test_a_different_reason_is_asked_never_replaced() -> None:
@@ -62,7 +94,7 @@ def test_an_amount_without_a_reason_change_corrects_the_transaction() -> None:
         expected_amount=Decimal("30"),
         confirmation=Confirmation.DECLINED,
     )
-    correction = apply_declined_correction(established, recorded_slots(), identified)
+    correction = apply_declined_correction(established, MODEL_AMOUNT, identified)
     assert correction.clarify_target is None
     assert correction.rematch
     ref = correction.slots.transaction_ref
@@ -83,7 +115,7 @@ def test_gate05_runs_again_on_the_corrected_reference() -> None:
         expected_amount=Decimal("30"),
         confirmation=Confirmation.DECLINED,
     )
-    correction = apply_declined_correction(established, recorded_slots(), wrong)
+    correction = apply_declined_correction(established, MODEL_AMOUNT, wrong)
     decision = evaluate(request(slots=correction.slots, transaction_candidates=[wrong, right]))
     assert decision.transaction_id == "TXN-2"
     assert decision.outcome is Outcome.CLARIFY  # the summary is shown again

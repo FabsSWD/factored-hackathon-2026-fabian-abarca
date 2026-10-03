@@ -238,7 +238,8 @@ def answers(w: Words, dispute: dict[str, Any], txn_text: str | None, block: str 
     if dispute.get("duplicate"):
         a["duplicate_ref"] = w.pick(["Sí, ese es el repetido", "Sí, ese mismo"], ["Sim, é essa", "Isso, essa mesma"])
     if dispute.get("fee_ref"):
-        a["fee_ref"] = dispute["fee_ref"]
+        # The fee is identified by its transaction (GATE-05): the answer gives its day and amount.
+        a["fee_ref"] = f"{dispute['fee_ref']}, {txn_text}" if txn_text else dispute["fee_ref"]
     if block == "confirmed":
         a["block_offer"] = w.pick(*YES_BLOCK)
     elif block == "declined":

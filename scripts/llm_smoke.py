@@ -128,6 +128,14 @@ MESSAGES: list[tuple[str, Language, str, SlotName | None]] = [
      "hice, repito, no reconozco ese cobro de Cafe Sintetico.", None),
     ("pt_no_unrecognized", Language.PT,
      "O valor da compra na Streaming Plus não é o combinado, eram 15 dólares.", None),
+    # A stolen phone is account takeover even without the app (extract@1.13.0); the first is
+    # the opening of scenario S071, missed in the first evaluation run of M18.
+    ("es_stolen_phone", Language.ES,
+     "Me robaron el celular ayer y ahora no reconozco el cobro en una ferretería de 65.000 "
+     "pesos, el 16 de junio", None),
+    ("pt_stolen_phone", Language.PT,
+     "Roubaram meu celular ontem e agora não reconheço uma cobrança de 50 dólares na Cafe "
+     "Sintetico", None),
 ]  # fmt: skip
 
 

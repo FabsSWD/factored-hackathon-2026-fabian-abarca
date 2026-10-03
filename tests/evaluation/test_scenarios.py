@@ -427,3 +427,41 @@ def test_tiers_of_earlier_cases() -> None:
     assert tier_of(Decimal("400"), config) is Tier.T2
     assert tier_of(Decimal("4000"), config) is Tier.T3
     assert tier_of(None, config) is Tier.T3  # no USD amount: never automated
+
+
+def test_a_reviewed_sample_is_never_overwritten(tmp_path: Path) -> None:
+    labeler = _script("label_scenarios")
+    sample = tmp_path / "review_sample.csv"
+    assert not labeler.has_verdicts(sample)  # no file yet
+    sample.write_text("case_id,reviewer_verdict,reviewer_notes\nS001,,\n", encoding="utf-8")
+    assert not labeler.has_verdicts(sample)  # drawn, not reviewed
+    sample.write_text("case_id,reviewer_verdict,reviewer_notes\nS001,ok,\n", encoding="utf-8")
+    assert labeler.has_verdicts(sample)
+    sample.write_text("case_id,reviewer_verdict,reviewer_notes\nS001,,ver S013\n", encoding="utf-8")
+    assert labeler.has_verdicts(sample)
+
+
+def test_the_review_summary() -> None:
+    summarizer = _script("summarize_review")
+    row = {"data_source": "real", "language": "es", "path": "resolution", "reviewer_notes": ""}
+    rows = [
+        {**row, "case_id": "R002", "reviewer_verdict": "OK"},
+        {
+            **row,
+            "case_id": "S049",
+            "reviewer_verdict": "Discrepancia",
+            "reviewer_notes": "TRX-8YRH1U8OHC6RHVPOX4KZ no es pendiente",
+        },
+    ]
+    summary = summarizer.summarize(rows)
+    assert summary["reviewed"] == 2 and summary["confirmed"] == 1
+    assert summary["discrepancies"] == [
+        {
+            "case_key": "S049",
+            "verdict": "Discrepancia",
+            "reason": "[ref] no es pendiente",
+            "resolution": "pending",
+        }
+    ]
+    with pytest.raises(SystemExit, match="without a verdict"):
+        summarizer.summarize([{**row, "case_id": "S001", "reviewer_verdict": ""}])
