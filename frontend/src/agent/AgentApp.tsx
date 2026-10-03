@@ -4,11 +4,12 @@
 //   /agent/handoffs/{id}        one handoff packet
 //   /agent/traces               open a trace by ID, or list the latest (of one conversation)
 //   /agent/traces/{trace_id}    one turn's trace
+//   /agent/metrics              the operating metrics dashboard (M16)
 //
 // Agent role only: nothing is requested before the agent token is accepted, and a 403 at any
 // point clears the token and every view and asks for it again. The token lives in memory only.
 // The console is in English, the language the system writes the handoff in (policy §13).
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 
 import type { AgentApi } from "./client";
 import { AgentLogin } from "./AgentLogin";
@@ -19,19 +20,25 @@ import { TraceView } from "./TraceView";
 import { Link, useLocation } from "../router";
 import { ForbiddenContext } from "./ui";
 
+// The dashboard's charts (Recharts) load only when it is opened, so the customer chat and the
+// rest of the console do not download them.
+const MetricsView = lazy(() => import("./MetricsView").then((module) => ({ default: module.MetricsView })));
+
 const REFUSED = "The agent token was refused or has expired. Sign in again.";
 
 type Route =
   | { view: "queue" }
   | { view: "handoff"; id: string }
   | { view: "traces" }
-  | { view: "trace"; id: string };
+  | { view: "trace"; id: string }
+  | { view: "metrics" };
 
 export function route(path: string): Route {
   const parts = path.replace(/\/+$/, "").split("/").slice(2).map(decodeURIComponent);
   if (parts[0] === "handoffs" && parts[1]) return { view: "handoff", id: parts[1] };
   if (parts[0] === "traces" && parts[1]) return { view: "trace", id: parts[1] };
   if (parts[0] === "traces") return { view: "traces" };
+  if (parts[0] === "metrics") return { view: "metrics" };
   return { view: "queue" };
 }
 
@@ -52,6 +59,7 @@ export function AgentApp({ api }: { api: AgentApi }) {
   }, []);
 
   const queueActive = current.view === "queue" || current.view === "handoff";
+  const tracesActive = current.view === "traces" || current.view === "trace";
   return (
     <ForbiddenContext.Provider value={forbidden}>
       <div className="halo" aria-hidden="true" />
@@ -66,8 +74,11 @@ export function AgentApp({ api }: { api: AgentApi }) {
               <Link to="/agent" className="nav__link" current={queueActive}>
                 Queue
               </Link>
-              <Link to="/agent/traces" className="nav__link" current={!queueActive}>
+              <Link to="/agent/traces" className="nav__link" current={tracesActive}>
                 Traces
+              </Link>
+              <Link to="/agent/metrics" className="nav__link" current={current.view === "metrics"}>
+                Metrics
               </Link>
               <button
                 type="button"
@@ -99,6 +110,17 @@ export function AgentApp({ api }: { api: AgentApi }) {
           <TraceView key={current.id} api={api} token={token} traceId={current.id} />
         ) : current.view === "traces" ? (
           <TracesView api={api} token={token} />
+        ) : current.view === "metrics" ? (
+          <Suspense
+            fallback={
+              <p className="muted loading" role="status">
+                Loading
+                <span className="typing__cursor" aria-hidden="true" />
+              </p>
+            }
+          >
+            <MetricsView api={api} token={token} />
+          </Suspense>
         ) : (
           <QueueView api={api} token={token} />
         )}
