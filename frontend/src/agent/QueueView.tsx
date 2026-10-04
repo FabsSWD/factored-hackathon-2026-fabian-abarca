@@ -1,6 +1,10 @@
 // The queue of escalated cases: high priority first, then the oldest (the backend's order),
-// filtered by queue and priority, a page at a time. Filters and page live in the URL, so back and
-// reload keep them.
+// filtered by queue and priority and searched by the tracking number the customer was given
+// (HO-...), conversation, customer reference or part of the request, a page at a time. Filters,
+// search and page live in the URL, so back and reload keep them.
+import { useState } from "react";
+import type { FormEvent } from "react";
+
 import type { AgentApi, Priority, Queue } from "./client";
 import { dateTime, QUEUES } from "./format";
 import { Link, navigate, useLocation } from "../router";
@@ -17,13 +21,30 @@ export function QueueView({ api, token }: { api: AgentApi; token: string }) {
   const { query } = useLocation();
   const queue = pick(query.get("queue"), QUEUE_VALUES);
   const priority = pick(query.get("priority"), PRIORITIES);
+  const search = query.get("search") ?? "";
   const { offset } = usePage();
-  const handoffs = useResource(`queue:${queue}:${priority}:${offset}`, () =>
-    api.handoffs({ queue, priority, offset, limit: PAGE_SIZE }, token),
+  const [draft, setDraft] = useState(search);
+  const [shown, setShown] = useState(search); // the search the box was last synced with
+  if (shown !== search) {
+    // The URL changed (back, clear): the box follows it.
+    setShown(search);
+    setDraft(search);
+  }
+  const handoffs = useResource(`queue:${queue}:${priority}:${search}:${offset}`, () =>
+    api.handoffs({ queue, priority, search: search || null, offset, limit: PAGE_SIZE }, token),
   );
 
   const filter = (name: "queue" | "priority", value: string) =>
     navigate(withQuery("/agent", query, { [name]: value }));
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const text = draft.trim();
+    if (text === search && offset === 0) handoffs.reload(); // the same search again: refresh it
+    else navigate(withQuery("/agent", query, { search: text }));
+  }
+
+  const filtered = search !== "" || queue !== null || priority !== null;
 
   return (
     <>
@@ -31,7 +52,20 @@ export function QueueView({ api, token }: { api: AgentApi; token: string }) {
         <h1 className="title title--big gradient">Escalated cases</h1>
         <p className="muted">High priority first, then the longest waiting.</p>
       </div>
-      <form className="card filters reveal" aria-label="Filters" onSubmit={(e) => e.preventDefault()}>
+      <form className="card filters reveal" role="search" aria-label="Filters" onSubmit={submit}>
+        <label className="field filters__grow">
+          <span className="field__label">Tracking number, conversation or request</span>
+          <input
+            className="field__input"
+            type="search"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="HO-20261003-000002"
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={64}
+          />
+        </label>
         <label className="field">
           <span className="field__label">Queue</span>
           <select
@@ -59,6 +93,14 @@ export function QueueView({ api, token }: { api: AgentApi; token: string }) {
             <option value="normal">Normal</option>
           </select>
         </label>
+        <button type="submit" className="button button--copper">
+          Search
+        </button>
+        {filtered && (
+          <button type="button" className="button button--ghost" onClick={() => navigate("/agent")}>
+            Clear
+          </button>
+        )}
         <button type="button" className="button button--ghost filters__refresh" onClick={handoffs.reload}>
           Refresh
         </button>
@@ -67,7 +109,7 @@ export function QueueView({ api, token }: { api: AgentApi; token: string }) {
         {(page) =>
           page.items.length === 0 && page.total === 0 ? (
             <div className="card">
-              <Empty>No escalated cases match these filters.</Empty>
+              <Empty>{filtered ? "No escalated cases match this search." : "No escalated cases yet."}</Empty>
             </div>
           ) : (
             <section aria-labelledby="queue-count">

@@ -15,7 +15,7 @@
 #
 # Bump template_version whenever a text changes; it is recorded in the audit trace.
 
-template_version: "1.12.0"
+template_version: "1.14.0"
 
 templates:
   # --- Outcomes ---------------------------------------------------------------
@@ -27,6 +27,10 @@ templates:
   handoff:  # ESCALATE (policy §11 example, verbatim)
     es: "Voy a transferir su caso a un agente, que ya tendrá la información que me compartió."
     pt: "Vou transferir seu caso para um atendente, que já terá as informações que você me passou."
+
+  handoff_reference:  # after handoff / handoff_unauthenticated, once the packet is read back (COM-04)
+    es: "Su número de seguimiento es {handoff_ref}. Guárdelo: el agente lo usará para ubicar su caso."
+    pt: "Seu número de acompanhamento é {handoff_ref}. Guarde-o: o atendente vai usá-lo para localizar seu caso."
 
   already_transferred:  # every message after the handoff: neutral, says nothing of the reason
     es: "Su conversación ya fue transferida a un agente, que le responderá por este medio. Si necesita agregar algo, puede escribirlo aquí y el agente lo verá."
@@ -166,6 +170,18 @@ templates:
   side_case_not_found:  # a typed reference that is not the customer's (GATE-04: no more)
     es: "No encontré una disputa suya con esa referencia."
     pt: "Não encontrei uma contestação sua com essa referência."
+
+  side_card_status:  # one line per card the records show as blocked (read this turn)
+    es: "Sí, su tarjeta {product} está bloqueada temporalmente."
+    pt: "Sim, seu cartão {product} está bloqueado temporariamente."
+
+  side_card_not_blocked:  # a card the customer has that the records show as not blocked
+    es: "Su tarjeta {product} no está bloqueada."
+    pt: "Seu cartão {product} não está bloqueado."
+
+  side_no_card:  # the customer has no card on record
+    es: "No encuentro ninguna tarjeta suya registrada."
+    pt: "Não encontro nenhum cartão seu registrado."
 
   side_flow_help_transaction:  # how to go on while the transaction is not identified
     es: "Sí, puedo buscar la compra con lo que recuerde: el nombre del comercio, la fecha aproximada o el monto. Dígamelo y le muestro lo que encuentre."

@@ -9,9 +9,10 @@ from __future__ import annotations
 from datetime import datetime
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
-from sqlalchemy import Select, case, func, select
+from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.audit.tracer import contains_pattern
 from app.contracts import HandoffPacket, Language, Priority, Queue
 from app.storage.models import HandoffPacketRow
 
@@ -37,6 +38,8 @@ class HandoffFilter(BaseModel):
     queue: Queue | None = None
     priority: Priority | None = None
     since: datetime | None = None
+    # Part of the handoff ID, the conversation, the pseudonymous customer or the request summary.
+    search: str | None = Field(default=None, max_length=64)
     offset: int = Field(default=0, ge=0)
     limit: int = Field(default=50, ge=1, le=500)
 
@@ -63,6 +66,17 @@ class DatabaseHandoffQueue:
             query = query.where(HandoffPacketRow.priority == filters.priority.value)
         if filters.since is not None:
             query = query.where(HandoffPacketRow.created_at >= filters.since)
+        if filters.search and filters.search.strip():
+            pattern = contains_pattern(filters.search.strip())
+            packet = HandoffPacketRow.packet
+            query = query.where(
+                or_(
+                    HandoffPacketRow.handoff_id.ilike(pattern, escape="\\"),
+                    packet["transcript_ref"].astext.ilike(pattern, escape="\\"),
+                    packet["customer_ref"].astext.ilike(pattern, escape="\\"),
+                    packet["request_summary"].astext.ilike(pattern, escape="\\"),
+                )
+            )
         return query
 
     def count(self, filters: HandoffFilter) -> int:

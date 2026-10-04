@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.13.0",
+  "prompt_version": "extract@1.14.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": null,
@@ -38,7 +38,7 @@
     "customer_claims": [
       "El cliente indica que no reconoce un cargo de 50 dólares en Cafe Sintetico el 16 de junio.",
       "El cliente indica que no reconoce un cargo de 18,90 dólares en Streaming Plus el 15 de junio.",
-      "El cliente indica que no reconoce un cargo de 12 dólares en Farmacia Noche de ayer."
+      "El cliente indica que no reconoce un cargo de 12 dólares en Farmacia Noche el 16 de junio."
     ],
     "side_question": null,
     "wrong_transaction": false,

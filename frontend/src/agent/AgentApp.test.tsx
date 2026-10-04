@@ -135,7 +135,7 @@ describe("queue", () => {
     expect(items[0]).toHaveTextContent("2026-10-03 09:15:00 UTC");
     expect(items[1]).toHaveTextContent("Disputes");
     expect(screen.getByRole("heading", { name: "2 cases" })).toBeInTheDocument();
-    expect(api.handoffs).toHaveBeenCalledWith({ queue: null, priority: null, offset: 0, limit: 20 }, AGENT_TOKEN);
+    expect(api.handoffs).toHaveBeenCalledWith({ queue: null, priority: null, search: null, offset: 0, limit: 20 }, AGENT_TOKEN);
     expect(screen.queryByRole("navigation", { name: "Pages" })).toBeNull(); // one page only
   });
 
@@ -144,20 +144,41 @@ describe("queue", () => {
     await screen.findByRole("heading", { name: "2 cases" });
     await user.selectOptions(screen.getByLabelText("Queue"), "disputes");
     expect(await screen.findByRole("heading", { name: "1 case" })).toBeInTheDocument();
-    expect(api.handoffs).toHaveBeenLastCalledWith({ queue: "disputes", priority: null, offset: 0, limit: 20 }, AGENT_TOKEN);
+    expect(api.handoffs).toHaveBeenLastCalledWith({ queue: "disputes", priority: null, search: null, offset: 0, limit: 20 }, AGENT_TOKEN);
     expect(window.location.search).toBe("?queue=disputes");
     await user.selectOptions(screen.getByLabelText("Priority"), "high");
-    expect(await screen.findByText("No escalated cases match these filters.")).toBeInTheDocument();
-    expect(api.handoffs).toHaveBeenLastCalledWith({ queue: "disputes", priority: "high", offset: 0, limit: 20 }, AGENT_TOKEN);
+    expect(await screen.findByText("No escalated cases match this search.")).toBeInTheDocument();
+    expect(api.handoffs).toHaveBeenLastCalledWith({ queue: "disputes", priority: "high", search: null, offset: 0, limit: 20 }, AGENT_TOKEN);
     await user.selectOptions(screen.getByLabelText("Queue"), "");
     expect(await screen.findByRole("heading", { name: "1 case" })).toBeInTheDocument();
     expect(window.location.search).toBe("?priority=high");
   });
 
+  it("finds a case by the tracking number the customer was given, and keeps it in the URL", async () => {
+    const { api, user } = await signIn();
+    await screen.findByRole("heading", { name: "2 cases" });
+    const box = screen.getByLabelText("Tracking number, conversation or request");
+    await user.type(box, "ho-20261003-000001{Enter}");
+    expect(await screen.findByRole("heading", { name: "1 case" })).toBeInTheDocument();
+    expect(api.handoffs).toHaveBeenLastCalledWith(
+      { queue: null, priority: null, search: "ho-20261003-000001", offset: 0, limit: 20 },
+      AGENT_TOKEN,
+    );
+    expect(window.location.search).toBe("?search=ho-20261003-000001");
+    expect(within(screen.getByRole("list")).getAllByRole("listitem")[0]).toHaveTextContent("HO-20261003-000001");
+    await user.clear(box);
+    await user.type(box, "HO-nothing{Enter}");
+    expect(await screen.findByText("No escalated cases match this search.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    expect(await screen.findByRole("heading", { name: "2 cases" })).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+    expect(box).toHaveValue("");
+  });
+
   it("ignores an unknown filter value in the URL", async () => {
     const { api } = await signIn(fakeAgentApi(), "/agent?queue=everything&priority=urgent");
     await screen.findByRole("heading", { name: "2 cases" });
-    expect(api.handoffs).toHaveBeenCalledWith({ queue: null, priority: null, offset: 0, limit: 20 }, AGENT_TOKEN);
+    expect(api.handoffs).toHaveBeenCalledWith({ queue: null, priority: null, search: null, offset: 0, limit: 20 }, AGENT_TOKEN);
   });
 
   it("pages through a long queue, and a filter goes back to the first page", async () => {
@@ -178,7 +199,7 @@ describe("queue", () => {
     expect(await screen.findByText("21–25 of 25")).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(5);
     expect(window.location.search).toBe("?page=2");
-    expect(api.handoffs).toHaveBeenLastCalledWith({ queue: null, priority: null, offset: 20, limit: 20 }, AGENT_TOKEN);
+    expect(api.handoffs).toHaveBeenLastCalledWith({ queue: null, priority: null, search: null, offset: 20, limit: 20 }, AGENT_TOKEN);
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Previous page" }));
     expect(await screen.findByText("1–20 of 25")).toBeInTheDocument();

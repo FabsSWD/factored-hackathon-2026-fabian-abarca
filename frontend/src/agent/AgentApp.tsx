@@ -50,7 +50,7 @@ export function AgentApp({ api }: { api: AgentApi }) {
 
   useEffect(() => {
     document.documentElement.lang = "en";
-    document.title = "Agent console";
+    document.title = "Arbitra · Agent console";
   }, []);
 
   const forbidden = useCallback(() => {
@@ -67,7 +67,7 @@ export function AgentApp({ api }: { api: AgentApi }) {
         <div className="nav__inner nav__inner--wide">
           <span className="brand">
             <span className="brand__mark" aria-hidden="true" />
-            <span className="brand__name">Agent console</span>
+            <span className="brand__name">Arbitra</span>
           </span>
           {token && (
             <nav className="nav__actions" aria-label="Agent console">

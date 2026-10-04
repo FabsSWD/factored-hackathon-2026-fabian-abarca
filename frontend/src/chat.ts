@@ -11,6 +11,7 @@ export interface Message {
   delivery?: Delivery; // customer messages only
   caseReference?: string | null; // a case created and read back (COM-04)
   transferred?: boolean; // the reply that handed the conversation to an agent
+  handoffReference?: string | null; // the tracking number the agent console finds the case by
 }
 
 /** Why the login is shown inside a conversation that already started. */
@@ -88,6 +89,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
             text: reply.reply,
             caseReference: reply.status === "case_created" ? (reply.case_reference ?? null) : null,
             transferred: reply.handed_off,
+            handoffReference: reply.handed_off ? (reply.handoff_reference ?? null) : null,
           },
         ],
       };

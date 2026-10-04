@@ -28,6 +28,9 @@ export interface Paging {
 export interface HandoffFilters extends Paging {
   queue?: Queue | null;
   priority?: Priority | null;
+  /** Part of the handoff ID the customer was given (HO-...), the conversation, the customer
+   *  reference or the request summary. */
+  search?: string | null;
 }
 
 export interface TraceFilters extends Paging {

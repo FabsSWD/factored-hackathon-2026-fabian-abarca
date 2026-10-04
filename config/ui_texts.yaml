@@ -9,12 +9,12 @@
 #
 # Bump ui_texts_version whenever a text changes.
 
-ui_texts_version: "1.0.0"
+ui_texts_version: "1.0.1"
 
 texts:
   app_name:
-    es: "Disputas"
-    pt: "Contestações"
+    es: "Arbitra"
+    pt: "Arbitra"
   app_tagline:
     es: "Reporte un cargo que no reconoce o que no es correcto."
     pt: "Conteste uma cobrança que você não reconhece ou que está errada."
@@ -121,6 +121,9 @@ texts:
   handed_off_title:
     es: "Transferido a un agente"
     pt: "Transferido para um atendente"
+  handoff_reference_label:
+    es: "Número de seguimiento"
+    pt: "Número de acompanhamento"
   handed_off_notice:
     es: "Un agente continuará esta conversación. Ya no es necesario escribir aquí."
     pt: "Um atendente vai continuar esta conversa. Não é mais necessário escrever aqui."

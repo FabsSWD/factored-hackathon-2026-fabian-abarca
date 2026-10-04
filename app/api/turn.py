@@ -10,6 +10,8 @@ or score (COM-07, ACT-06).
 - ``handed_off``: transferred to an agent; the chat disables its input;
 - ``case_created``: ACT-02 created and read back the case, whose reference is
   ``case_reference`` (COM-04: never before the read-back);
+- ``handed_off`` also carries ``handoff_reference`` (HO-...) in the turn that transfers: the
+  number the agent console finds the case by (COM-04: never before the read-back);
 - ``authentication_required``: the reply asks the customer to log in (no session, or it
   expired); the chat opens its login and keeps the conversation;
 - ``awaiting_confirmation``: the reply asks for a yes or a no (the case summary or the card
@@ -55,6 +57,7 @@ class TurnResponse(BaseModel):
     trace_id: str
     status: TurnStatus
     case_reference: str | None = None  # only with status case_created
+    handoff_reference: str | None = None  # only in the turn that hands off, once read back
 
 
 def turn_status(result: TurnResult) -> TurnStatus:
@@ -113,4 +116,5 @@ async def turn(
         trace_id=result.trace_id,
         status=turn_status(result),
         case_reference=result.case_reference if result.reply_kind == "case_created" else None,
+        handoff_reference=result.handoff_reference,
     )

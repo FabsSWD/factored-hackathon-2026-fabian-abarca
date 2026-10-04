@@ -13,7 +13,9 @@ export interface paths {
         };
         /**
          * List Handoffs
-         * @description Escalated cases, high priority first, then the oldest.
+         * @description Escalated cases, high priority first, then the oldest. ``search`` matches part of the
+         *     handoff ID the customer was given (HO-...), the conversation ID, the customer reference or the
+         *     request summary.
          */
         get: operations["list_handoffs_api_agent_handoffs_get"];
         put?: never;
@@ -861,7 +863,7 @@ export interface components {
          *     it with a template and then goes on with the flow; it is not a clarification.
          * @enum {string}
          */
-        SideQuestion: "refund" | "timeline" | "block_consequences" | "case_status" | "flow_help" | "other";
+        SideQuestion: "refund" | "timeline" | "block_consequences" | "case_status" | "card_status" | "flow_help" | "other";
         /**
          * SlotName
          * @description Policy §10, in the order the system asks for them.
@@ -1019,6 +1021,8 @@ export interface components {
             conversation_id: string;
             /** Handed Off */
             handed_off: boolean;
+            /** Handoff Reference */
+            handoff_reference?: string | null;
             language: components["schemas"]["Language"] | null;
             /** Reply */
             reply: string;
@@ -1093,6 +1097,7 @@ export interface operations {
                 queue?: components["schemas"]["Queue"] | null;
                 priority?: components["schemas"]["Priority"] | null;
                 since?: string | null;
+                search?: string | null;
                 offset?: number;
                 limit?: number;
             };

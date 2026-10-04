@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.13.0",
+  "prompt_version": "extract@1.14.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": null,
@@ -36,8 +36,8 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente indica que no reconoce un cobro de 65.000 pesos en una ferretería del 16 de junio.",
-      "El cliente indica que le robaron el celular ayer."
+      "El cliente indica que le robaron el celular ayer.",
+      "El cliente indica que no reconoce un cobro de 65.000 pesos en una ferretería del 16 de junio."
     ],
     "side_question": null,
     "wrong_transaction": false,

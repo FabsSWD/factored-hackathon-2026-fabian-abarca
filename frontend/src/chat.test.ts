@@ -36,6 +36,13 @@ describe("chatReducer", () => {
     const handed = answered({ status: "handed_off", handed_off: true });
     expect(handed.handedOff).toBe(true);
     expect(handed.messages[1]?.transferred).toBe(true);
+    expect(handed.messages[1]?.handoffReference).toBeNull();
+  });
+
+  it("keeps the tracking number of the handoff", () => {
+    const handed = answered({ status: "handed_off", handed_off: true, handoff_reference: "HO-20261003-000007" });
+    expect(handed.messages[1]?.handoffReference).toBe("HO-20261003-000007");
+    expect(answered({ handoff_reference: "HO-1" }).messages[1]?.handoffReference).toBeNull();
   });
 
   it("a reply that asks to log in remembers to say so after it", () => {

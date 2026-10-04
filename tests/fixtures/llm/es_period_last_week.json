@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.13.0",
+  "prompt_version": "extract@1.14.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": "transaction_ref",
@@ -40,7 +40,7 @@
       "authentication_declined": false
     },
     "customer_claims": [
-      "El cliente indica que la transacción fue la semana pasada."
+      "El cliente indica que la transacción ocurrió entre el 8 y el 14 de junio."
     ],
     "side_question": null,
     "wrong_transaction": false,

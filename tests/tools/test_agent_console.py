@@ -87,6 +87,36 @@ def test_agent_reads_the_queue_and_a_packet(client: TestClient) -> None:
     assert [r["queue"] for r in filtered.json()["items"]] == ["disputes"]
 
 
+def test_queue_is_searched_by_the_tracking_number_and_the_request(
+    client: TestClient, queue: DatabaseHandoffQueue
+) -> None:
+    rows = queue.list(HandoffFilter())
+    wanted = rows[0].handoff_id
+    for text in (wanted, wanted.lower(), wanted[3:11], wanted[-6:]):
+        found = queue.list(HandoffFilter(search=text))
+        assert wanted in [r.handoff_id for r in found], text
+    # Part of the request summary, whatever the case.
+    word = rows[1].request_summary.split()[0].upper()
+    assert rows[1].handoff_id in [r.handoff_id for r in queue.list(HandoffFilter(search=word))]
+    assert queue.list(HandoffFilter(search="HO-no-such-case")) == []
+    # The wildcards of the search are taken literally, and a blank search filters nothing.
+    assert (
+        queue.count(HandoffFilter(search="%")) == 0 and queue.count(HandoffFilter(search="_")) == 0
+    )
+    assert queue.count(HandoffFilter(search="  ")) == queue.count(HandoffFilter()) == 2
+    # Through the API, together with the other filters, with the total of the search.
+    page = client.get("/api/agent/handoffs", params={"search": wanted}, headers=AGENT).json()
+    assert page["total"] == 1 and page["items"][0]["handoff_id"] == wanted
+    other = client.get(
+        "/api/agent/handoffs",
+        params={"search": wanted, "queue": "fraud"},
+        headers=AGENT,
+    ).json()
+    assert other["total"] == 0
+    too_long = client.get("/api/agent/handoffs", params={"search": "x" * 65}, headers=AGENT)
+    assert too_long.status_code == 422
+
+
 def test_queue_is_paged(client: TestClient, queue: DatabaseHandoffQueue) -> None:
     first = client.get("/api/agent/handoffs", params={"limit": 1}, headers=AGENT).json()
     second = client.get(

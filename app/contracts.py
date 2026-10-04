@@ -207,6 +207,7 @@ class SideQuestion(StrEnum):
     TIMELINE = "timeline"  # "¿cuánto tarda?"
     BLOCK_CONSEQUENCES = "block_consequences"  # "¿qué pasa si la bloquean?"
     CASE_STATUS = "case_status"  # "¿cómo va mi disputa?"
+    CARD_STATUS = "card_status"  # "¿ya está bloqueada mi tarjeta?": answered from the records
     FLOW_HELP = "flow_help"  # "si le doy solo el nombre, ¿la busca?", "no recuerdo el monto"
     OTHER = "other"  # clearly unrelated to disputes: loans, opening an account
 

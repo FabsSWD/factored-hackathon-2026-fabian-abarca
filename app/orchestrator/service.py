@@ -64,6 +64,12 @@ Contracts it keeps (each has a test):
     no Input Guard, and is added masked to the packet (``post_handoff_messages``) for the
     agent. When it could not be added, ``already_transferred_short`` says nothing about the
     agent seeing it (COM-04).
+24. After a final outcome (RESOLVE or INFORM), with nothing pending, a side question alone
+    ("¿ya está bloqueada mi tarjeta?", "¿cuánto tarda?") is answered by itself: it never
+    reopens the dispute flow with "¿qué transacción quiere disputar?". The turn keeps the
+    final outcome, so a later "gracias" still gets ``closing``. ``card_status`` is answered
+    from the records read in the turn (the block ACT-03 verified), never from what the
+    conversation said it did.
 """
 
 from __future__ import annotations
@@ -147,6 +153,7 @@ from app.orchestrator.state import (
 from app.policy.clock import business_date
 from app.policy.matching import given_details
 from app.pseudonym import UNAUTHENTICATED_REF, customer_ref
+from app.storage.data_contract import CARD_PRODUCT_TYPES
 from app.templates.formatting import (
     Locale,
     currency_said,
@@ -215,6 +222,7 @@ class TurnResult:
     language: Language | None
     closed: bool
     case_reference: str | None = None  # the case ACT-02 created and read back in this turn
+    handoff_reference: str | None = None  # the handoff ACT-05 wrote and read back in this turn
 
 
 @dataclass
@@ -235,6 +243,7 @@ class _Turn:
     session: SessionContext | None = None
     tools: ToolLayer | None = None
     case_reference: str | None = None  # set only after the ACT-02 read-back (COM-04)
+    handoff_reference: str | None = None  # set only after the ACT-05 read-back (COM-04)
     guard: InputGuardResult | None = None
     records: _Records = field(default_factory=_Records)
     context: LLMContext | None = None
@@ -335,6 +344,7 @@ class Orchestrator:
                 language=state.language,
                 closed=state.closed,
                 case_reference=turn.case_reference,
+                handoff_reference=turn.handoff_reference,
             )
 
     # ------------------------------------------------------------------ the turn
@@ -599,6 +609,17 @@ class Orchestrator:
                 self._new_reply(turn)
                 turn.reply_kind, turn.outcome = "side:other", Outcome.INFORM
                 return True
+            if (
+                turn.side_only
+                and pending is Pending.NONE
+                and state.last_outcome in (Outcome.RESOLVE, Outcome.INFORM)
+                and extraction.flags == ConversationFlags()
+            ):
+                # Contract 24: the dispute is over; the question gets its answer and nothing else.
+                self._new_reply(turn)
+                state.side_streak = 0
+                turn.reply_kind, turn.outcome = f"side:{question.value}", state.last_outcome
+                return True
 
         if (
             extraction.block_card_requested
@@ -712,6 +733,8 @@ class Orchestrator:
         state = turn.state
         if question is SideQuestion.CASE_STATUS:
             answer = await self._case_status(turn)
+        elif question is SideQuestion.CARD_STATUS:
+            answer = self._card_status(turn)
         elif question is SideQuestion.OTHER:
             answer = [(SIDE_TEMPLATES[question], {})]
             if not state.unsupported_offered:  # contract 20: once per conversation
@@ -759,6 +782,23 @@ class Orchestrator:
                 },
             )
             for case in cases
+        ]
+
+    @staticmethod
+    def _card_status(turn: _Turn) -> Prefix:
+        """The customer's cards as the records show them now, read in this turn. Nothing is
+        read without a session: the answer is to log in."""
+        if turn.session is None:
+            return [("ask_authentication", {})]
+        cards = [p for p in turn.records.products if p.product_type in CARD_PRODUCT_TYPES]
+        if not cards:
+            return [("side_no_card", {})]
+        return [
+            (
+                "side_card_status" if card.product_status == "Blocked" else "side_card_not_blocked",
+                {"product": card.product_number_masked},
+            )
+            for card in cards
         ]
 
     def _correct(self, turn: _Turn, new: Slots, claims: list[str]) -> bool:
@@ -1265,8 +1305,9 @@ class Orchestrator:
         turn.outcome = Outcome.ESCALATE
         if transfer.status is ToolStatus.SUCCESS:
             reply.add("handoff" if authenticated else "handoff_unauthenticated")
+            reply.add("handoff_reference", handoff_ref=packet.handoff_id)
             turn.reply_kind = "handoff"
-            turn.handoff_id = packet.handoff_id
+            turn.handoff_id = turn.handoff_reference = packet.handoff_id
             state.closed, state.handoff_id = True, packet.handoff_id
         else:
             if "tool_failure" not in reply.ids:
@@ -1369,8 +1410,9 @@ class Orchestrator:
             transfer = await self._io(tools.transfer_to_human, packet)
             if transfer.status is ToolStatus.SUCCESS:
                 reply.add("handoff" if authenticated else "handoff_unauthenticated")
+                reply.add("handoff_reference", handoff_ref=packet.handoff_id)
                 state.closed, state.handoff_id = True, packet.handoff_id
-                turn.handoff_id = packet.handoff_id
+                turn.handoff_id = turn.handoff_reference = packet.handoff_id
                 return
         except Exception as failure:
             turn.error += f" | handoff failed: {type(failure).__name__}"

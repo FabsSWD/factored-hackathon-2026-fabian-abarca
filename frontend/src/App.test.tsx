@@ -131,12 +131,21 @@ describe("conversation", () => {
 
   it("disables the input with the transfer notice after a handoff", async () => {
     const api = fakeApi();
-    api.turns = [reply({ status: "handed_off", handed_off: true, reply: "Lo transfiero" })];
+    api.turns = [
+      reply({
+        status: "handed_off",
+        handed_off: true,
+        handoff_reference: "HO-20261003-000007",
+        reply: "Lo transfiero",
+      }),
+    ];
     const { user } = await start(api);
     await login(user);
     await say(user, "Quiero hablar con una persona");
     expect(await screen.findByText(es("handed_off_notice"))).toBeInTheDocument();
     expect(screen.getByText(es("handed_off_title"))).toBeInTheDocument();
+    expect(screen.getByText(es("handoff_reference_label"))).toBeInTheDocument();
+    expect(screen.getByText("HO-20261003-000007")).toBeInTheDocument();
     expect(screen.getByLabelText(es("input_label"))).toBeDisabled();
     expect(screen.queryByRole("button", { name: es("send") })).toBeNull();
     await user.click(screen.getByRole("button", { name: es("new_conversation") }));
