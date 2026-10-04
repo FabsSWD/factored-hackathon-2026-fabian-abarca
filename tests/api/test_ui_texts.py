@@ -24,7 +24,8 @@ def test_both_languages_have_the_same_texts() -> None:
     # The chat needs these to render every state of M14.
     needed = {"login_title", "document_label", "otp_label", "verify_code", "input_label", "send",
               "confirm_yes", "confirm_no", "case_created_title", "case_reference_label",
-              "handed_off_notice", "network_error", "retry", "session_expired",
+              "handed_off_notice", "handoff_reference_label", "network_error", "retry",
+              "session_expired",
               "language_es", "language_pt", "after_login_message"}  # fmt: skip
     assert needed <= set(catalog["es"].texts)
 

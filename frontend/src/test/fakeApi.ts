@@ -11,7 +11,7 @@ export const KEYS = [
   "session_expired", "authentication_requested", "after_login_message", "chat_title", "welcome",
   "conversation_label", "assistant_label", "customer_label", "input_label", "input_placeholder",
   "send", "typing", "confirm_hint", "confirm_yes", "confirm_no", "case_created_title",
-  "case_reference_label", "handed_off_title", "handed_off_notice", "network_error", "retry",
+  "case_reference_label", "handed_off_title", "handoff_reference_label", "handed_off_notice", "network_error", "retry",
   "new_conversation", "logout",
 ];
 
@@ -33,6 +33,7 @@ export function reply(overrides: Partial<TurnResponse> = {}): TurnResponse {
     trace_id: "TRC-1",
     status: "in_progress",
     case_reference: null,
+    handoff_reference: null,
     ...overrides,
   };
 }

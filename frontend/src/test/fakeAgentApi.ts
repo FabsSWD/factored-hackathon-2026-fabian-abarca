@@ -299,7 +299,11 @@ export function fakeAgentApi(
         handoffRows.filter(
           (row) =>
             (!filters.queue || row.queue === filters.queue) &&
-            (!filters.priority || row.priority === filters.priority),
+            (!filters.priority || row.priority === filters.priority) &&
+            (!filters.search ||
+              `${row.handoff_id} ${row.request_summary}`
+                .toLowerCase()
+                .includes(filters.search.trim().toLowerCase())),
         ),
         filters,
       ),

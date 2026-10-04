@@ -17,7 +17,7 @@ from typing import Any
 
 from app.contracts import Confirmation, ReasonCode, SideQuestion
 
-EXTRACT_PROMPT_VERSION = "extract@1.13.0"
+EXTRACT_PROMPT_VERSION = "extract@1.14.0"
 CONNECT_PROMPT_VERSION = "connect@1.2.0"
 
 EXTRACT_SYSTEM = """\
@@ -72,12 +72,13 @@ card_in_possession.
 serious hardship or distress caused by the charge.
   - authentication_declined: refuses to verify their identity.
 - side_question: a question the customer asks instead of, or besides, answering: "refund" \
-(whether they get their money back), "timeline" (how long it takes), "block_consequences" \
-(what blocking the card implies), "case_status" (the status of a dispute already filed), \
-"flow_help" (how to go on: "if I give you only the name, can you find it?", "what do you \
-need?", or not remembering a detail), "other" (only what is clearly unrelated to disputes: \
-loans, opening an account); when unsure between flow_help and other, flow_help; null \
-otherwise.
+(whether they get their money back), "timeline" (how long it takes), "block_consequences" (what \
+blocking the card implies), "case_status" (the status of a dispute already filed), "card_status" \
+(whether their card is blocked right now: "¿ya está bloqueada?", "meu cartão ficou bloqueado?"; \
+not block_consequences, which asks what blocking implies), "flow_help" (how to go on: "if I give \
+you only the name, can you find it?", "what do you need?", or not remembering a detail), "other" \
+(only what is clearly unrelated to disputes: loans, opening an account); when unsure between \
+flow_help and other, flow_help; null otherwise.
 - wrong_transaction: the customer says the transaction just shown to them is not the one \
 they mean ("ese no es", "esse não é").
 - block_card_requested: the customer asks to block their card.

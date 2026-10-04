@@ -1694,6 +1694,7 @@
           "timeline",
           "block_consequences",
           "case_status",
+          "card_status",
           "flow_help",
           "other"
         ],
@@ -2242,6 +2243,17 @@
             "title": "Handed Off",
             "type": "boolean"
           },
+          "handoff_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handoff Reference"
+          },
           "language": {
             "anyOf": [
               {
@@ -2422,7 +2434,7 @@
   "paths": {
     "/api/agent/handoffs": {
       "get": {
-        "description": "Escalated cases, high priority first, then the oldest.",
+        "description": "Escalated cases, high priority first, then the oldest. ``search`` matches part of the\nhandoff ID the customer was given (HO-...), the conversation ID, the customer reference or the\nrequest summary.",
         "operationId": "list_handoffs_api_agent_handoffs_get",
         "parameters": [
           {
@@ -2472,6 +2484,23 @@
                 }
               ],
               "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
             }
           },
           {

@@ -322,10 +322,14 @@ def test_before_authentication_only_the_unauthenticated_handoff_text() -> None:
     world.say("quiero hablar con un humano", ext(flags={"human_requested": True}))
     result = world.turn("quiero hablar con un humano", token=None)
     assert result.outcome is Outcome.ESCALATE
+    (packet,) = world.bank.packets
     assert result.reply == (
         "Voy a transferirle con un agente, que primero verificará su identidad y luego revisará "
-        "su solicitud."
+        "su solicitud.\n\n"
+        f"Su número de seguimiento es {packet.handoff_id}. Guárdelo: el agente lo usará para "
+        "ubicar su caso."
     )
+    assert result.handoff_reference == packet.handoff_id  # an opaque ID: no account data
     assert world.bank.reads == []
 
 

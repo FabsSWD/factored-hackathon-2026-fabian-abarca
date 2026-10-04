@@ -74,12 +74,15 @@ FORBIDDEN_IN_REPLIES = re.compile(
     r"|\bHO-\d|4111111111114821|X1234567|42388496|C9988776|fraud|score|threshold|umbral"
     r"|Traceback|Exception|Error\b|None\b|\{|\}"
 )
+# The one place a handoff ID may appear: the tracking number the customer is given when the case
+# is transferred (read back first, COM-04). Anywhere else it is still an internal identifier.
+TRACKING_NUMBER = re.compile(r"(?:seguimiento es|acompanhamento é) HO-\d{8}-\d{6,}\.")
 UNCODED_AMOUNT = re.compile(r"(?<![A-Z]{3} )(?<![\d.,])\d{1,3}(?:[.,]\d{3})*[.,]\d{2}(?!\d)")
 DAYS = re.compile(r"\b(\d+)\s+d[ií]as\b")
 
 
 def assert_customer_safe(reply: str) -> None:
-    assert not FORBIDDEN_IN_REPLIES.search(reply), reply
+    assert not FORBIDDEN_IN_REPLIES.search(TRACKING_NUMBER.sub("", reply)), reply
     assert not UNCODED_AMOUNT.search(reply), reply
     assert all(
         int(days) == CONFIG.parameters.RESOLUTION_TARGET_BUSINESS_DAYS

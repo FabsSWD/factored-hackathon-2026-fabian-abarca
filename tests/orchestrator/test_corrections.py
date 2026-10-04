@@ -41,12 +41,16 @@ MODEL_AMOUNT = Slots(
 )
 
 
+# The model is not deterministic on this message: some runs give the 40 and some leave it out
+# (extract@1.13.0 left it out, the recording of extract@1.14.0 has it). The backup is pinned on
+# the answer without it, which is the one it exists for.
+WITHOUT_AMOUNT = Slots(reason_code=ReasonCode.INCORRECT_AMOUNT, confirmation=Confirmation.DECLINED)
+
+
 def test_fixture_is_the_case_found() -> None:
     proposed = recorded_slots()
     assert proposed.confirmation is Confirmation.DECLINED
     assert proposed.reason_code is ReasonCode.INCORRECT_AMOUNT
-    # extract@1.13.0 no longer extracts the 40: the deterministic backup reads it.
-    assert proposed.expected_amount is None and proposed.transaction_ref is None
 
 
 def test_the_backup_takes_the_one_number_of_the_message() -> None:
@@ -56,12 +60,10 @@ def test_the_backup_takes_the_one_number_of_the_message() -> None:
         expected_amount=Decimal("30"),
         confirmation=Confirmation.DECLINED,
     )
-    correction = apply_declined_correction(
-        established, recorded_slots(), message=recorded_message()
-    )
+    correction = apply_declined_correction(established, WITHOUT_AMOUNT, message=recorded_message())
     assert correction.slots.expected_amount == Decimal("40")  # "eran 40"
     assert not correction.rematch and correction.slots.confirmation is None
-    two = apply_declined_correction(established, recorded_slots(), message="eran 40 el 5 de junio")
+    two = apply_declined_correction(established, WITHOUT_AMOUNT, message="eran 40 el 5 de junio")
     assert two.slots.expected_amount == Decimal("30")  # two numbers: ambiguous, nothing taken
     fee = established.model_copy(update={"reason_code": ReasonCode.FEE})
     other = apply_declined_correction(fee, Slots(confirmation=Confirmation.DECLINED), message="40")

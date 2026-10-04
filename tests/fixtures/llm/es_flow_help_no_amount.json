@@ -1,5 +1,5 @@
 {
-  "prompt_version": "extract@1.13.0",
+  "prompt_version": "extract@1.14.0",
   "response_model": "gpt-6-luna",
   "language": "es",
   "pending_slot": "transaction_ref",
@@ -8,14 +8,7 @@
     "detected_language": "es",
     "language_ambiguous": false,
     "slots": {
-      "transaction_ref": {
-        "transaction_id": null,
-        "transaction_date": null,
-        "date_from": null,
-        "date_to": null,
-        "amount": null,
-        "merchant": null
-      },
+      "transaction_ref": null,
       "reason_code": null,
       "card_in_possession": null,
       "shared_credentials": null,
@@ -31,7 +24,9 @@
       "legal_or_vulnerability": false,
       "authentication_declined": false
     },
-    "customer_claims": [],
+    "customer_claims": [
+      "El cliente indica que no recuerda el monto."
+    ],
     "side_question": "flow_help",
     "wrong_transaction": false,
     "block_card_requested": false,

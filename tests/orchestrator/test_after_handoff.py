@@ -129,3 +129,12 @@ def test_the_short_notice_in_portuguese() -> None:
 def test_the_short_notice_promises_nothing_about_the_agent_seeing_it() -> None:
     for text in (SHORT_ES, SHORT_PT):
         assert "verá" not in text and "lo verá" not in text and "aqui" not in text.lower()
+
+
+def test_a_failed_handoff_gives_no_tracking_number() -> None:
+    world = build_world()
+    world.bank.transfer_failure = True
+    world.say("Quiero hablar con una persona", ext(flags={"human_requested": True}))
+    result = world.turn("Quiero hablar con una persona")
+    assert not result.closed
+    assert result.handoff_reference is None and "seguimiento" not in result.reply

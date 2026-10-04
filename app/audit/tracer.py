@@ -77,7 +77,7 @@ class TracePage(BaseModel):
     limit: int
 
 
-def _contains(text: str) -> str:
+def contains_pattern(text: str) -> str:
     """An ILIKE pattern for ``text`` anywhere, with the wildcards in ``text`` taken literally."""
     escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     return f"%{escaped}%"
@@ -180,7 +180,7 @@ class DatabaseAuditTracer:
         if filters.until is not None:
             query = query.where(AuditLog.created_at < filters.until)
         if filters.search:
-            pattern = _contains(filters.search.strip())
+            pattern = contains_pattern(filters.search.strip())
             query = query.where(
                 or_(
                     AuditLog.trace_id.ilike(pattern, escape="\\"),

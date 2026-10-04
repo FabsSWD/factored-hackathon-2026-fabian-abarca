@@ -41,12 +41,22 @@ def list_handoffs(
     queue: Queue | None = None,
     priority: Priority | None = None,
     since: datetime | None = None,
+    search: Annotated[str | None, Query(max_length=64)] = None,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> HandoffPage:
-    """Escalated cases, high priority first, then the oldest."""
+    """Escalated cases, high priority first, then the oldest. ``search`` matches part of the
+    handoff ID the customer was given (HO-...), the conversation ID, the customer reference or the
+    request summary."""
     return handoffs.page(
-        HandoffFilter(queue=queue, priority=priority, since=since, offset=offset, limit=limit)
+        HandoffFilter(
+            queue=queue,
+            priority=priority,
+            since=since,
+            search=search or None,
+            offset=offset,
+            limit=limit,
+        )
     )
 
 

@@ -117,6 +117,12 @@ def test_escalate_high_amount_with_handoff() -> None:
     assert packet.triggered_rules == ["ESC-01"]
     assert packet.draft_case is not None and packet.draft_case.transaction_ref == "TXN-3"
     assert "agente" in result.reply
+    # The tracking number is the packet the Tool Layer wrote and read back, in the text and apart.
+    assert result.handoff_reference == packet.handoff_id
+    assert f"Su número de seguimiento es {packet.handoff_id}." in result.reply
+    world.say("¿ya me atienden?", ext())
+    later = world.turn("¿ya me atienden?")
+    assert later.handoff_reference is None  # said once, in the turn that escalates
 
 
 def test_refuse_another_customers_record() -> None:

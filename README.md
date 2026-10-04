@@ -1,4 +1,4 @@
-# Dispute intake
+# Arbitra
 
 AI-first customer service for transaction-dispute intake at a synthetic LATAM bank (Factored AI & Data Hackathon 2026). Design, policy and architecture documents are in [docs/](docs/README.md).
 

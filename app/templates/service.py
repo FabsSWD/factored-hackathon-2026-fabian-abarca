@@ -93,6 +93,7 @@ SIDE_TEMPLATES: dict[SideQuestion, str] = {
     SideQuestion.TIMELINE: "side_timeline",
     SideQuestion.BLOCK_CONSEQUENCES: "side_block_consequences",
     SideQuestion.CASE_STATUS: "side_case_status",  # or side_no_cases / side_case_not_found
+    SideQuestion.CARD_STATUS: "side_card_status",  # or side_card_not_blocked / side_no_card
     SideQuestion.FLOW_HELP: "side_flow_help_transaction",  # or side_flow_help
     SideQuestion.OTHER: "side_unsupported",
 }
@@ -295,6 +296,7 @@ class TemplateService:
             | set(CONFIRMATION_TEMPLATES)
             | set(SIDE_TEMPLATES.values())
             | {"side_no_cases", "side_case_not_found", "identified_transaction", "block_not_done"}
+            | {"side_card_not_blocked", "side_no_card", "handoff_reference"}
             | {"closing", "already_transferred", "already_transferred_short"}
             | set(VARIANT_TEMPLATES) - {"ask_correction"}
             | set(VARIANT_TEMPLATES.values())

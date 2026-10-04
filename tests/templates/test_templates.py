@@ -49,6 +49,7 @@ RAW: dict[str, Any] = yaml.safe_load(DEFAULT_TEMPLATES_PATH.read_text(encoding="
 
 SAMPLE_VALUES: dict[str, object] = {
     "case_ref": "DSP-20260618-000001",
+    "handoff_ref": "HO-20260618-000001",
     "status": "abierta",
     "transaction_date": "16/06/2026",
     "merchant": "Cafe Sintetico",
@@ -97,7 +98,7 @@ MILESTONE_TEMPLATES = {
 
 
 def test_file_loads_with_version(templates: TemplateService) -> None:
-    assert templates.version == "1.12.0"
+    assert templates.version == "1.14.0"
     assert isinstance(templates, interfaces.TemplateService)
 
 

@@ -89,11 +89,13 @@ def test_a_conversation_through_the_api(client: TestClient, world: World) -> Non
         "trace_id",
         "status",  # M14: which state the chat shows; never a rule, threshold or score
         "case_reference",
+        "handoff_reference",  # the tracking number of a handoff, only in the turn that hands off
     }
     assert first["status"] == "awaiting_confirmation" and first["case_reference"] is None
     assert second["status"] == "case_created"
     assert str(second["case_reference"]).startswith("DSP-")
     assert str(second["case_reference"]) in str(second["reply"])  # read back, then shown
+    assert first["handoff_reference"] is None and second["handoff_reference"] is None
 
 
 def test_without_a_session_the_turn_runs_without_account_data(

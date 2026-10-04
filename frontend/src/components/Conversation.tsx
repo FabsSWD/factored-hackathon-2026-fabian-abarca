@@ -43,6 +43,12 @@ export function Conversation({
             {message.transferred && (
               <div className="badge badge--handoff">
                 <span className="badge__title">{t("handed_off_title")}</span>
+                {message.handoffReference && (
+                  <span className="badge__line">
+                    <span className="muted">{t("handoff_reference_label")}</span>{" "}
+                    <strong className="reference">{message.handoffReference}</strong>
+                  </span>
+                )}
               </div>
             )}
             {message.delivery === "failed" && (

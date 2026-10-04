@@ -124,3 +124,64 @@ def test_the_closing_gets_no_connecting_sentence() -> None:
     world.say("gracias", ext())
     assert world.turn("gracias").reply == CLOSING_ES
     assert len(world.llm.connect_modes) == calls
+
+
+# --- 3. A question after a final outcome (contract 24) ------------------------------------------
+
+CARD_BLOCKED_ES = "Sí, su tarjeta ****4821 está bloqueada temporalmente."
+
+
+def test_card_status_after_resolve_is_answered_from_the_records_and_reopens_nothing() -> None:
+    world = build_world()
+    resolved(world)  # the card was blocked in this conversation (ACT-03)
+    for question in ("Entonces ya está bloqueada?", "Mi tarjeta ya se encuentra bloqueada?"):
+        world.say(question, ext(side=SideQuestion.CARD_STATUS))
+        result = world.turn(question)
+        assert result.reply == CARD_BLOCKED_ES
+        assert result.reply_kind == "side:card_status"
+        assert result.outcome is Outcome.RESOLVE  # the conversation keeps its result
+        assert world.tracer.traces[-1].decisions == []  # the engine was not called
+    world.say("Eso sería todo, gracias", ext())
+    assert world.turn("Eso sería todo, gracias").reply == CLOSING_ES
+
+
+def test_card_status_says_when_the_card_is_not_blocked() -> None:
+    world = build_world()
+    message = "¿Ya está bloqueada mi tarjeta?"
+    world.say(message, ext(side=SideQuestion.CARD_STATUS))
+    result = world.turn(message)
+    assert result.reply.startswith("Su tarjeta ****4821 no está bloqueada.")
+
+
+def test_card_status_without_a_session_only_asks_to_log_in() -> None:
+    world = build_world()
+    message = "¿Ya está bloqueada mi tarjeta?"
+    world.say(message, ext(side=SideQuestion.CARD_STATUS))
+    result = world.turn(message, token=None)
+    assert result.reply_kind == "clarify:authentication"
+    assert world.bank.reads == []  # nothing read before GATE-02
+
+
+def test_a_side_question_after_inform_does_not_ask_for_a_transaction() -> None:
+    world = build_world()
+    message = "No me llegó la compra de Kiosko 24 de 20 dólares"
+    ref = TransactionRef(merchant="Kiosko 24", amount=Decimal("20"))
+    world.say(message, ext(transaction_ref=ref, reason_code=ReasonCode.NOT_RECEIVED))
+    assert world.turn(message).outcome is Outcome.INFORM  # the charge is still pending
+    world.say("¿cuánto tarda?", ext(side=SideQuestion.TIMELINE))
+    result = world.turn("¿cuánto tarda?")
+    assert result.reply.startswith("Una vez registrada, nuestro equipo revisa la disputa")
+    assert result.reply_kind == "side:timeline" and "transacción" not in result.reply
+    assert result.outcome is Outcome.INFORM
+
+
+def test_a_side_question_with_a_new_detail_after_resolve_still_goes_on() -> None:
+    world = build_world()
+    resolved(world)
+    message = "¿cuánto tarda? Además hay otro cargo de Electro Mundo que no reconozco"
+    ref = TransactionRef(merchant="Electro Mundo")
+    world.say(
+        message,
+        ext(side=SideQuestion.TIMELINE, transaction_ref=ref, reason_code=ReasonCode.UNRECOGNIZED),
+    )
+    assert world.turn(message).reply_kind != "side:timeline"
