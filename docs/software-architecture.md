@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Status | Draft |
-| Version | 0.1.16 |
-| Last updated | 2026-10-02 |
-| Related | [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
+| Status | Accepted |
+| Version | 1.0.0 |
+| Last updated | 2026-10-03 |
+| Related | [Solution overview](solution-overview.md), [Dispute policy](dispute-policy.md), [Glossary](glossary.md), [Decision flow](diagrams/dispute-decision-flow.md), [Case lifecycle](diagrams/dispute-case-lifecycle.md) |
 
 ## Contents
 
@@ -181,9 +181,9 @@ The data and ML pipelines will be documented separately.
 - Kev 0.8B has a limited knowledge base and its calibration is verified only on our evaluation data.
 - Kev is trained in English. In Spanish and Portuguese only two cases have been verified against the real server (`tests/fixtures/kev/`). As served (temperature 2.35), its `ambiguous` and `escalation_risk` answers sit near 0.5 and must not influence decisions until M7 recalibrates the temperature per question on the validation split.
 - The conversational model is identified only by its alias: the API reports `gpt-6-luna` as the model and no `system_fingerprint`, so the provider can change the underlying model without notice. Mitigation: parser regression tests on recorded answers (`tests/fixtures/llm/`), and repeated runs per case in the evaluation (M18), since no `temperature` is sent.
-- Capacity limits of the deployment have not been measured yet; they will be reported with the evaluation results.
+- Capacity has been measured only lightly: 100 turns with simulated model latency in M13, and the evaluation (M18) at 5 concurrent conversations with real models. No load test on the deployment host.
 - The audit API has no identity per agent: a single service token grants the agent role, so audit reads are recorded but not attributed to a person.
-- Conversation state (accumulated slots, counters, the question pending) is kept in memory by the Orchestrator, in one process. The API therefore runs with exactly one worker (`python scripts/serve.py`); M19 must keep a single worker until the state moves to a shared store behind the same `ConversationStore` interface. A restart loses open conversations.
+- Conversation state (accumulated slots, counters, the question pending) is kept in memory by the Orchestrator, in one process. The API therefore runs with exactly one worker (`python scripts/serve.py`, also in the Compose deployment) until the state moves to a shared store behind the same `ConversationStore` interface. A restart loses open conversations.
 - Once a conversation reaches `LLM_MAX_TOKENS_PER_CONVERSATION`, the LLM is not called again and each turn behaves exactly as when `extract` is unavailable: empty slots, the rule-based interrupts (a request for a human or a legal signal is still honored), and Kev's signals, or unavailable signals when Kev does not answer either, which escalate under `ESC-11`. No policy rule is added for the cap.
 - Kev's serving details (run and release date) are read from `GET /v1/models` after its first successful answer, not at startup, and cached; until then, or if that read fails (recorded as a `model_info` call), traces name the alias `kev-latest`.
 - Two clocks: transaction-age rules use a simulated business date (`BUSINESS_DATE`, because the supplied data ends on 2026-06-17), while session age uses real time ([policy §15](dispute-policy.md#15-parameters)).
@@ -207,5 +207,6 @@ The data and ML pipelines will be documented separately.
 | 0.1.12 | 2026-10-02 | Injection test: after a handoff, a neutral `already_transferred` notice instead of the transfer text again; later messages added masked to the packet without any model. |
 | 0.1.13 | 2026-10-02 | M13: with `extract` failed (or skipped by the token cap) and no Kev, the signals are unavailable (`ESC-11`), as §8 states; `GATE-02` informs on the turn after 
 | 0.1.16 | 2026-10-03 | M19: Docker Compose deployment. nginx in the frontend is the only public entry point and proxies the API; the `migrate` bootstrap service; Kev image with baked, pinned weights, running offline, with warm-up on the API's questions and capped compile processes and memory. |the last authentication request (policy 0.4.10). |
+| 1.0.0 | 2026-10-03 | M21: accepted for the submission. Limitations updated after M19 (single worker in the deployment, measured capacity); business-level summary in the [solution overview](solution-overview.md). |
 | 0.1.14 | 2026-10-02 | Policy 0.4.11: `extract@1.11.0` returns `unrecognized_reported`, the distinct charges the customer says in a message they do not recognize; the Orchestrator keeps the largest one and gives the engine the larger of it and the evaluated charges, so three in the first message escalate under `ESC-03` before any case. Without `extract`, only the evaluated charges count. A lost or stolen card is not `account_takeover_reported`. |
 | 0.1.15 | 2026-10-03 | M18 run 1 fixes (policy 0.4.12): the rule-based detector raises `account_takeover_reported` for a stolen or lost phone (`extract@1.13.0` too); side-question-only replies count from the third in a row (also for the card block offer, then not confirmed); `ConversationCounters.dispute_turns` lets the engine turn a CLARIFY into `ESC-09` past `MAX_TOTAL_CLARIFICATIONS` + 4 turns; ATM, deposit and transfer words given as the merchant are compared with `transaction_type`. |

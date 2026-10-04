@@ -2,6 +2,19 @@
 
 AI-first customer service for transaction-dispute intake at a synthetic LATAM bank (Factored AI & Data Hackathon 2026). Design, policy and architecture documents are in [docs/](docs/README.md).
 
+## Quick start
+
+Requires Docker (with Compose) and a `.env` file filled in from [.env.example](.env.example), plus the Core Banking files in `data/core` (see [Docker Compose](#docker-compose-m19)). Then:
+
+```
+docker compose up -d --wait
+```
+
+Open `http://localhost:8080` for the customer chat and `http://localhost:8080/agent` for the agent console. `python scripts/smoke_stack.py` checks the running system end to end.
+
+- What it is and how it works, without the technical detail: [Solution overview](docs/solution-overview.md).
+- How to show it: [Demo script](docs/demo-script.md).
+
 ## Pre-commit hook
 
 The repository is public and the dataset is privately distributed, so commits are guarded against customer, product and transaction identifiers and against secrets. Install the hook once per clone:

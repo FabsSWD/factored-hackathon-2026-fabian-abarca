@@ -1,12 +1,14 @@
 # Documentation
 
-This folder holds the design, policy, and research documentation for our submission to the Factored AI & Data Hackathon 2026: an AI-first customer service system for **transaction-dispute intake** at a synthetic LATAM bank.
+This folder holds the design, policy, and research documentation for my submission to the Factored AI & Data Hackathon 2026: an AI-first customer service system for **transaction-dispute intake** at a synthetic LATAM bank.
 
 ## Structure
 
 ```
 docs/
 ├── README.md                  # This index and the documentation conventions
+├── solution-overview.md       # Business-level summary, decisions and limitations (start here)
+├── demo-script.md             # Step-by-step demo with seeded customers
 ├── glossary.md                # Shared terminology used across all documents
 ├── dispute-policy.md          # Normative dispute-intake policy (rules, thresholds, actions)
 ├── backend-acceptance.md      # M13: end-to-end, security and load results of the backend
@@ -34,11 +36,13 @@ docs/
 
 | Document | Type | Status | Summary |
 |---|---|---|---|
+| [Solution overview](solution-overview.md) | Document | Accepted | Non-technical summary: the problem, the approach, results, key decisions and honest limitations. Start here. |
+| [Demo script](demo-script.md) | Document | Accepted | About 10 minutes: Spanish and Portuguese disputes, an escalation with handoff, the agent console, a trace and the dashboard. |
 | [Dispute policy](dispute-policy.md) | Document | Draft | Gates, escalation triggers, action permissions, parameters, and outcomes for dispute intake. |
-| [Software architecture](software-architecture.md) | Document | Draft | Runtime components, request walkthrough, technology decisions, deployment, and security. |
+| [Software architecture](software-architecture.md) | Document | Accepted | Runtime components, request walkthrough, technology decisions, deployment, and security. |
 | [Backend acceptance](backend-acceptance.md) | Report | Draft | M13 exit gate: policy coverage through the API, security review, latency, findings and limitations. |
 | [Evaluation design](evaluation-design.md) | Document | Draft | Scenario specifications, reference labels from the policy engine, seeded records, case mix, fixed split and human review (M17). |
-| [Evaluation](evaluation.md) | Document | Pending the first run | Results of the system and the baseline on the evaluation split, written by `scripts/run_evaluation.py` (M18). |
+| [Evaluation](evaluation.md) | Report | Accepted | Results of the system and the baseline on the evaluation split, written by `scripts/run_evaluation.py` (M18). |
 | [Glossary](glossary.md) | Document | Draft | Definitions of terms, outcomes, and identifiers. |
 | [Data label validity](spikes/2026-09-25-data-label-validity.md) | Spike | Complete | EDA of the supplied data: workflow selection evidence and validity of escalation labels. |
 | [Dispute decision flow](diagrams/dispute-decision-flow.md) | Diagram | Draft | Rule evaluation order for one customer message, from start to end of turn. |
@@ -100,5 +104,5 @@ Local secrets live in `.env`, which is ignored by git. Before each push, check t
 Following the challenge's data boundaries, every dataset or example referenced in these documents is labeled as one of:
 
 - **Supplied (synthetic)**: data provided by the organizers (the LATAM Bank dataset).
-- **Team-generated**: data we created, such as evaluation conversations and Portuguese cases.
+- **Team-generated**: data created for this project, such as evaluation conversations and Portuguese cases.
 - **Test fixture**: small, clearly labeled data used only to demonstrate a behavior, such as update correctness.
