@@ -173,6 +173,26 @@ def test_jev_override_leaves_kev_out_and_points_the_api_at_jev(tmp_path: Path) -
     assert "edge" in services["api"]["networks"]  # the way out to Jev
 
 
+def test_jev_standalone_file_resolves_like_the_base_plus_the_override(tmp_path: Path) -> None:
+    env = {
+        **SECRETS,
+        "KEV_BASE_URL": "https://jev.test",
+        "KEV_API_KEY": "jev-secret",
+        "KEV_MODEL": "jev-latest",
+    }
+    layered = compose_config(tmp_path, "docker-compose.yml", "docker-compose.jev.yml", env=env)
+    alone = compose_config(tmp_path, "docker-compose.jev-standalone.yml", env=env)
+    assert layered.returncode == 0, layered.stderr
+    assert alone.returncode == 0, alone.stderr
+    expected = json.loads(layered.stdout)
+    actual = json.loads(alone.stdout)
+    assert "kev" not in actual["services"]
+    # Same services, but for Kev, which the override only moves to a profile.
+    expected["services"].pop("kev")
+    actual.pop("name"), expected.pop("name")
+    assert actual == expected
+
+
 @pytest.mark.parametrize("missing", ["KEV_BASE_URL", "KEV_API_KEY"])
 def test_jev_override_refuses_a_missing_url_or_key(tmp_path: Path, missing: str) -> None:
     env = {**SECRETS, "KEV_BASE_URL": "https://jev.test", "KEV_API_KEY": "k"}

@@ -1,0 +1,128 @@
+# The whole system with Jev (TypeSafe's hosted decision model) and no Kev service at all: the
+# same stack as docker-compose.yml + docker-compose.jev.yml in ONE file, for platforms that take
+# a single compose file (Coolify: "Docker Compose Location" = /docker-compose.jev-standalone.yml).
+# tests/deploy/test_compose.py keeps it identical to base + override.
+#
+# Set in the platform's environment: KEV_BASE_URL=https://api.typesafe.ai, KEV_API_KEY, and
+# optionally KEV_MODEL (jev-latest) and KEV_TIMEOUT_SECONDS (5), besides the secrets of .env.example.
+
+x-database: &database
+  # Role passwords are written into URLs: use URL-safe characters (letters, digits, - _ .).
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_APP_USER:-disputes_app}:${POSTGRES_APP_PASSWORD:?set POSTGRES_APP_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-disputes}
+  BUSINESS_DATE: ${BUSINESS_DATE:-2026-06-17}
+  BUSINESS_DAY_CUTOFF: ${BUSINESS_DAY_CUTOFF:-06:00}
+  DOCUMENT_HASH_KEY: ${DOCUMENT_HASH_KEY:?set DOCUMENT_HASH_KEY in .env}
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-disputes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-disputes}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: dispute-intake-api
+    pull_policy: never
+    command: ["python", "scripts/bootstrap_db.py"]
+    restart: "no"
+    environment:
+      <<: *database
+      ADMIN_DATABASE_URL: postgresql://${POSTGRES_USER:-disputes}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/postgres
+      MIGRATION_DATABASE_URL: postgresql+psycopg://${POSTGRES_OWNER_USER:-disputes_owner}:${POSTGRES_OWNER_PASSWORD:?set POSTGRES_OWNER_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-disputes}
+      CORE_LOAD: ${CORE_LOAD:-auto}
+      SEED_SCENARIOS: ${SEED_SCENARIOS:-true}
+    volumes:
+      - ${CORE_DATA_DIR:-./data/core}:/srv/data/core:ro
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    image: dispute-intake-api
+    restart: unless-stopped
+    environment:
+      <<: *database
+      PSEUDONYM_KEY: ${PSEUDONYM_KEY:?set PSEUDONYM_KEY in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      TEST_OTP: ${TEST_OTP:?set TEST_OTP in .env}
+      OTP_TTL_MIN: ${OTP_TTL_MIN:-5}
+      OTP_MAX_FAILURES: ${OTP_MAX_FAILURES:-3}
+      OTP_FAILURE_WINDOW_MIN: ${OTP_FAILURE_WINDOW_MIN:-15}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
+      LLM_MODEL: ${LLM_MODEL:?set LLM_MODEL in .env}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-20}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      LLM_TURN_DEADLINE_SECONDS: ${LLM_TURN_DEADLINE_SECONDS:-20}
+      LLM_CONNECT_ENABLED: ${LLM_CONNECT_ENABLED:-true}
+      LLM_MAX_TOKENS_PER_CONVERSATION: ${LLM_MAX_TOKENS_PER_CONVERSATION:-}
+      LLM_INPUT_USD_PER_MTOK: ${LLM_INPUT_USD_PER_MTOK:-}
+      LLM_OUTPUT_USD_PER_MTOK: ${LLM_OUTPUT_USD_PER_MTOK:-}
+      LLM_CACHED_INPUT_USD_PER_MTOK: ${LLM_CACHED_INPUT_USD_PER_MTOK:-}
+      KEV_BASE_URL: ${KEV_BASE_URL:?set KEV_BASE_URL (https://api.typesafe.ai)}
+      KEV_API_KEY: ${KEV_API_KEY:?set KEV_API_KEY (the Jev key)}
+      KEV_MODEL: ${KEV_MODEL:-jev-latest}
+      KEV_TIMEOUT_SECONDS: ${KEV_TIMEOUT_SECONDS:-5}
+      AGENT_API_TOKEN: ${AGENT_API_TOKEN:-}
+      AUDIT_MESSAGE_MODE: ${AUDIT_MESSAGE_MODE:-masked}
+      RATE_LIMIT_REQUESTS_PER_MINUTE: ${RATE_LIMIT_REQUESTS_PER_MINUTE:-20}
+      AUTH_RATE_LIMIT_PER_MINUTE: ${AUTH_RATE_LIMIT_PER_MINUTE:-10}
+      FORWARDED_ALLOW_IPS: "*"
+    networks: [internal, edge]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+      start_interval: 2s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+      additional_contexts:
+        nginx: ./docker/frontend
+    image: dispute-intake-frontend
+    restart: unless-stopped
+    environment:
+      PUBLIC_API_RATE_PER_SECOND: ${PUBLIC_API_RATE_PER_SECOND:-10}
+      PUBLIC_API_BURST: ${PUBLIC_API_BURST:-40}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    networks: [edge]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+      start_interval: 2s
+    depends_on:
+      api:
+        condition: service_healthy
+
+networks:
+  internal:
+    internal: true
+  edge: {}
+
+volumes:
+  pgdata:
