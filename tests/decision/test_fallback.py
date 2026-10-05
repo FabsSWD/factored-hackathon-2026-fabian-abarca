@@ -136,3 +136,17 @@ def test_factory_with_and_without_kev() -> None:
     assert configured.configured
     unconfigured = decision_client_from_settings(Settings(**base))  # type: ignore[arg-type]
     assert not unconfigured.configured
+
+
+def test_factory_passes_the_jev_key_and_model_and_treats_empty_as_unset() -> None:
+    base = {"_env_file": None, "business_date": date(2026, 6, 17), "openai_api_key": SecretStr("x")}
+    jev = decision_client_from_settings(
+        Settings(  # type: ignore[arg-type]
+            **base, kev_base_url="https://jev.test", kev_api_key="k", kev_model="jev-latest"
+        )
+    )
+    assert jev.model == "jev-latest"
+    kev = decision_client_from_settings(
+        Settings(**base, kev_base_url="http://kev:8008", kev_api_key="", kev_model="")  # type: ignore[arg-type]
+    )
+    assert kev.model == "kev-latest"

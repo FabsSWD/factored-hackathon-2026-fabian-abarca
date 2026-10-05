@@ -10,6 +10,7 @@
 # API. Kev and PostgreSQL sit on the internal network, which has no route to the host or the
 # internet; the API joins both networks (it calls OpenAI). Overrides:
 #   docker-compose.gpu.yml   Kev on an NVIDIA GPU (otherwise it runs on CPU)
+#   docker-compose.jev.yml   Jev (hosted) instead of Kev, for machines that cannot run it
 #   docker-compose.dev.yml   local development: PostgreSQL on 127.0.0.1:5432, Kev on 127.0.0.1:8008
 # COMPOSE_FILE in .env selects them, so the command above stays the same.
 

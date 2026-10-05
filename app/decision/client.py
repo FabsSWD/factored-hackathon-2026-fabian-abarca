@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -57,8 +57,16 @@ class KevResponseError(ValueError):
 
 @dataclass(frozen=True)
 class KevConfig:
+    """Where the decision model is served: the local Kev container, or Jev (hosted, same API).
+
+    ``api_key`` is sent as a bearer token (Jev); ``model`` overrides the alias of the questions
+    file (for example ``jev-latest``).
+    """
+
     base_url: str
     timeout_seconds: float = 2.0
+    api_key: str | None = field(default=None, repr=False)
+    model: str | None = None
 
     def __post_init__(self) -> None:
         if not self.base_url:
@@ -73,6 +81,7 @@ class _Parsed:
     input_tokens: int | None
     output_tokens: int | None
     server_latency_ms: float | None
+    resolved_model: str | None = None
 
 
 class KevDecisionClient:
@@ -100,10 +109,15 @@ class KevDecisionClient:
     def model_info(self) -> dict[str, str]:
         return dict(self._model_info)
 
+    @property
+    def model(self) -> str:
+        """The model alias sent to the server: ``KEV_MODEL`` or the questions file's."""
+        return (self._config.model if self._config else None) or self._questions.model
+
     def request_body(self, message: str) -> dict[str, Any]:
-        """The exact request sent to Kev (pinned by the contract test)."""
+        """The exact request sent to Kev or Jev (pinned by the contract test)."""
         return {
-            "model": self._questions.model,
+            "model": self.model,
             "state": scrub_message(message),
             "questions": self._questions.questions,
         }
@@ -117,7 +131,7 @@ class KevDecisionClient:
                 response = await http.get("/v1/models")
             response.raise_for_status()
             models = response.json()["models"]
-            entry = next(m for m in models if m.get("name") == self._questions.model)
+            entry = next(m for m in models if m.get("name") == self.model)
             self._model_info = {
                 field: str(entry[field]) for field in MODEL_INFO_FIELDS if field in entry
             }
@@ -179,7 +193,7 @@ class KevDecisionClient:
         self._recorder(
             ModelCall(
                 provider=PROVIDER,
-                model=self._questions.model,
+                model=self.model,
                 purpose=MODEL_INFO_PURPOSE,
                 latency_ms=max(0.0, (self._monotonic() - started) * 1000),
                 success=False,
@@ -189,8 +203,14 @@ class KevDecisionClient:
 
     def _http(self, timeout: float) -> httpx.AsyncClient:
         assert self._config is not None
+        headers = (
+            {"Authorization": f"Bearer {self._config.api_key}"} if self._config.api_key else {}
+        )
         return httpx.AsyncClient(
-            base_url=self._config.base_url, timeout=timeout, transport=self._transport
+            base_url=self._config.base_url,
+            headers=headers,
+            timeout=timeout,
+            transport=self._transport,
         )
 
     def _parse(self, payload: Any) -> _Parsed:
@@ -225,10 +245,12 @@ class KevDecisionClient:
 
         usage = payload.get("usage") or {}
         latency = payload.get("latency_ms")
+        resolved = payload.get("model")
+        resolved = resolved if isinstance(resolved, str) and resolved else None
         return _Parsed(
             signals=ModelSignals(
                 source=ModelSource.KEV,
-                model_version=self._model_version(),
+                model_version=self._model_version(resolved),
                 model_info={
                     key: value
                     for key, value in self._model_info.items()
@@ -242,14 +264,17 @@ class KevDecisionClient:
             input_tokens=_count(usage.get("input_tokens")),
             output_tokens=_count(usage.get("output_tokens")),
             server_latency_ms=_latency(latency),
+            resolved_model=resolved,
         )
 
-    def _model_version(self) -> str:
+    def _model_version(self, resolved: str | None) -> str:
+        """Run and release date when known; else the model the server resolved (Jev: the
+        versioned id behind ``jev-latest``; Kev echoes the alias)."""
         run = self._model_info.get("run")
         release = self._model_info.get("release_date")
         if run and release:
             return f"{run}@{release}"
-        return self._questions.model
+        return resolved or self.model
 
     def _record(self, started: float, parsed: _Parsed | None, error: str | None) -> None:
         if self._recorder is None:
@@ -257,8 +282,9 @@ class KevDecisionClient:
         self._recorder(
             ModelCall(
                 provider=PROVIDER,
-                model=self._questions.model,
-                response_model=self._model_info.get("run"),
+                model=self.model,
+                response_model=self._model_info.get("run")
+                or (parsed.resolved_model if parsed else None),
                 prompt_version=self._questions.prompt_version,
                 prompt_hash=self._questions.prompt_hash,
                 purpose=PURPOSE,

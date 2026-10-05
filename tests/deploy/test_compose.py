@@ -154,6 +154,34 @@ def test_gpu_override_reserves_a_gpu_for_kev_only(tmp_path: Path) -> None:
     assert all("deploy" not in s for name, s in services.items() if name != "kev")
 
 
+def test_jev_override_leaves_kev_out_and_points_the_api_at_jev(tmp_path: Path) -> None:
+    env = {
+        **SECRETS,
+        "KEV_BASE_URL": "https://jev.test",
+        "KEV_API_KEY": "jev-secret",
+        "KEV_MODEL": "jev-latest",
+    }
+    result = compose_config(tmp_path, "docker-compose.yml", "docker-compose.jev.yml", env=env)
+    assert result.returncode == 0, result.stderr
+    services = json.loads(result.stdout)["services"]
+    assert set(services) == {"frontend", "api", "postgres", "migrate"}
+    api_env = services["api"]["environment"]
+    assert api_env["KEV_BASE_URL"] == "https://jev.test"
+    assert api_env["KEV_API_KEY"] == "jev-secret"
+    assert api_env["KEV_MODEL"] == "jev-latest"
+    assert api_env["KEV_TIMEOUT_SECONDS"] == "5"  # the cloud round trip is slower than Kev's
+    assert "edge" in services["api"]["networks"]  # the way out to Jev
+
+
+@pytest.mark.parametrize("missing", ["KEV_BASE_URL", "KEV_API_KEY"])
+def test_jev_override_refuses_a_missing_url_or_key(tmp_path: Path, missing: str) -> None:
+    env = {**SECRETS, "KEV_BASE_URL": "https://jev.test", "KEV_API_KEY": "k"}
+    del env[missing]
+    result = compose_config(tmp_path, "docker-compose.yml", "docker-compose.jev.yml", env=env)
+    assert result.returncode != 0
+    assert missing in result.stderr
+
+
 def test_dev_override_publishes_on_loopback_only(tmp_path: Path) -> None:
     result = compose_config(tmp_path, "docker-compose.yml", "docker-compose.dev.yml")
     assert result.returncode == 0, result.stderr

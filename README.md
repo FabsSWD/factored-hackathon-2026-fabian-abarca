@@ -180,7 +180,19 @@ It builds the images that are missing, starts five services and returns when eve
 - **Rate limits.** nginx limits every `/api` and `/auth` request per client IP (`PUBLIC_API_RATE_PER_SECOND`, `PUBLIC_API_BURST`; 429 past it), in front of the API's own limits per session and per IP on the login. nginx replaces `X-Forwarded-For` with the client IP, so the API's per-IP limits see the real client. Behind another proxy that terminates TLS, set nginx's `real_ip` to it.
 - **Configuration.** Everything comes from `.env` ([.env.example](.env.example), "Docker Compose"). The stack builds its own database URLs for the host `postgres` from `POSTGRES_USER`/`POSTGRES_PASSWORD` (admin), `POSTGRES_OWNER_*` and `POSTGRES_APP_*`. The API gets only the app role. A missing secret stops `docker compose` with its name. `COMPOSE_FILE` selects the overrides:
   - `docker-compose.gpu.yml`: Kev on an NVIDIA GPU.
+  - `docker-compose.jev.yml`: Jev, TypeSafe's hosted version of Kev, instead of the local container. See below.
   - `docker-compose.dev.yml`: development only, PostgreSQL on `127.0.0.1:5432` and Kev on `127.0.0.1:8008` for the test suite and the local scripts.
+
+**Jev, for machines that cannot run Kev.** Jev serves a similar model than Kev through the TypeSafe API (`POST /v1/systemone`, `GET /v1/models`), so the application, the policy, the audit trail and the evaluation work unchanged on either. The stack then starts four services: `kev` is left out and the API calls Jev over the edge network. Create a key in [console.typesafe.ai](https://console.typesafe.ai/) and set, in `.env`:
+
+```
+COMPOSE_FILE=docker-compose.yml:docker-compose.jev.yml
+KEV_BASE_URL=https://api.typesafe.ai
+KEV_API_KEY=<the key>
+KEV_MODEL=jev-latest
+```
+
+The key travels as a bearer token and is never logged. `jev-latest` follows TypeSafe's latest stable release; I pin `jev-1.13.0` when I want answers that never shift, and every trace records the exact version the server resolved. Jev is billed only on input tokens ($0.042 per million; output is free), so a turn costs a fraction of a cent, and it is not part of the estimated cost of a turn. The cloud round trip is slower than a local container, so the timeout defaults to 5 seconds here (`KEV_TIMEOUT_SECONDS`). On a timeout, a 429 or a 529 the same extraction fallback as with Kev takes over, without retries. TypeSafe documents English as the most accurate language, so I check Spanish and Portuguese with the evaluation before a demo on Jev.
 
 Smoke test (one real OpenAI and Kev turn):
 
