@@ -187,8 +187,11 @@ def test_jev_standalone_file_resolves_like_the_base_plus_the_override(tmp_path: 
     expected = json.loads(layered.stdout)
     actual = json.loads(alone.stdout)
     assert "kev" not in actual["services"]
-    # Same services, but for Kev, which the override only moves to a profile.
+    # Same services, but for Kev (the override only moves it to a profile) and the published
+    # port: behind the platform's proxy nothing is published on the host.
     expected["services"].pop("kev")
+    assert "ports" not in actual["services"]["frontend"]
+    expected["services"]["frontend"].pop("ports")
     actual.pop("name"), expected.pop("name")
     assert actual == expected
 

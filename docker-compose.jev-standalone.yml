@@ -1,7 +1,9 @@
 # The whole system with Jev (TypeSafe's hosted decision model) and no Kev service at all: the
 # same stack as docker-compose.yml + docker-compose.jev.yml in ONE file, for platforms that take
 # a single compose file (Coolify: "Docker Compose Location" = /docker-compose.jev-standalone.yml).
-# tests/deploy/test_compose.py keeps it identical to base + override.
+# tests/deploy/test_compose.py keeps it identical to base + override, except that it publishes
+# no host port: the platform's proxy (Traefik) reaches the frontend on its container port 80, so
+# set the domain on the "frontend" service with port 80.
 #
 # Set in the platform's environment: KEV_BASE_URL=https://api.typesafe.ai, KEV_API_KEY, and
 # optionally KEV_MODEL (jev-latest) and KEV_TIMEOUT_SECONDS (5), besides the secrets of .env.example.
@@ -105,8 +107,6 @@ services:
     environment:
       PUBLIC_API_RATE_PER_SECOND: ${PUBLIC_API_RATE_PER_SECOND:-10}
       PUBLIC_API_BURST: ${PUBLIC_API_BURST:-40}
-    ports:
-      - "${FRONTEND_PORT:-8080}:80"
     networks: [edge]
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
