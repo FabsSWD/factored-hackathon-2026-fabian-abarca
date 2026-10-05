@@ -1,0 +1,20 @@
+# Jev (TypeSafe's hosted decision model) instead of the local Kev container, for machines that
+# cannot run Kev (its image is about 16 GB and the container needs about 6 GB of memory).
+# Select it in .env, together with the Jev settings (replacing docker-compose.gpu.yml):
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.jev.yml
+#   KEV_BASE_URL=https://api.typesafe.ai   KEV_API_KEY=<key from console.typesafe.ai/keys>
+#   KEV_MODEL=jev-latest                   (or pin jev-1.13.0 so answers never shift)
+# Kev is left out of the stack (it only starts with the "local-kev" profile) and the API calls
+# Jev over the edge network. The request and the response are the same as Kev's.
+# The round trip to the cloud is slower than to a local container: KEV_TIMEOUT_SECONDS defaults
+# to 5 here; past it, or on a 429/529, the turn uses the LLM fallback.
+services:
+  kev:
+    profiles: ["local-kev"]
+
+  api:
+    environment:
+      KEV_BASE_URL: ${KEV_BASE_URL:?set KEV_BASE_URL in .env (https://api.typesafe.ai)}
+      KEV_API_KEY: ${KEV_API_KEY:?set KEV_API_KEY in .env (the Jev key)}
+      KEV_MODEL: ${KEV_MODEL:-jev-latest}
+      KEV_TIMEOUT_SECONDS: ${KEV_TIMEOUT_SECONDS:-5}

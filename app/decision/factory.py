@@ -12,7 +12,12 @@ def decision_client_from_settings(
 ) -> KevDecisionClient:
     """Without ``KEV_BASE_URL`` the client is unconfigured and always returns unavailable."""
     config = (
-        KevConfig(settings.kev_base_url, settings.kev_timeout_seconds)
+        KevConfig(
+            settings.kev_base_url,
+            settings.kev_timeout_seconds,
+            api_key=settings.kev_api_key.get_secret_value() if settings.kev_api_key else None,
+            model=settings.kev_model,
+        )
         if settings.kev_base_url
         else None
     )

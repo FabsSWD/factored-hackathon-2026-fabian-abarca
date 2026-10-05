@@ -64,9 +64,17 @@ class Settings(BaseSettings):
     # LLM tokens per conversation (architecture §7); past it the LLM is not called again.
     llm_max_tokens_per_conversation: int | None = Field(default=None, gt=0)
 
-    # Decision model (Kev, TypeSafe API). Empty base URL: Kev is not configured.
+    # Decision model: Kev (local container) or Jev (TypeSafe's hosted version, same API). Empty
+    # base URL: not configured. The API key (bearer) and the model alias are for Jev.
     kev_base_url: str | None = None
     kev_timeout_seconds: float = Field(default=2.0, gt=0)
+    kev_api_key: SecretStr | None = None
+    kev_model: str | None = None
+
+    @field_validator("kev_api_key", "kev_model", mode="before")
+    @classmethod
+    def _empty_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
 
     # Audit (M11): the agent role's bearer token, what the trace keeps of the customer's
     # message, and the token rates for the estimated cost (unknown without them).

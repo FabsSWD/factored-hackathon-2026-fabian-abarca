@@ -389,3 +389,66 @@ def test_serving_details_failure_without_a_recorder(fake: FakeKev) -> None:
         KevConfig(BASE_URL, 2.0), load_kev_questions(), httpx.MockTransport(fake.handler)
     )
     assert signals(client).model_version == "kev-latest"
+
+
+# --- Jev (hosted): the same API with a bearer key and its own model alias ---------------------
+
+
+def test_jev_sends_the_key_and_its_model_alias_on_every_request(
+    fake: FakeKev, calls: list[ModelCall]
+) -> None:
+    headers: list[str | None] = []
+    models = copy.deepcopy(fixture("kev_models.json"))
+    models["models"][0]["name"] = "jev-latest"
+    models["models"][0]["run"] = "typesafe/jev"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        headers.append(request.headers.get("Authorization"))
+        if request.url.path == "/v1/models":
+            return response(models)
+        return fake.handler(request)
+
+    fake.responses = [response(REAL_ES)]
+    client = KevDecisionClient(
+        KevConfig(BASE_URL, 2.0, api_key="jev-secret", model="jev-latest"),
+        load_kev_questions(),
+        httpx.MockTransport(handler),
+        calls.append,
+    )
+    result = signals(client)
+    assert result.source is ModelSource.KEV
+    assert headers == ["Bearer jev-secret", "Bearer jev-secret"]  # /v1/systemone and /v1/models
+    assert json.loads(fake.requests[0].content)["model"] == "jev-latest"
+    assert result.model_version.startswith("typesafe/jev@")
+    assert calls[0].model == "jev-latest"
+    assert "jev-secret" not in repr(KevConfig(BASE_URL, 2.0, api_key="jev-secret"))
+
+
+def test_without_a_key_or_model_the_request_is_kevs(client: KevDecisionClient) -> None:
+    assert client.model == "kev-latest"
+
+
+def test_jev_traces_name_the_version_the_server_resolved(
+    fake: FakeKev, calls: list[ModelCall]
+) -> None:
+    # Documented Jev shape: /v1/models lists the alias with a release date (no run), no
+    # latency_ms in the answer, and the response's model is the versioned id.
+    models = {"models": [{"name": "jev-latest", "description": "flagship", "release_date": "x"}]}
+    payload = mutate(lambda p: p.update({"model": "jev-1.13.0"}))
+    del payload["latency_ms"]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return response(models if request.url.path == "/v1/models" else payload)
+
+    client = KevDecisionClient(
+        KevConfig(BASE_URL, 2.0, api_key="k", model="jev-latest"),
+        load_kev_questions(),
+        httpx.MockTransport(handler),
+        calls.append,
+    )
+    result = signals(client)
+    assert result.source is ModelSource.KEV
+    assert result.model_version == "jev-1.13.0"
+    (call,) = calls
+    assert (call.model, call.response_model) == ("jev-latest", "jev-1.13.0")
+    assert call.server_latency_ms is None
